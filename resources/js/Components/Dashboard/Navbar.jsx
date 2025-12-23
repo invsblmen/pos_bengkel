@@ -1,76 +1,106 @@
-import React, { useEffect, useState } from 'react'
-import { usePage } from '@inertiajs/react';
-import { IconAlignLeft, IconMoon, IconSun } from '@tabler/icons-react'
-import AuthDropdown from '@/Components/Dashboard/AuthDropdown';
-import Menu from '@/Utils/Menu';
-import Notification from '@/Components/Dashboard/Notification';
+import React, { useEffect, useState } from "react";
+import { usePage } from "@inertiajs/react";
+import { IconMenu2, IconMoon, IconSun, IconSearch } from "@tabler/icons-react";
+import AuthDropdown from "@/Components/Dashboard/AuthDropdown";
+import Menu from "@/Utils/Menu";
+import Notification from "@/Components/Dashboard/Notification";
 
 export default function Navbar({ toggleSidebar, themeSwitcher, darkMode }) {
-    // destruct auth from props
     const { auth } = usePage().props;
-
-    // get menu from utils
     const menuNavigation = Menu();
 
-    // recreate array from menu navigations
+    // Get current page title
     const links = menuNavigation.flatMap((item) => item.details);
-    const filter_sublinks = links.filter((item) => item.hasOwnProperty('subdetails'));
-    const sublinks = filter_sublinks.flatMap((item) => item.subdetails);
+    const sublinks = links
+        .filter((item) => item.hasOwnProperty("subdetails"))
+        .flatMap((item) => item.subdetails);
 
-    // define state isMobile
+    const getCurrentTitle = () => {
+        for (const link of links) {
+            if (link.hasOwnProperty("subdetails")) {
+                const activeSublink = sublinks.find((s) => s.active);
+                if (activeSublink) return activeSublink.title;
+            } else if (link.active) {
+                return link.title;
+            }
+        }
+        return "Dashboard";
+    };
+
     const [isMobile, setIsMobile] = useState(false);
 
-    // define useEffect
     useEffect(() => {
-        // define handle resize window
-        const handleResize = () => {
-            setIsMobile(window.innerWidth <= 768);
-        };
-
-        // define event listener
-        window.addEventListener('resize', handleResize);
-
-        // call handle resize window
+        const handleResize = () => setIsMobile(window.innerWidth <= 768);
+        window.addEventListener("resize", handleResize);
         handleResize();
-
-        // remove event listener
-        return () => {
-            window.removeEventListener('resize', handleResize);
-        };
-    })
+        return () => window.removeEventListener("resize", handleResize);
+    }, []);
 
     return (
-        <div className='py-8 px-4 md:px-6 flex justify-between items-center min-w-full sticky top-0 z-20 h-16 border-b bg-white dark:border-gray-900 dark:bg-gray-950'>
-            <div className='flex items-center gap-4'>
-                <button className='text-gray-700 dark:text-gray-400 hidden md:block' onClick={toggleSidebar}>
-                    <IconAlignLeft size={18} strokeWidth={1.5} />
+        <header
+            className="sticky top-0 z-30 h-16 flex items-center justify-between px-4 md:px-6
+            bg-white dark:bg-slate-900
+            border-b border-slate-200 dark:border-slate-800
+            transition-colors duration-200"
+        >
+            {/* Left Section */}
+            <div className="flex items-center gap-4">
+                {/* Sidebar Toggle */}
+                <button
+                    onClick={toggleSidebar}
+                    className="hidden md:flex p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition-colors"
+                    title="Toggle Sidebar"
+                >
+                    <IconMenu2 size={20} strokeWidth={1.5} />
                 </button>
-                <div className='flex flex-row items-center gap-1 md:border-l-2 md:border-double md:px-4 dark:border-gray-900'>
-                    {/* {links.map((link, i) => (
-                        link.hasOwnProperty('subdetails') ?
-                            sublinks.map((sublink, x) => sublink.active === true && <span className='font-semibold text-sm md:text-base text-gray-700 dark:text-gray-400' key={x}>{sublink.title}</span>)
-                            :
-                            link.active === true && <span className='font-semibold text-sm md:text-base text-gray-700 dark:text-gray-400' key={i}>{link.title}</span>
-                    ))} */}
-                    {links.map((link, i) => (
-                        link.hasOwnProperty('subdetails') ?
-                            sublinks.map((sublink, x) => sublink.active === true && <span className='font-semibold text-sm md:text-base text-gray-700 dark:text-gray-400' key={x}>{sublink.title}</span>)
-                            :
-                            link.active === true && <span className='font-semibold text-sm md:text-base text-gray-700 dark:text-gray-400 ' key={i}>{link.title}</span>
-                    ))}
+
+                {/* Mobile Logo */}
+                <div className="md:hidden flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center">
+                        <span className="text-white font-bold text-xs">K</span>
+                    </div>
+                    <span className="text-lg font-bold text-slate-800 dark:text-white">
+                        KASIR
+                    </span>
+                </div>
+
+                {/* Current Page Title */}
+                <div className="hidden md:flex items-center">
+                    <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mr-4" />
+                    <h1 className="text-base font-semibold text-slate-800 dark:text-slate-200">
+                        {getCurrentTitle()}
+                    </h1>
                 </div>
             </div>
-            <div className='flex items-center gap-4'>
-                <div className='flex flex-row items-center gap-1 border-r-2 border-double px-4 dark:border-gray-900'>
-                    <div className='flex flex-row gap-2'>
-                        <button className='p-2 rounded-md text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-900 ' onClick={themeSwitcher}>
-                            {darkMode ? <IconSun strokeWidth={1.5} size={18} /> : <IconMoon strokeWidth={1.5} size={18} />}
-                        </button>
-                        <Notification />
-                    </div>
-                </div>
+
+            {/* Right Section */}
+            <div className="flex items-center gap-2">
+                {/* Theme Toggle */}
+                <button
+                    onClick={themeSwitcher}
+                    className="p-2.5 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition-colors"
+                    title={darkMode ? "Light Mode" : "Dark Mode"}
+                >
+                    {darkMode ? (
+                        <IconSun
+                            size={20}
+                            strokeWidth={1.5}
+                            className="text-amber-500"
+                        />
+                    ) : (
+                        <IconMoon size={20} strokeWidth={1.5} />
+                    )}
+                </button>
+
+                {/* Notifications */}
+                <Notification />
+
+                {/* Divider */}
+                <div className="w-px h-8 bg-slate-200 dark:bg-slate-700 mx-1" />
+
+                {/* User Dropdown */}
                 <AuthDropdown auth={auth} isMobile={isMobile} />
             </div>
-        </div>
-    )
+        </header>
+    );
 }

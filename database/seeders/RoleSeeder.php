@@ -1,8 +1,6 @@
 <?php
-
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -27,12 +25,22 @@ class RoleSeeder extends Seeder
         $this->createRoleWithPermissions('payment-settings-access', '%payment-settings%');
 
         Role::create(['name' => 'super-admin']);
+
+        // Create cashier role with basic permissions for public registration
+        $cashierRole        = Role::create(['name' => 'cashier']);
+        $cashierPermissions = Permission::whereIn('name', [
+            'dashboard-access',
+            'transactions-access',
+            'customers-access',
+            'customers-create',
+        ])->get();
+        $cashierRole->givePermissionTo($cashierPermissions);
     }
 
     private function createRoleWithPermissions($roleName, $permissionNamePattern)
     {
         $permissions = Permission::where('name', 'like', $permissionNamePattern)->get();
-        $role = Role::create(['name' => $roleName]);
+        $role        = Role::create(['name' => $roleName]);
         $role->givePermissionTo($permissions);
     }
 }

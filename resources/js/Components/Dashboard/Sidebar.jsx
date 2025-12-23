@@ -1,6 +1,6 @@
 import React from "react";
 import { usePage } from "@inertiajs/react";
-import { IconBrandReact } from "@tabler/icons-react";
+import { IconLayoutGrid } from "@tabler/icons-react";
 import LinkItem from "@/Components/Dashboard/LinkItem";
 import LinkItemDropdown from "@/Components/Dashboard/LinkItemDropdown";
 import Menu from "@/Utils/Menu";
@@ -10,109 +10,135 @@ export default function Sidebar({ sidebarOpen }) {
     const menuNavigation = Menu();
 
     return (
-        <div className={`${sidebarOpen ? 'w-[260px]' : 'w-[100px]'} hidden md:block min-h-screen overflow-y-auto border-r transition-all duration-300 bg-white dark:bg-gray-950 dark:border-gray-900`}>
-            {sidebarOpen ? (
-                <>
-                    <div className="flex justify-center items-center px-6 py-2 h-16">
-                        <div className="text-2xl font-bold text-center leading-loose tracking-wider text-gray-900 dark:text-gray-200">
+        <div
+            className={`
+            ${sidebarOpen ? "w-[260px]" : "w-[80px]"}
+            hidden md:flex flex-col min-h-screen
+            border-r border-slate-200 dark:border-slate-800
+            bg-white dark:bg-slate-900
+            transition-all duration-300 ease-in-out
+        `}
+        >
+            {/* Logo */}
+            <div className="flex items-center justify-center h-16 border-b border-slate-100 dark:border-slate-800">
+                {sidebarOpen ? (
+                    <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center">
+                            <span className="text-white font-bold text-sm">
+                                K
+                            </span>
+                        </div>
+                        <span className="text-xl font-bold text-slate-800 dark:text-white">
                             KASIR
-                        </div>
+                        </span>
                     </div>
-                    <div className="w-full p-3 flex items-center gap-4 border-b border-t dark:bg-gray-950/50 dark:border-gray-900">
-                        <img src={auth.user.avatar ? auth.user.avatar : "https://ui-avatars.com/api/?name=" + auth.user.name} className="w-12 h-12 rounded-full" />
-                        <div className="flex flex-col gap-0.5">
-                            <div className="text-sm font-semibold capitalize text-gray-700 dark:text-gray-50">
-                                {auth.user.name}
-                            </div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400">
-                                {auth.user.email}
-                            </div>
-                        </div>
+                ) : (
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center">
+                        <span className="text-white font-bold text-sm">K</span>
                     </div>
-                    <div className="w-full flex flex-col overflow-y-auto">
-                        {menuNavigation.map((item, index) => (
-                            item.details.some(detail => detail.permissions === true) && (
-                                <div key={index}>
-                                    <div className="text-gray-500 text-xs py-3 px-4 font-bold uppercase">
-                                        {item.title}
-                                    </div>
-                                    {item.details.map((detail, indexDetail) => (
-                                        detail.permissions === true && (
-                                            detail.hasOwnProperty('subdetails') ? (
-                                                <LinkItemDropdown
-                                                    key={indexDetail}
-                                                    title={detail.title}
-                                                    icon={detail.icon}
-                                                    data={detail.subdetails}
-                                                    access={detail.permissions}
-                                                    sidebarOpen={sidebarOpen}
-                                                />
-                                            ) : (
-                                                <LinkItem
-                                                    key={indexDetail}
-                                                    title={detail.title}
-                                                    icon={detail.icon}
-                                                    href={detail.href}
-                                                    access={detail.permissions}
-                                                    sidebarOpen={sidebarOpen}
-                                                />
-                                            )
-                                        )
-                                    ))}
+                )}
+            </div>
+
+            {/* User Info */}
+            <div
+                className={`
+                p-3 border-b border-slate-100 dark:border-slate-800
+                ${
+                    sidebarOpen
+                        ? "flex items-center gap-3"
+                        : "flex justify-center"
+                }
+            `}
+            >
+                <img
+                    src={
+                        auth.user.avatar ||
+                        `https://ui-avatars.com/api/?name=${auth.user.name}&background=6366f1&color=fff`
+                    }
+                    className={`rounded-full ring-2 ring-slate-100 dark:ring-slate-800 ${
+                        sidebarOpen ? "w-10 h-10" : "w-8 h-8"
+                    }`}
+                    alt={auth.user.name}
+                />
+                {sidebarOpen && (
+                    <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">
+                            {auth.user.name}
+                        </p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                            {auth.user.email}
+                        </p>
+                    </div>
+                )}
+            </div>
+
+            {/* Navigation */}
+            <nav className="flex-1 overflow-y-auto py-3 scrollbar-thin">
+                {menuNavigation.map((section, index) => {
+                    const hasPermission = section.details.some(
+                        (detail) => detail.permissions === true
+                    );
+                    if (!hasPermission) return null;
+
+                    return (
+                        <div key={index} className="mb-2">
+                            {/* Section Title */}
+                            {sidebarOpen && (
+                                <div className="px-4 py-2">
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-600">
+                                        {section.title}
+                                    </span>
                                 </div>
-                            )
-                        ))}
-                    </div>
-                </>
-            ) : (
-                <>
-                    <div className="flex justify-center items-center px-6 py-2 h-16 border-b dark:border-gray-900">
-                        <IconBrandReact size={20} strokeWidth={1.5} className="sidebar-title" />
-                    </div>
-                    <div className='w-full px-6 py-3 flex justify-center items-center gap-4 border-b bg-white dark:bg-gray-950/50 dark:border-gray-900'>
-                        <img src={auth.user.avatar ? auth.user.avatar : "https://ui-avatars.com/api/?name=" + auth.user.name} className='w-8 h-8 rounded-full' />
-                    </div>
-                    <div className="w-full flex flex-col overflow-y-auto items-center justify-center">
-                        {menuNavigation.map((link, i) => {
-                            const visibleDetails = link.details.filter(
-                                (detail) => detail.permissions === true
-                            );
+                            )}
 
-                            if (!visibleDetails.length) {
-                                return null;
-                            }
+                            {/* Menu Items */}
+                            <div
+                                className={
+                                    sidebarOpen
+                                        ? ""
+                                        : "flex flex-col items-center"
+                                }
+                            >
+                                {section.details.map((detail, idx) => {
+                                    if (!detail.permissions) return null;
 
-                            return (
-                                <div
-                                    className="flex flex-col min-w-full items-center relative"
-                                    key={i}
-                                >
-                                    {visibleDetails.map((detail, x) =>
-                                        detail.hasOwnProperty("subdetails") ? (
+                                    if (detail.hasOwnProperty("subdetails")) {
+                                        return (
                                             <LinkItemDropdown
-                                                sidebarOpen={sidebarOpen}
-                                                key={x}
+                                                key={idx}
                                                 title={detail.title}
+                                                icon={detail.icon}
                                                 data={detail.subdetails}
-                                                icon={detail.icon}
                                                 access={detail.permissions}
-                                            />
-                                        ) : (
-                                            <LinkItem
                                                 sidebarOpen={sidebarOpen}
-                                                key={x}
-                                                access={detail.permissions}
-                                                icon={detail.icon}
-                                                href={detail.href}
-                                                title={detail.title}
                                             />
-                                        )
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
-                </>
+                                        );
+                                    }
+
+                                    return (
+                                        <LinkItem
+                                            key={idx}
+                                            title={detail.title}
+                                            icon={detail.icon}
+                                            href={detail.href}
+                                            access={detail.permissions}
+                                            sidebarOpen={sidebarOpen}
+                                        />
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    );
+                })}
+            </nav>
+
+            {/* Version/Footer */}
+            {sidebarOpen && (
+                <div className="p-4 border-t border-slate-100 dark:border-slate-800">
+                    <p className="text-[10px] text-slate-400 dark:text-slate-600 text-center">
+                        Point of Sales v2.0
+                    </p>
+                </div>
             )}
         </div>
     );

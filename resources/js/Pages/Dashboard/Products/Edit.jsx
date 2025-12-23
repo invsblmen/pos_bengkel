@@ -1,20 +1,25 @@
-import React, { useEffect, useState } from 'react'
-import DashboardLayout from '@/Layouts/DashboardLayout'
-import { Head, useForm, usePage } from '@inertiajs/react'
-import Card from '@/Components/Dashboard/Card'
-import Button from '@/Components/Dashboard/Button'
-import { IconPencilPlus, IconUsersPlus } from '@tabler/icons-react'
-import Input from '@/Components/Dashboard/Input'
-import Textarea from '@/Components/Dashboard/TextArea'
-import toast from 'react-hot-toast'
-import InputSelect from '@/Components/Dashboard/InputSelect'
+import React, { useEffect, useState } from "react";
+import DashboardLayout from "@/Layouts/DashboardLayout";
+import { Head, useForm, usePage, Link } from "@inertiajs/react";
+import Input from "@/Components/Dashboard/Input";
+import Textarea from "@/Components/Dashboard/TextArea";
+import InputSelect from "@/Components/Dashboard/InputSelect";
+import toast from "react-hot-toast";
+import {
+    IconPackage,
+    IconDeviceFloppy,
+    IconArrowLeft,
+    IconPhoto,
+    IconBarcode,
+    IconCurrencyDollar,
+} from "@tabler/icons-react";
+import { getProductImageUrl } from "@/Utils/imageUrl";
 
 export default function Edit({ categories, product }) {
-
-    const { errors } = usePage().props
+    const { errors } = usePage().props;
 
     const { data, setData, post, processing } = useForm({
-        image: '',
+        image: "",
         barcode: product.barcode,
         title: product.title,
         category_id: product.category_id,
@@ -22,224 +27,220 @@ export default function Edit({ categories, product }) {
         buy_price: product.buy_price,
         sell_price: product.sell_price,
         stock: product.stock,
-        _method: 'PUT'
-    })
+        _method: "PUT",
+    });
 
-    const [selectedCategory, setSelectedCategory] = useState(null)
-    // Set gender
-    const setSelectedCategoryHandler = (value) => {
-        setSelectedCategory(value)
-        setData('category_id', value.id)
-    }
+    const [selectedCategory, setSelectedCategory] = useState(null);
+    const [imagePreview, setImagePreview] = useState(
+        product.image ? getProductImageUrl(product.image) : null
+    );
 
     useEffect(() => {
         if (product.category_id) {
-            setSelectedCategory(categories.find(category => category.id === product.category_id))
+            setSelectedCategory(
+                categories.find((cat) => cat.id === product.category_id)
+            );
         }
-    }, [product.category_id])
+    }, [product.category_id]);
+
+    const setSelectedCategoryHandler = (value) => {
+        setSelectedCategory(value);
+        setData("category_id", value?.id || "");
+    };
 
     const handleImageChange = (e) => {
-        const image = e.target.files[0]
-        setData('image', image)
-    }
+        const file = e.target.files[0];
+        if (file) {
+            setData("image", file);
+            setImagePreview(URL.createObjectURL(file));
+        }
+    };
 
     const submit = (e) => {
-        e.preventDefault()
-        post(route('products.update', product.id), {
-            onSuccess: () => {
-                if (Object.keys(errors).length === 0) {
-                    toast('Data berhasil diubah', {
-                        icon: '👏',
-                        style: {
-                            borderRadius: '10px',
-                            background: '#1C1F29',
-                            color: '#fff',
-                        },
-                    })
-                }
-            },
-            onError: () => {
-                toast('Terjadi kesalahan dalam penyimpanan data', {
-                    style: {
-                        borderRadius: '10px',
-                        background: '#FF0000',
-                        color: '#fff',
-                    },
-                })
-            },
-        })
-    }
+        e.preventDefault();
+        post(route("products.update", product.id), {
+            onSuccess: () => toast.success("Produk berhasil diperbarui"),
+            onError: () => toast.error("Gagal memperbarui produk"),
+        });
+    };
 
     return (
         <>
-            <Head title='Ubah Data Produk' />
-            <Card
-                title={'Ubah Data Produk'}
-                icon={<IconUsersPlus size={20} strokeWidth={1.5} />}
-                footer={
-                    <Button
-                        type={'submit'}
-                        label={'Ubah'}
-                        icon={<IconPencilPlus size={20} strokeWidth={1.5} />}
-                        className={'border bg-white text-gray-700 hover:bg-gray-100 dark:bg-gray-950 dark:border-gray-800 dark:text-gray-200 dark:hover:bg-gray-900'}
-                    />
-                }
-                form={submit}
-            >
+            <Head title="Edit Produk" />
 
-                <div className='grid grid-cols-12 gap-4'>
-                    <div className='col-span-12'>
-                        <Input
-                            type={'file'}
-                            label={'Gambar'}
-                            onChange={handleImageChange}
-                            errors={errors.image}
-                            placeholder={'Gambar produk'}
-                        />
+            <div className="mb-6">
+                <Link
+                    href={route("products.index")}
+                    className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-primary-600 mb-3"
+                >
+                    <IconArrowLeft size={16} />
+                    Kembali ke Produk
+                </Link>
+                <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <IconPackage size={28} className="text-primary-500" />
+                    Edit Produk
+                </h1>
+                <p className="text-sm text-slate-500 mt-1">{product.title}</p>
+            </div>
+
+            <form onSubmit={submit}>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Left - Image */}
+                    <div className="lg:col-span-1">
+                        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
+                            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4 flex items-center gap-2">
+                                <IconPhoto size={18} />
+                                Gambar Produk
+                            </h3>
+                            <div className="aspect-square rounded-xl bg-slate-100 dark:bg-slate-800 border-2 border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center overflow-hidden mb-4">
+                                {imagePreview ? (
+                                    <img
+                                        src={imagePreview}
+                                        alt="Preview"
+                                        className="w-full h-full object-cover"
+                                    />
+                                ) : (
+                                    <div className="text-center p-6">
+                                        <IconPhoto
+                                            size={48}
+                                            className="mx-auto text-slate-400 mb-2"
+                                        />
+                                        <p className="text-sm text-slate-500">
+                                            Belum ada gambar
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                            <Input
+                                type="file"
+                                label="Ganti Gambar"
+                                onChange={handleImageChange}
+                                errors={errors.image}
+                                accept="image/*"
+                            />
+                        </div>
                     </div>
-                    <div className='col-span-12'>
-                        <InputSelect
-                            label="Kategori"
-                            data={categories}
-                            selected={selectedCategory}
-                            setSelected={setSelectedCategoryHandler}
-                            placeholder="Pilih kategori"
-                            errors={errors.category_id}
-                            multiple={false}
-                            searchable={true}
-                            displayKey='name'
-                        />
-                    </div>
-                    <div className='col-span-12'>
-                        <Input
-                            type={'text'}
-                            label={'Kode Produk/Barcode'}
-                            value={data.barcode}
-                            onChange={e => setData('barcode', e.target.value)}
-                            errors={errors.barcode}
-                            placeholder={'Barcode'}
-                        />
-                    </div>
-                    <div className='col-span-6'>
-                        <Input
-                            type={'text'}
-                            label={'Nama'}
-                            value={data.title}
-                            onChange={e => setData('title', e.target.value)}
-                            errors={errors.title}
-                            placeholder={'Nama produk'}
-                        />
-                    </div>
-                    <div className='col-span-6'>
-                        <Input
-                            type={'number'}
-                            label={'Stok'}
-                            value={data.stock}
-                            onChange={e => setData('stock', e.target.value)}
-                            errors={errors.stock}
-                            placeholder={'Stok tersedia'}
-                        />
-                    </div>
-                    <div className='col-span-12'>
-                        <Textarea
-                            name='description'
-                            label={'Deskripsi'}
-                            type={'text'}
-                            placeholder={'Deskripsi produk'}
-                            errors={errors.description}
-                            onChange={e => setData('description', e.target.value)}
-                            value={data.description}
-                        />
-                    </div>
-                    <div className='col-span-6'>
-                        <Input
-                            type={'number'}
-                            label={'Harga Beli'}
-                            value={data.buy_price}
-                            onChange={e => setData('buy_price', e.target.value)}
-                            errors={errors.buy_price}
-                            placeholder={'Harga beli produk'}
-                        />
-                    </div>
-                    <div className='col-span-6'>
-                        <Input
-                            type={'number'}
-                            label={'Harga Jual'}
-                            value={data.sell_price}
-                            onChange={e => setData('sell_price', e.target.value)}
-                            errors={errors.sell_price}
-                            placeholder={'Harga jual produk'}
-                        />
+
+                    {/* Right - Form */}
+                    <div className="lg:col-span-2 space-y-6">
+                        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
+                            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4 flex items-center gap-2">
+                                <IconBarcode size={18} />
+                                Informasi Dasar
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="md:col-span-2">
+                                    <InputSelect
+                                        label="Kategori"
+                                        data={categories}
+                                        selected={selectedCategory}
+                                        setSelected={setSelectedCategoryHandler}
+                                        placeholder="Pilih kategori"
+                                        errors={errors.category_id}
+                                        searchable={true}
+                                        displayKey="name"
+                                    />
+                                </div>
+                                <Input
+                                    type="text"
+                                    label="Barcode / SKU"
+                                    value={data.barcode}
+                                    onChange={(e) =>
+                                        setData("barcode", e.target.value)
+                                    }
+                                    errors={errors.barcode}
+                                    placeholder="Kode produk"
+                                />
+                                <Input
+                                    type="text"
+                                    label="Nama Produk"
+                                    value={data.title}
+                                    onChange={(e) =>
+                                        setData("title", e.target.value)
+                                    }
+                                    errors={errors.title}
+                                    placeholder="Nama produk"
+                                />
+                                <div className="md:col-span-2">
+                                    <Textarea
+                                        label="Deskripsi"
+                                        placeholder="Deskripsi produk"
+                                        errors={errors.description}
+                                        onChange={(e) =>
+                                            setData(
+                                                "description",
+                                                e.target.value
+                                            )
+                                        }
+                                        value={data.description}
+                                        rows={3}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
+                            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4 flex items-center gap-2">
+                                <IconCurrencyDollar size={18} />
+                                Harga & Stok
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <Input
+                                    type="number"
+                                    label="Harga Beli"
+                                    value={data.buy_price}
+                                    onChange={(e) =>
+                                        setData("buy_price", e.target.value)
+                                    }
+                                    errors={errors.buy_price}
+                                    placeholder="0"
+                                />
+                                <Input
+                                    type="number"
+                                    label="Harga Jual"
+                                    value={data.sell_price}
+                                    onChange={(e) =>
+                                        setData("sell_price", e.target.value)
+                                    }
+                                    errors={errors.sell_price}
+                                    placeholder="0"
+                                />
+                                <Input
+                                    type="number"
+                                    label="Stok"
+                                    value={data.stock}
+                                    onChange={(e) =>
+                                        setData("stock", e.target.value)
+                                    }
+                                    errors={errors.stock}
+                                    placeholder="0"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end gap-3">
+                            <Link
+                                href={route("products.index")}
+                                className="px-6 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium transition-colors"
+                            >
+                                Batal
+                            </Link>
+                            <button
+                                type="submit"
+                                disabled={processing}
+                                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white font-medium transition-colors disabled:opacity-50"
+                            >
+                                <IconDeviceFloppy size={18} />
+                                {processing
+                                    ? "Menyimpan..."
+                                    : "Simpan Perubahan"}
+                            </button>
+                        </div>
                     </div>
                 </div>
-                {/*
-                <div className='mb-4 flex flex-col md:flex-row justify-between gap-4'>
-                    <div className=''>
-                        <InputSelect
-                            label="Kategori"
-                            data={categories}
-                            selected={selectedCategory}
-                            setSelected={setSelectedCategoryHandler}
-                            placeholder="Pilih kategori"
-                            errors={errors.category_id}
-                            multiple={false}
-                            searchable={true}
-                            displayKey='name'
-                        />
-                    </div>
-                    <div className='w-full md:w-1/2'>
-                        <Input
-                            type={'text'}
-                            label={'Barcode'}
-                            value={data.barcode}
-                            onChange={e => setData('barcode', e.target.value)}
-                            errors={errors.barcode}
-                        />
-                    </div>
-                    <div className='w-full md:w-1/2'>
-                        <Input
-                            type={'text'}
-                            label={'Nama'}
-                            value={data.title}
-                            onChange={e => setData('title', e.target.value)}
-                            errors={errors.title}
-                        />
-                    </div>
-                </div>
-                <div className='mb-4 flex flex-col md:flex-row gap-4'>
-                    <div className='w-full md:w-1/2'>
-                        <Input
-                            type={'number'}
-                            label={'Harga Beli'}
-                            value={data.buy_price}
-                            onChange={e => setData('buy_price', e.target.value)}
-                            errors={errors.buy_price}
-                        />
-                    </div>
-                    <div className='w-full md:w-1/2'>
-                        <Input
-                            type={'number'}
-                            label={'Harga Jual'}
-                            value={data.sell_price}
-                            onChange={e => setData('sell_price', e.target.value)}
-                            errors={errors.sell_price}
-                        />
-                    </div>
-                </div>
-                <div className='mb-4 flex flex-col md:flex-row gap-4'>
-                    <div className='w-full md:w-1/2'>
-                        <Input
-                            type={'number'}
-                            label={'Stok'}
-                            value={data.stock}
-                            onChange={e => setData('stock', e.target.value)}
-                            errors={errors.stock}
-                        />
-                    </div>
-                </div> */}
-            </Card>
+            </form>
         </>
-    )
+    );
 }
 
-Edit.layout = page => <DashboardLayout children={page} />
+Edit.layout = (page) => <DashboardLayout children={page} />;

@@ -1,21 +1,47 @@
-import React from 'react'
+import React from "react";
 
-export default function Card({ icon, title, children, footer, className, form }) {
+export default function Card({
+    icon,
+    title,
+    children,
+    footer,
+    className,
+    form,
+}) {
+    const CardWrapper = form ? "form" : "div";
+    const wrapperProps = form ? { onSubmit: form } : {};
+
     return (
-        <>
-            <form onSubmit={form}>
-                <div className={`p-4 rounded-t-lg border ${className} bg-white dark:bg-gray-950 dark:border-gray-900 `}>
-                    <div className='flex items-center gap-2 font-semibold text-sm text-gray-700 dark:text-gray-200'>
+        <CardWrapper {...wrapperProps}>
+            {/* Header */}
+            <div
+                className={`px-5 py-4 rounded-t-2xl border border-b-0 ${className} bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800`}
+            >
+                <div className="flex items-center gap-2.5">
+                    {icon && (
+                        <div className="w-8 h-8 rounded-lg bg-primary-100 dark:bg-primary-900/50 flex items-center justify-center text-primary-600 dark:text-primary-400">
+                            {icon}
+                        </div>
+                    )}
+                    <h3 className="font-semibold text-base text-slate-800 dark:text-slate-200">
                         {title}
-                    </div>
+                    </h3>
                 </div>
-                <div className='bg-white dark:bg-gray-950 p-4 border border-t-0 border-b-0 dark:border-gray-900'>
-                    {children}
-                </div>
-                <div className={`px-4 py-2 rounded-b-lg border ${className} bg-white dark:bg-gray-950 dark:border-gray-900 `}>
+            </div>
+
+            {/* Content */}
+            <div className="bg-white dark:bg-slate-900 px-5 py-5 border-x border-slate-200 dark:border-slate-800">
+                {children}
+            </div>
+
+            {/* Footer */}
+            {footer && (
+                <div
+                    className={`px-5 py-4 rounded-b-2xl border border-t-0 ${className} bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800`}
+                >
                     {footer}
                 </div>
-            </form>
-        </>
-    )
+            )}
+        </CardWrapper>
+    );
 }

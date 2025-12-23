@@ -1,51 +1,68 @@
-import React from 'react'
-import { Link, usePage } from '@inertiajs/react'
-export default function LinkItem({ href, icon, link, access, title, sidebarOpen, ...props }) {
-    // destruct url from usepage
-    const { url } = usePage();
+import React from "react";
+import { Link, usePage } from "@inertiajs/react";
 
-    // destruct auth from usepage props
+export default function LinkItem({
+    href,
+    icon,
+    access,
+    title,
+    sidebarOpen,
+    ...props
+}) {
+    const { url } = usePage();
     const { auth } = usePage().props;
 
+    const isActive = url.startsWith(href);
+    const canAccess = auth.super === true || access === true;
+
+    if (!canAccess) return null;
+
+    const baseClasses = `
+        flex items-center gap-3
+        transition-all duration-200
+        text-slate-600 dark:text-slate-400
+    `;
+
+    const activeClasses = isActive
+        ? "bg-primary-50 dark:bg-primary-950/50 text-primary-700 dark:text-primary-400 border-l-[3px] border-primary-500"
+        : "hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200 border-l-[3px] border-transparent";
+
+    if (sidebarOpen) {
+        return (
+            <Link
+                href={href}
+                className={`${baseClasses} ${activeClasses} px-4 py-2.5 text-sm font-medium`}
+                {...props}
+            >
+                <span
+                    className={
+                        isActive ? "text-primary-600 dark:text-primary-400" : ""
+                    }
+                >
+                    {icon}
+                </span>
+                <span className="truncate">{title}</span>
+            </Link>
+        );
+    }
+
+    // Collapsed sidebar
     return (
-        <>
-            {
-                auth.super === true ?
-                    sidebarOpen ?
-                        <Link
-                            href={href}
-                            className={`${url.startsWith(href) && 'border-r-2 border-r-gray-400 bg-gray-100 text-gray-700 dark:border-r-gray-500 dark:bg-gray-900 dark:text-white'} flex items-center font-medium gap-x-3.5 px-4 py-3 hover:border-r-2 capitalize hover:cursor-pointer text-sm text-gray-500 hover:border-r-gray-700 hover:text-gray-900 dark:text-gray-500 dark:hover:border-r-gray-50 dark:hover:text-gray-100`}
-                            {...props}
-                        >
-                            {icon} {title}
-                        </Link>
-                        :
-                        <Link
-                            href={href}
-                            className={` ${url.startsWith(href) && 'border-r-2 border-r-gray-400 bg-gray-100 text-gray-700 dark:border-r-gray-500 dark:bg-gray-900 dark:text-white'} min-w-full flex justify-center py-3 hover:border-r-2 hover:cursor-pointer  text-gray-500 hover:border-r-gray-700 hover:text-gray-900 dark:text-gray-500 dark:hover:border-r-gray-50 dark:hover:text-gray-100`}
-                            {...props}
-                        >
-                            {icon}
-                        </Link>
-                    :
-                    access === true &&
-                        sidebarOpen ?
-                        <Link
-                            href={href}
-                            className={`${url.startsWith(href) && 'border-r-2 border-r-gray-400 bg-gray-100 text-gray-700 dark:border-r-gray-500 dark:bg-gray-900 dark:text-white'} flex items-center font-medium gap-x-3.5 px-4 py-3 hover:border-r-2 capitalize hover:cursor-pointer text-sm text-gray-500 hover:border-r-gray-700 hover:text-gray-900 dark:text-gray-500 dark:hover:border-r-gray-50 dark:hover:text-gray-100`}
-                            {...props}
-                        >
-                            {icon} {title}
-                        </Link>
-                        :
-                        <Link
-                            href={href}
-                            className={` ${url.startsWith(href) && 'border-r-2 border-r-gray-400 bg-gray-100 text-gray-700 dark:border-r-gray-500 dark:bg-gray-900 dark:text-white'} min-w-full flex justify-center py-3 hover:border-r-2 hover:cursor-pointer text-gray-500 hover:border-r-gray-700 hover:text-gray-900 dark:text-gray-500 dark:hover:border-r-gray-50 dark:hover:text-gray-100`}
-                            {...props}
-                        >
-                            {icon}
-                        </Link>
-            }
-        </>
-    )
+        <Link
+            href={href}
+            className={`
+                w-full flex justify-center py-3
+                transition-all duration-200
+                ${
+                    isActive
+                        ? "text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-950/50"
+                        : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                }
+            `}
+            title={title}
+            {...props}
+        >
+            {icon}
+        </Link>
+    );
 }

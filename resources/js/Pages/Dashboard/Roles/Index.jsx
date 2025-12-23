@@ -1,121 +1,222 @@
-import Button from '@/Components/Dashboard/Button';
-import Input from '@/Components/Dashboard/Input';
-import ListBox from '@/Components/Dashboard/ListBox';
-import Modal from '@/Components/Dashboard/Modal';
-import Pagination from '@/Components/Dashboard/Pagination';
-import Search from '@/Components/Dashboard/Search';
-import Table from '@/Components/Dashboard/Table'
-import DashboardLayout from '@/Layouts/DashboardLayout'
-import { Head, useForm, usePage } from '@inertiajs/react'
-import { IconDatabaseOff, IconCirclePlus, IconTrash, IconUserShield, IconPencilCog, IconPencilCheck } from '@tabler/icons-react';
-import React from 'react'
+import React from "react";
+import DashboardLayout from "@/Layouts/DashboardLayout";
+import { Head, useForm, usePage } from "@inertiajs/react";
+import Button from "@/Components/Dashboard/Button";
+import Input from "@/Components/Dashboard/Input";
+import ListBox from "@/Components/Dashboard/ListBox";
+import Modal from "@/Components/Dashboard/Modal";
+import Search from "@/Components/Dashboard/Search";
+import Pagination from "@/Components/Dashboard/Pagination";
+import {
+    IconDatabaseOff,
+    IconCirclePlus,
+    IconTrash,
+    IconUserShield,
+    IconPencilCog,
+    IconPencilCheck,
+    IconShield,
+} from "@tabler/icons-react";
+
+// Role Card Component
+function RoleCard({ role, onEdit, onDelete }) {
+    return (
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden hover:shadow-lg transition-all">
+            {/* Header */}
+            <div className="p-5 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white">
+                        <IconUserShield size={24} />
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 capitalize">
+                            {role.name}
+                        </h3>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                            {role.permissions.length} hak akses
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Permissions */}
+            <div className="p-4 bg-slate-50 dark:bg-slate-800/50">
+                <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto scrollbar-thin">
+                    {role.permissions.slice(0, 8).map((permission, index) => (
+                        <span
+                            key={index}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-accent-100 dark:bg-accent-900/50 text-accent-700 dark:text-accent-400"
+                        >
+                            <IconShield size={10} />
+                            {permission.name}
+                        </span>
+                    ))}
+                    {role.permissions.length > 8 && (
+                        <span className="px-2 py-0.5 text-xs font-medium text-slate-500">
+                            +{role.permissions.length - 8} lainnya
+                        </span>
+                    )}
+                </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex border-t border-slate-100 dark:border-slate-800">
+                <button
+                    onClick={onEdit}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-3 text-warning-600 hover:bg-warning-50 dark:hover:bg-warning-950/50 text-sm font-medium transition-colors"
+                >
+                    <IconPencilCog size={16} />
+                    <span>Edit</span>
+                </button>
+                <div className="w-px bg-slate-100 dark:bg-slate-800" />
+                <button
+                    onClick={onDelete}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-3 text-danger-600 hover:bg-danger-50 dark:hover:bg-danger-950/50 text-sm font-medium transition-colors"
+                >
+                    <IconTrash size={16} />
+                    <span>Hapus</span>
+                </button>
+            </div>
+        </div>
+    );
+}
+
 export default function Index() {
+    const { roles, permissions, errors } = usePage().props;
 
-    // destruct roles from props
-    const { roles, permissions, errors, } = usePage().props;
-
-    // define form helper inertia
-    const { data, setData, transform, post } = useForm({
-        id: '',
-        name: '',
+    const {
+        data,
+        setData,
+        transform,
+        post,
+        delete: destroy,
+    } = useForm({
+        id: "",
+        name: "",
         selectedPermission: [],
         isUpdate: false,
         isOpen: false,
     });
 
-    // define set permissions value
-    const setSelectedPermission = (value) => {
-        setData('selectedPermission', value)
-    }
+    const setSelectedPermission = (value) =>
+        setData("selectedPermission", value);
 
-    // transform data before submit
     transform((data) => ({
         ...data,
-        selectedPermission: data.selectedPermission.map(permission => permission.id),
-        _method: data.isUpdate === true ? 'put' : 'post'
-    }))
+        selectedPermission: data.selectedPermission.map(
+            (permission) => permission.id
+        ),
+        _method: data.isUpdate === true ? "put" : "post",
+    }));
 
-    // define function create new role
     const saveRole = async (e) => {
         e.preventDefault();
-
-        post(route('roles.store'), {
-            onSuccess: () => {
-                setData({
-                    selectedPermission: [],
-                    name: '',
-                    isOpen: false,
-                })
-            }
+        post(route("roles.store"), {
+            onSuccess: () =>
+                setData({ selectedPermission: [], name: "", isOpen: false }),
         });
-    }
+    };
 
-    // define function update role by id
     const updateRole = async (e) => {
         e.preventDefault();
-        console.log(data)
-        post(route('roles.update', data.id), {
-            onSuccess: () => {
+        post(route("roles.update", data.id), {
+            onSuccess: () =>
                 setData({
-                    id: '',
-                    name: '',
+                    id: "",
+                    name: "",
                     selectedPermission: [],
                     isUpdate: false,
                     isOpen: false,
-                });
-            }
-        })
-    }
+                }),
+        });
+    };
+
+    const handleEdit = (role) => {
+        setData({
+            id: role.id,
+            selectedPermission: role.permissions,
+            name: role.name,
+            isUpdate: true,
+            isOpen: true,
+        });
+    };
+
+    const handleDelete = (roleId) => {
+        if (confirm("Hapus role ini?")) {
+            destroy(route("roles.destroy", roleId));
+        }
+    };
 
     return (
         <>
-            <Head title='Akses Group' />
-            <div className='mb-2'>
-                <div className='flex justify-between items-center gap-2'>
-                    <Button
-                        type={'button'}
-                        icon={<IconCirclePlus size={20} strokeWidth={1.5} />}
-                        className={'border bg-white text-gray-700 dark:bg-gray-950 dark:border-gray-800 dark:text-gray-200'}
-                        label={'Tambah Data Akses Group'}
-                        onClick={() => setData('isOpen', true)}
-                        added={true}
-                    />
-                    <div className='w-full md:w-4/12'>
-                        <Search
-                            url={route('roles.index')}
-                            placeholder='Cari data berdasarkan nama akses group...'
-                        />
+            <Head title="Akses Group" />
+
+            {/* Header */}
+            <div className="mb-6">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div>
+                        <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <IconUserShield
+                                size={28}
+                                className="text-primary-500"
+                            />
+                            Akses Group
+                        </h1>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                            {roles.total || roles.data?.length || 0} group
+                            terdaftar
+                        </p>
                     </div>
+                    <Button
+                        type={"button"}
+                        icon={<IconCirclePlus size={18} strokeWidth={1.5} />}
+                        className={
+                            "bg-primary-500 hover:bg-primary-600 text-white shadow-lg shadow-primary-500/30"
+                        }
+                        label={"Tambah Group"}
+                        onClick={() => setData("isOpen", true)}
+                    />
                 </div>
             </div>
+
+            {/* Search */}
+            <div className="mb-4 w-full sm:w-80">
+                <Search
+                    url={route("roles.index")}
+                    placeholder="Cari akses group..."
+                />
+            </div>
+
+            {/* Modal */}
             <Modal
                 show={data.isOpen}
                 onClose={() =>
                     setData({
                         isOpen: false,
-                        id: '',
-                        name: '',
+                        id: "",
+                        name: "",
                         selectedPermission: [],
                         isUpdate: false,
                     })
                 }
-                title={`${data.isUpdate === true ? 'Ubah Data Role' : 'Tambah Data Baru'}`}
+                title={
+                    data.isUpdate ? "Ubah Akses Group" : "Tambah Akses Group"
+                }
                 icon={<IconUserShield size={20} strokeWidth={1.5} />}
             >
-                <form onSubmit={data.isUpdate === true ? updateRole : saveRole}>
-                    <div className='mb-4'>
+                <form onSubmit={data.isUpdate ? updateRole : saveRole}>
+                    <div className="mb-4">
                         <Input
-                            label={'Nama akses group'}
-                            type={'text'}
-                            placeholder={'Masukan nama akses group'}
+                            label={"Nama group"}
+                            type={"text"}
+                            placeholder={"Masukan nama group"}
                             value={data.name}
-                            onChange={e => setData('name', e.target.value)}
+                            onChange={(e) => setData("name", e.target.value)}
                             errors={errors.name}
                         />
                     </div>
-                    <div className='mb-4'>
+                    <div className="mb-4">
                         <ListBox
-                            label={'Pilih hak akses'}
+                            label={"Pilih hak akses"}
                             data={permissions}
                             selected={data.selectedPermission}
                             setSelected={setSelectedPermission}
@@ -123,83 +224,58 @@ export default function Index() {
                         />
                     </div>
                     <Button
-                        type={'submit'}
-                        icon={<IconPencilCheck size={20} strokeWidth={1.5} />}
-                        className={'border bg-white text-gray-700 hover:bg-gray-100 dark:bg-gray-950 dark:border-gray-800 dark:text-gray-200'}
-                        added={true}
-                        label={'Simpan'}
+                        type={"submit"}
+                        icon={<IconPencilCheck size={18} />}
+                        className={
+                            "bg-primary-500 hover:bg-primary-600 text-white w-full justify-center"
+                        }
+                        label={"Simpan"}
                     />
                 </form>
             </Modal>
-            <Table.Card title={'Data Akses Group'}>
-                <Table>
-                    <Table.Thead>
-                        <tr>
-                            <Table.Th className='w-10'>No</Table.Th>
-                            <Table.Th>Nama Akses Group</Table.Th>
-                            <Table.Th>Hak Akses</Table.Th>
-                            <Table.Th className='w-40'></Table.Th>
-                        </tr>
-                    </Table.Thead>
-                    <Table.Tbody>
-                        {roles.data.length ?
-                            roles.data.map((role, i) => (
-                                <tr className='hover:bg-gray-100 dark:hover:bg-gray-900' key={i}>
-                                    <Table.Td className='text-center'>
-                                        {++i + (roles.current_page - 1) * roles.per_page}
-                                    </Table.Td>
-                                    <Table.Td>
-                                        {role.name}
-                                    </Table.Td>
-                                    <Table.Td>
-                                        <div className='flex flex-wrap gap-2'>
-                                            {role.permissions.map((permission, index) => (
-                                                <span className="rounded-full px-2.5 py-0.5 text-xs tracking-tight font-medium transition-colors focus:outline-none flex items-center gap-1 capitalize border border-teal-500/40 bg-teal-500/10 text-teal-500 hover:bg-teal-500/20" key={index}>
-                                                    {permission.name}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    </Table.Td>
-                                    <Table.Td>
-                                        <div className='flex gap-2'>
-                                            <Button
-                                                type={'modal'}
-                                                icon={<IconPencilCog size={16} strokeWidth={1.5} />}
-                                                className={'border bg-orange-100 border-orange-300 text-orange-500 hover:bg-orange-200 dark:bg-orange-950 dark:border-orange-800 dark:text-gray-300  dark:hover:bg-orange-900'}
-                                                onClick={() =>
-                                                    setData({
-                                                        id: role.id,
-                                                        selectedPermission: role.permissions,
-                                                        name: role.name,
-                                                        isUpdate: true,
-                                                        isOpen: !data.isOpen,
-                                                    })
-                                                }
-                                            />
-                                            <Button
-                                                type={'delete'}
-                                                icon={<IconTrash size={16} strokeWidth={1.5} />}
-                                                className={'border bg-rose-100 border-rose-300 text-rose-500 hover:bg-rose-200 dark:bg-rose-950 dark:border-rose-800 dark:text-gray-300  dark:hover:bg-rose-900'}
-                                                url={route('roles.destroy', role.id)}
-                                            />
-                                        </div>
-                                    </Table.Td>
-                                </tr>
-                            )) :
-                            <Table.Empty colSpan={4} message={
-                                <>
-                                    <div className='flex justify-center items-center text-center mb-2'>
-                                        <IconDatabaseOff size={24} strokeWidth={1.5} className='text-gray-500 dark:text-white' />
-                                    </div>
-                                    <span className='text-gray-500'>Data akses group</span> <span className='text-rose-500 underline underline-offset-2'>tidak ditemukan.</span>
-                                </>
-                            } />
+
+            {/* Content */}
+            {roles.data.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {roles.data.map((role) => (
+                        <RoleCard
+                            key={role.id}
+                            role={role}
+                            onEdit={() => handleEdit(role)}
+                            onDelete={() => handleDelete(role.id)}
+                        />
+                    ))}
+                </div>
+            ) : (
+                <div className="flex flex-col items-center justify-center py-16 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
+                    <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
+                        <IconDatabaseOff
+                            size={32}
+                            className="text-slate-400"
+                            strokeWidth={1.5}
+                        />
+                    </div>
+                    <h3 className="text-lg font-medium text-slate-800 dark:text-slate-200 mb-1">
+                        Belum Ada Group
+                    </h3>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+                        Tambahkan group akses pertama.
+                    </p>
+                    <Button
+                        type={"button"}
+                        icon={<IconCirclePlus size={18} />}
+                        className={
+                            "bg-primary-500 hover:bg-primary-600 text-white"
                         }
-                    </Table.Tbody>
-                </Table>
-            </Table.Card>
-            {roles.last_page !== 1 && (<Pagination links={roles.links} />)}
+                        label={"Tambah Group"}
+                        onClick={() => setData("isOpen", true)}
+                    />
+                </div>
+            )}
+
+            {roles.last_page !== 1 && <Pagination links={roles.links} />}
         </>
-    )
+    );
 }
-Index.layout = page => <DashboardLayout children={page} />
+
+Index.layout = (page) => <DashboardLayout children={page} />;

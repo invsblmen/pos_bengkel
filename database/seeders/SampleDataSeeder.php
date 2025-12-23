@@ -1,5 +1,4 @@
 <?php
-
 namespace Database\Seeders;
 
 use App\Models\Cart;
@@ -12,6 +11,7 @@ use App\Models\TransactionDetail;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -35,39 +35,51 @@ class SampleDataSeeder extends Seeder
 
         Schema::enableForeignKeyConstraints();
 
-        $placeholders = $this->ensurePlaceholderImages();
+        // Ensure storage directories exist
+        Storage::disk('public')->makeDirectory('category');
+        Storage::disk('public')->makeDirectory('products');
 
+        $this->command->info('Seeding customers...');
         $customers = $this->seedCustomers();
-        $categories = $this->seedCategories($placeholders['category']);
-        $products = $this->seedProducts($categories, $placeholders['product']);
 
+        $this->command->info('Seeding categories with images...');
+        $categories = $this->seedCategories();
+
+        $this->command->info('Seeding products with images...');
+        $products = $this->seedProducts($categories);
+
+        $this->command->info('Seeding transactions...');
         $this->seedTransactions($customers, $products);
+
+        $this->command->info('Sample data seeding completed!');
     }
 
     /**
-     * Ensure we have at least one placeholder image stored under the public disk.
+     * Download image from URL and save to storage
      */
-    private function ensurePlaceholderImages(): array
+    private function downloadImage(string $url, string $folder, string $filename): ?string
     {
-        $source = public_path('assets/photo/auth.jpg');
+        try {
+            $this->command->info("  Downloading: {$filename}...");
 
-        $categoryFile = 'sample-category.jpg';
-        $productFile = 'sample-product.jpg';
+            $response = Http::timeout(30)->get($url);
 
-        if (file_exists($source)) {
-            if (!Storage::disk('public')->exists('category/' . $categoryFile)) {
-                Storage::disk('public')->put('category/' . $categoryFile, file_get_contents($source));
+            if ($response->successful()) {
+                $extension    = 'jpg';
+                $fullFilename = $filename . '.' . $extension;
+
+                Storage::disk('public')->put(
+                    $folder . '/' . $fullFilename,
+                    $response->body()
+                );
+
+                return $fullFilename;
             }
-
-            if (!Storage::disk('public')->exists('products/' . $productFile)) {
-                Storage::disk('public')->put('products/' . $productFile, file_get_contents($source));
-            }
+        } catch (\Exception $e) {
+            $this->command->warn("  Failed to download {$filename}: " . $e->getMessage());
         }
 
-        return [
-            'category' => $categoryFile,
-            'product' => $productFile,
-        ];
+        return null;
     }
 
     /**
@@ -82,69 +94,152 @@ class SampleDataSeeder extends Seeder
             ['name' => 'Davin Pradipta', 'no_telp' => '6285612349911', 'address' => 'Jl. Kenanga No. 2, Yogyakarta'],
             ['name' => 'Eko Saputra', 'no_telp' => '6287712348822', 'address' => 'Jl. Cemara No. 45, Semarang'],
             ['name' => 'Fitri Lestari', 'no_telp' => '6282213345566', 'address' => 'Jl. Sakura No. 7, Medan'],
+            ['name' => 'Gina Putri', 'no_telp' => '6281399887766', 'address' => 'Jl. Dahlia No. 12, Malang'],
+            ['name' => 'Hendra Wijaya', 'no_telp' => '6285544332211', 'address' => 'Jl. Flamboyan No. 8, Denpasar'],
         ]);
 
         return $customers
-            ->map(fn ($customer) => Customer::create($customer))
+            ->map(fn($customer) => Customer::create($customer))
             ->keyBy('name');
     }
 
     /**
-     * Seed master categories.
+     * Seed master categories with downloaded images.
      */
-    private function seedCategories(string $image): Collection
+    private function seedCategories(): Collection
     {
+        // Categories with Unsplash image URLs (direct download links)
         $categories = collect([
-            ['name' => 'Beverages', 'description' => 'Aneka minuman kemasan dingin dan panas'],
-            ['name' => 'Snacks', 'description' => 'Camilan kemasan siap saji'],
-            ['name' => 'Fresh Produce', 'description' => 'Buah dan sayuran segar pilihan'],
-            ['name' => 'Household', 'description' => 'Kebutuhan rumah tangga harian'],
-            ['name' => 'Personal Care', 'description' => 'Produk kebersihan dan perawatan diri'],
+            [
+                'name'        => 'Minuman',
+                'description' => 'Aneka minuman segar dan kemasan',
+                'image_url'   => 'https://images.unsplash.com/photo-1544145945-f90425340c7e?w=400&h=400&fit=crop',
+            ],
+            [
+                'name'        => 'Makanan Ringan',
+                'description' => 'Camilan dan snack kemasan',
+                'image_url'   => 'https://images.unsplash.com/photo-1621939514649-280e2ee25f60?w=400&h=400&fit=crop',
+            ],
+            [
+                'name'        => 'Makanan Berat',
+                'description' => 'Makanan siap saji dan frozen food',
+                'image_url'   => 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&h=400&fit=crop',
+            ],
+            [
+                'name'        => 'Produk Susu',
+                'description' => 'Susu, yogurt, dan produk olahan susu',
+                'image_url'   => 'https://images.unsplash.com/photo-1563636619-e9143da7973b?w=400&h=400&fit=crop',
+            ],
+            [
+                'name'        => 'Roti & Kue',
+                'description' => 'Roti segar dan aneka kue',
+                'image_url'   => 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400&h=400&fit=crop',
+            ],
+            [
+                'name'        => 'Bumbu & Rempah',
+                'description' => 'Bumbu masak dan rempah-rempah',
+                'image_url'   => 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?w=400&h=400&fit=crop',
+            ],
+            [
+                'name'        => 'Perawatan Tubuh',
+                'description' => 'Sabun, shampoo, dan perawatan diri',
+                'image_url'   => 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&h=400&fit=crop',
+            ],
+            [
+                'name'        => 'Kebutuhan Rumah',
+                'description' => 'Perlengkapan rumah tangga',
+                'image_url'   => 'https://images.unsplash.com/photo-1583947215259-38e31be8751f?w=400&h=400&fit=crop',
+            ],
         ]);
 
-        return $categories
-            ->map(fn ($category) => Category::create([
-                'name' => $category['name'],
+        return $categories->map(function ($category) {
+            $slug  = Str::slug($category['name']);
+            $image = $this->downloadImage(
+                $category['image_url'],
+                'category',
+                'cat-' . $slug
+            );
+
+            return Category::create([
+                'name'        => $category['name'],
                 'description' => $category['description'],
-                'image' => $image,
-            ]))
-            ->keyBy('name');
+                'image'       => $image ?? 'default.jpg',
+            ]);
+        })->keyBy('name');
     }
 
     /**
-     * Seed products mapped to categories.
+     * Seed products mapped to categories with downloaded images.
      */
-    private function seedProducts(Collection $categories, string $image): Collection
+    private function seedProducts(Collection $categories): Collection
     {
+        // Products with Unsplash image URLs
         $products = collect([
-            ['category' => 'Beverages', 'barcode' => 'BRG-0001', 'title' => 'Cold Brew Coffee 250ml', 'description' => 'Kopi Arabica rumahan dengan rasa manis alami.', 'buy_price' => 25000, 'sell_price' => 35000, 'stock' => 80],
-            ['category' => 'Beverages', 'barcode' => 'BRG-0002', 'title' => 'Thai Tea Literan', 'description' => 'Thai tea original dengan susu kental manis.', 'buy_price' => 30000, 'sell_price' => 42000, 'stock' => 60],
-            ['category' => 'Snacks', 'barcode' => 'BRG-0003', 'title' => 'Keripik Singkong Balado', 'description' => 'Keripik singkong renyah rasa balado pedas manis.', 'buy_price' => 12000, 'sell_price' => 18000, 'stock' => 150],
-            ['category' => 'Snacks', 'barcode' => 'BRG-0004', 'title' => 'Granola Bar Cokelat', 'description' => 'Granola bar sehat dengan kacang-kacangan premium.', 'buy_price' => 15000, 'sell_price' => 22000, 'stock' => 100],
-            ['category' => 'Fresh Produce', 'barcode' => 'BRG-0005', 'title' => 'Paket Salad Buah', 'description' => 'Campuran buah segar potong siap saji.', 'buy_price' => 20000, 'sell_price' => 32000, 'stock' => 70],
-            ['category' => 'Fresh Produce', 'barcode' => 'BRG-0006', 'title' => 'Sayur Organik Mix', 'description' => 'Paket kangkung, bayam, dan selada organik.', 'buy_price' => 18000, 'sell_price' => 27000, 'stock' => 90],
-            ['category' => 'Household', 'barcode' => 'BRG-0007', 'title' => 'Sabun Cair Lemon 1L', 'description' => 'Sabun cair anti bakteri aroma lemon segar.', 'buy_price' => 22000, 'sell_price' => 32000, 'stock' => 110],
-            ['category' => 'Household', 'barcode' => 'BRG-0008', 'title' => 'Tisu Dapur 2 Ply', 'description' => 'Tisu dapur serbaguna dua lapis.', 'buy_price' => 9000, 'sell_price' => 15000, 'stock' => 200],
-            ['category' => 'Personal Care', 'barcode' => 'BRG-0009', 'title' => 'Hand Sanitizer 250ml', 'description' => 'Hand sanitizer food grade non lengket.', 'buy_price' => 17000, 'sell_price' => 25000, 'stock' => 140],
-            ['category' => 'Personal Care', 'barcode' => 'BRG-0010', 'title' => 'Shampoo Botani 500ml', 'description' => 'Shampoo botani untuk semua jenis rambut.', 'buy_price' => 28000, 'sell_price' => 40000, 'stock' => 95],
+            // Minuman
+            ['category' => 'Minuman', 'barcode' => 'MNM-0001', 'title' => 'Aqua Botol 600ml', 'description' => 'Air mineral murni dalam kemasan botol praktis', 'buy_price' => 3000, 'sell_price' => 5000, 'stock' => 200, 'image_url' => 'https://images.unsplash.com/photo-1548839140-29a749e1cf4d?w=300&h=300&fit=crop'],
+            ['category' => 'Minuman', 'barcode' => 'MNM-0002', 'title' => 'Teh Botol Sosro 450ml', 'description' => 'Teh manis segar dalam kemasan botol', 'buy_price' => 4000, 'sell_price' => 6000, 'stock' => 150, 'image_url' => 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=300&h=300&fit=crop'],
+            ['category' => 'Minuman', 'barcode' => 'MNM-0003', 'title' => 'Kopi Susu Gula Aren', 'description' => 'Kopi susu dengan gula aren asli', 'buy_price' => 12000, 'sell_price' => 18000, 'stock' => 80, 'image_url' => 'https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=300&h=300&fit=crop'],
+            ['category' => 'Minuman', 'barcode' => 'MNM-0004', 'title' => 'Jus Jeruk Segar 500ml', 'description' => 'Jus jeruk murni tanpa pengawet', 'buy_price' => 8000, 'sell_price' => 12000, 'stock' => 60, 'image_url' => 'https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=300&h=300&fit=crop'],
+
+            // Makanan Ringan
+            ['category' => 'Makanan Ringan', 'barcode' => 'SNK-0001', 'title' => 'Chitato Original 68g', 'description' => 'Keripik kentang renyah rasa original', 'buy_price' => 8000, 'sell_price' => 12000, 'stock' => 120, 'image_url' => 'https://images.unsplash.com/photo-1566478989037-eec170784d0b?w=300&h=300&fit=crop'],
+            ['category' => 'Makanan Ringan', 'barcode' => 'SNK-0002', 'title' => 'Oreo Vanilla 133g', 'description' => 'Biskuit sandwich dengan krim vanilla', 'buy_price' => 10000, 'sell_price' => 15000, 'stock' => 100, 'image_url' => 'https://images.unsplash.com/photo-1558961363-fa8fdf82db35?w=300&h=300&fit=crop'],
+            ['category' => 'Makanan Ringan', 'barcode' => 'SNK-0003', 'title' => 'Indomie Goreng', 'description' => 'Mie instant goreng favorit Indonesia', 'buy_price' => 2500, 'sell_price' => 3500, 'stock' => 300, 'image_url' => 'https://images.unsplash.com/photo-1612929633738-8fe44f7ec841?w=300&h=300&fit=crop'],
+            ['category' => 'Makanan Ringan', 'barcode' => 'SNK-0004', 'title' => 'Pringles Sour Cream', 'description' => 'Keripik kentang premium rasa sour cream', 'buy_price' => 25000, 'sell_price' => 35000, 'stock' => 50, 'image_url' => 'https://images.unsplash.com/photo-1613919113640-25732ec5e61f?w=300&h=300&fit=crop'],
+
+            // Makanan Berat
+            ['category' => 'Makanan Berat', 'barcode' => 'MKN-0001', 'title' => 'Nasi Goreng Frozen', 'description' => 'Nasi goreng siap saji tinggal panaskan', 'buy_price' => 15000, 'sell_price' => 22000, 'stock' => 40, 'image_url' => 'https://images.unsplash.com/photo-1603133872878-684f208fb84b?w=300&h=300&fit=crop'],
+            ['category' => 'Makanan Berat', 'barcode' => 'MKN-0002', 'title' => 'Ayam Goreng Frozen', 'description' => 'Ayam goreng krispy siap goreng', 'buy_price' => 25000, 'sell_price' => 38000, 'stock' => 35, 'image_url' => 'https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?w=300&h=300&fit=crop'],
+            ['category' => 'Makanan Berat', 'barcode' => 'MKN-0003', 'title' => 'Sosis Sapi 500g', 'description' => 'Sosis sapi premium isi 12 pcs', 'buy_price' => 35000, 'sell_price' => 48000, 'stock' => 45, 'image_url' => 'https://images.unsplash.com/photo-1587735243615-c03f25aaff15?w=300&h=300&fit=crop'],
+
+            // Produk Susu
+            ['category' => 'Produk Susu', 'barcode' => 'SSU-0001', 'title' => 'Ultra Milk 1L', 'description' => 'Susu UHT full cream', 'buy_price' => 16000, 'sell_price' => 21000, 'stock' => 80, 'image_url' => 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=300&h=300&fit=crop'],
+            ['category' => 'Produk Susu', 'barcode' => 'SSU-0002', 'title' => 'Yogurt Cimory 250ml', 'description' => 'Yogurt drink rasa strawberry', 'buy_price' => 8000, 'sell_price' => 12000, 'stock' => 60, 'image_url' => 'https://images.unsplash.com/photo-1488477181946-6428a0291777?w=300&h=300&fit=crop'],
+            ['category' => 'Produk Susu', 'barcode' => 'SSU-0003', 'title' => 'Keju Cheddar 165g', 'description' => 'Keju cheddar slice praktis', 'buy_price' => 22000, 'sell_price' => 30000, 'stock' => 40, 'image_url' => 'https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?w=300&h=300&fit=crop'],
+
+            // Roti & Kue
+            ['category' => 'Roti & Kue', 'barcode' => 'RTI-0001', 'title' => 'Roti Tawar Sari Roti', 'description' => 'Roti tawar lembut tanpa kulit', 'buy_price' => 12000, 'sell_price' => 16000, 'stock' => 50, 'image_url' => 'https://images.unsplash.com/photo-1549931319-a545dcf3bc73?w=300&h=300&fit=crop'],
+            ['category' => 'Roti & Kue', 'barcode' => 'RTI-0002', 'title' => 'Donat Coklat', 'description' => 'Donat lembut dengan topping coklat', 'buy_price' => 5000, 'sell_price' => 8000, 'stock' => 30, 'image_url' => 'https://images.unsplash.com/photo-1551024601-bec78aea704b?w=300&h=300&fit=crop'],
+            ['category' => 'Roti & Kue', 'barcode' => 'RTI-0003', 'title' => 'Croissant Butter', 'description' => 'Croissant dengan butter premium', 'buy_price' => 10000, 'sell_price' => 15000, 'stock' => 25, 'image_url' => 'https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=300&h=300&fit=crop'],
+
+            // Bumbu & Rempah
+            ['category' => 'Bumbu & Rempah', 'barcode' => 'BMB-0001', 'title' => 'Kecap Manis ABC 600ml', 'description' => 'Kecap manis kualitas premium', 'buy_price' => 18000, 'sell_price' => 25000, 'stock' => 70, 'image_url' => 'https://images.unsplash.com/photo-1472476443507-c7a5948772fc?w=300&h=300&fit=crop'],
+            ['category' => 'Bumbu & Rempah', 'barcode' => 'BMB-0002', 'title' => 'Minyak Goreng 2L', 'description' => 'Minyak goreng sawit berkualitas', 'buy_price' => 28000, 'sell_price' => 38000, 'stock' => 90, 'image_url' => 'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=300&h=300&fit=crop'],
+            ['category' => 'Bumbu & Rempah', 'barcode' => 'BMB-0003', 'title' => 'Gula Pasir 1kg', 'description' => 'Gula pasir putih premium', 'buy_price' => 14000, 'sell_price' => 18000, 'stock' => 100, 'image_url' => 'https://images.unsplash.com/photo-1581622558663-b2e33377dfb2?w=300&h=300&fit=crop'],
+
+            // Perawatan Tubuh
+            ['category' => 'Perawatan Tubuh', 'barcode' => 'PRW-0001', 'title' => 'Sabun Lifebuoy 85g', 'description' => 'Sabun mandi antibakteri', 'buy_price' => 4000, 'sell_price' => 6500, 'stock' => 150, 'image_url' => 'https://images.unsplash.com/photo-1600857062241-98e5dba7f214?w=300&h=300&fit=crop'],
+            ['category' => 'Perawatan Tubuh', 'barcode' => 'PRW-0002', 'title' => 'Shampoo Pantene 170ml', 'description' => 'Shampoo anti rontok', 'buy_price' => 22000, 'sell_price' => 32000, 'stock' => 60, 'image_url' => 'https://images.unsplash.com/photo-1631729371254-42c2892f0e6e?w=300&h=300&fit=crop'],
+            ['category' => 'Perawatan Tubuh', 'barcode' => 'PRW-0003', 'title' => 'Pasta Gigi Pepsodent 190g', 'description' => 'Pasta gigi pencegah gigi berlubang', 'buy_price' => 12000, 'sell_price' => 18000, 'stock' => 100, 'image_url' => 'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=300&h=300&fit=crop'],
+
+            // Kebutuhan Rumah
+            ['category' => 'Kebutuhan Rumah', 'barcode' => 'RMH-0001', 'title' => 'Tisu Paseo 250 Sheet', 'description' => 'Tisu wajah lembut dan kuat', 'buy_price' => 15000, 'sell_price' => 22000, 'stock' => 80, 'image_url' => 'https://images.unsplash.com/photo-1584556812952-905ffd0c611a?w=300&h=300&fit=crop'],
+            ['category' => 'Kebutuhan Rumah', 'barcode' => 'RMH-0002', 'title' => 'Sabun Cuci Piring 800ml', 'description' => 'Sabun cuci piring anti lemak', 'buy_price' => 12000, 'sell_price' => 18000, 'stock' => 90, 'image_url' => 'https://images.unsplash.com/photo-1585441695325-21557ab93f7e?w=300&h=300&fit=crop'],
+            ['category' => 'Kebutuhan Rumah', 'barcode' => 'RMH-0003', 'title' => 'Pewangi Pakaian 900ml', 'description' => 'Pelembut dan pewangi pakaian', 'buy_price' => 18000, 'sell_price' => 26000, 'stock' => 70, 'image_url' => 'https://images.unsplash.com/photo-1626806819282-2c1dc01a5e0c?w=300&h=300&fit=crop'],
         ]);
 
-        return $products
-            ->map(function ($product) use ($categories, $image) {
-                $category = $categories->get($product['category']);
+        return $products->map(function ($product) use ($categories) {
+            $category = $categories->get($product['category']);
 
-                return Product::create([
-                    'category_id' => $category?->id,
-                    'image' => $image,
-                    'barcode' => $product['barcode'],
-                    'title' => $product['title'],
-                    'description' => $product['description'],
-                    'buy_price' => $product['buy_price'],
-                    'sell_price' => $product['sell_price'],
-                    'stock' => $product['stock'],
-                ]);
-            })
-            ->keyBy('barcode');
+            // Download product image
+            $slug  = Str::slug($product['title']);
+            $image = $this->downloadImage(
+                $product['image_url'],
+                'products',
+                'prod-' . $slug
+            );
+
+            return Product::create([
+                'category_id' => $category?->id,
+                'image'       => $image ?? 'default.jpg',
+                'barcode'     => $product['barcode'],
+                'title'       => $product['title'],
+                'description' => $product['description'],
+                'buy_price'   => $product['buy_price'],
+                'sell_price'  => $product['sell_price'],
+                'stock'       => $product['stock'],
+            ]);
+        })->keyBy('barcode');
     }
 
     /**
@@ -154,7 +249,7 @@ class SampleDataSeeder extends Seeder
     {
         $cashier = User::where('email', 'cashier@gmail.com')->first() ?? User::first();
 
-        if (!$cashier) {
+        if (! $cashier) {
             return;
         }
 
@@ -162,38 +257,61 @@ class SampleDataSeeder extends Seeder
             [
                 'customer' => 'Andi Nugraha',
                 'discount' => 5000,
-                'cash' => 200000,
-                'items' => [
-                    ['barcode' => 'BRG-0001', 'qty' => 2],
-                    ['barcode' => 'BRG-0003', 'qty' => 3],
+                'cash'     => 100000,
+                'items'    => [
+                    ['barcode' => 'MNM-0001', 'qty' => 3],
+                    ['barcode' => 'SNK-0001', 'qty' => 2],
+                    ['barcode' => 'RTI-0001', 'qty' => 1],
                 ],
             ],
             [
                 'customer' => 'Bunga Maharani',
                 'discount' => 0,
-                'cash' => 150000,
-                'items' => [
-                    ['barcode' => 'BRG-0005', 'qty' => 2],
-                    ['barcode' => 'BRG-0009', 'qty' => 1],
+                'cash'     => 150000,
+                'items'    => [
+                    ['barcode' => 'SSU-0001', 'qty' => 2],
+                    ['barcode' => 'RTI-0002', 'qty' => 3],
+                    ['barcode' => 'PRW-0001', 'qty' => 2],
+                ],
+            ],
+            [
+                'customer' => 'Cici Amelia',
+                'discount' => 10000,
+                'cash'     => 200000,
+                'items'    => [
+                    ['barcode' => 'MKN-0002', 'qty' => 2],
+                    ['barcode' => 'BMB-0002', 'qty' => 1],
+                    ['barcode' => 'RMH-0001', 'qty' => 2],
+                ],
+            ],
+            [
+                'customer' => 'Davin Pradipta',
+                'discount' => 0,
+                'cash'     => 80000,
+                'items'    => [
+                    ['barcode' => 'MNM-0003', 'qty' => 2],
+                    ['barcode' => 'SNK-0003', 'qty' => 5],
+                    ['barcode' => 'SSU-0002', 'qty' => 2],
                 ],
             ],
             [
                 'customer' => 'Fitri Lestari',
-                'discount' => 10000,
-                'cash' => 180000,
-                'items' => [
-                    ['barcode' => 'BRG-0007', 'qty' => 2],
-                    ['barcode' => 'BRG-0008', 'qty' => 4],
-                    ['barcode' => 'BRG-0010', 'qty' => 1],
+                'discount' => 15000,
+                'cash'     => 250000,
+                'items'    => [
+                    ['barcode' => 'PRW-0002', 'qty' => 1],
+                    ['barcode' => 'BMB-0001', 'qty' => 2],
+                    ['barcode' => 'MKN-0003', 'qty' => 2],
+                    ['barcode' => 'RMH-0003', 'qty' => 1],
                 ],
             ],
             [
                 'customer' => null,
                 'discount' => 0,
-                'cash' => 75000,
-                'items' => [
-                    ['barcode' => 'BRG-0004', 'qty' => 1],
-                    ['barcode' => 'BRG-0006', 'qty' => 1],
+                'cash'     => 50000,
+                'items'    => [
+                    ['barcode' => 'MNM-0002', 'qty' => 2],
+                    ['barcode' => 'SNK-0002', 'qty' => 1],
                 ],
             ],
         ];
@@ -207,17 +325,17 @@ class SampleDataSeeder extends Seeder
                 ->map(function ($item) use ($products) {
                     $product = $products->get($item['barcode']);
 
-                    if (!$product) {
+                    if (! $product) {
                         return null;
                     }
 
                     $lineTotal = $product->sell_price * $item['qty'];
 
                     return [
-                        'product' => $product,
-                        'qty' => $item['qty'],
+                        'product'    => $product,
+                        'qty'        => $item['qty'],
                         'line_total' => $lineTotal,
-                        'profit' => ($product->sell_price - $product->buy_price) * $item['qty'],
+                        'profit'     => ($product->sell_price - $product->buy_price) * $item['qty'],
                     ];
                 })
                 ->filter();
@@ -226,27 +344,27 @@ class SampleDataSeeder extends Seeder
                 continue;
             }
 
-            $discount = max(0, $blueprint['discount']);
-            $gross = $items->sum('line_total');
+            $discount   = max(0, $blueprint['discount']);
+            $gross      = $items->sum('line_total');
             $grandTotal = max(0, $gross - $discount);
-            $cashPaid = max($grandTotal, $blueprint['cash']);
-            $change = $cashPaid - $grandTotal;
+            $cashPaid   = max($grandTotal, $blueprint['cash']);
+            $change     = $cashPaid - $grandTotal;
 
             $transaction = Transaction::create([
-                'cashier_id' => $cashier->id,
+                'cashier_id'  => $cashier->id,
                 'customer_id' => $customer?->id,
-                'invoice' => 'TRX-' . Str::upper(Str::random(8)),
-                'cash' => $cashPaid,
-                'change' => $change,
-                'discount' => $discount,
+                'invoice'     => 'TRX-' . Str::upper(Str::random(8)),
+                'cash'        => $cashPaid,
+                'change'      => $change,
+                'discount'    => $discount,
                 'grand_total' => $grandTotal,
             ]);
 
             foreach ($items as $item) {
                 $transaction->details()->create([
                     'product_id' => $item['product']->id,
-                    'qty' => $item['qty'],
-                    'price' => $item['line_total'],
+                    'qty'        => $item['qty'],
+                    'price'      => $item['line_total'],
                 ]);
 
                 $transaction->profits()->create([
