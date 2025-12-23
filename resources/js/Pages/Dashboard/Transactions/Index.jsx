@@ -8,6 +8,9 @@ import CartPanel from "@/Components/POS/CartPanel";
 import PaymentPanel from "@/Components/POS/PaymentPanel";
 import CustomerSelect from "@/Components/POS/CustomerSelect";
 import NumpadModal from "@/Components/POS/NumpadModal";
+import HeldTransactions, {
+    HoldButton,
+} from "@/Components/POS/HeldTransactions";
 import useBarcodeScanner from "@/Hooks/useBarcodeScanner";
 import { getProductImageUrl } from "@/Utils/imageUrl";
 import {
@@ -31,6 +34,7 @@ const formatPrice = (value = 0) =>
 export default function Index({
     carts = [],
     carts_total = 0,
+    heldCarts = [],
     customers = [],
     products = [],
     categories = [],
@@ -187,6 +191,34 @@ export default function Index({
     const handleNumpadConfirm = useCallback((value) => {
         setCashInput(String(value));
     }, []);
+
+    // Handle hold transaction
+    const [isHolding, setIsHolding] = useState(false);
+
+    const handleHoldCart = async (label = null) => {
+        if (carts.length === 0) {
+            toast.error("Keranjang kosong");
+            return;
+        }
+
+        setIsHolding(true);
+
+        router.post(
+            route("transactions.hold"),
+            { label },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    toast.success("Transaksi ditahan");
+                    setIsHolding(false);
+                },
+                onError: (errors) => {
+                    toast.error(errors?.message || "Gagal menahan transaksi");
+                    setIsHolding(false);
+                },
+            }
+        );
+    };
 
     // Keyboard shortcuts
     useEffect(() => {
@@ -382,8 +414,27 @@ export default function Index({
                         />
                     </div>
 
+                    {/* Held Transactions - Show if any */}
+                    {heldCarts.length > 0 && (
+                        <HeldTransactions
+                            heldCarts={heldCarts}
+                            hasActiveCart={carts.length > 0}
+                        />
+                    )}
+
                     {/* Cart Items - Scrollable */}
                     <div className="flex-1 overflow-y-auto min-h-0">
+                        {/* Hold Button - at top of cart section */}
+                        {carts.length > 0 && (
+                            <div className="p-3 border-b border-slate-200 dark:border-slate-800">
+                                <HoldButton
+                                    hasItems={carts.length > 0}
+                                    onHold={handleHoldCart}
+                                    isHolding={isHolding}
+                                />
+                            </div>
+                        )}
+
                         <div className="p-3 border-b border-slate-200 dark:border-slate-800">
                             <div className="flex items-center justify-between mb-3">
                                 <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">

@@ -24,8 +24,32 @@ class TransactionController extends Controller
      */
     public function index()
     {
-        //get cart
-        $carts = Cart::with('product')->where('cashier_id', auth()->user()->id)->latest()->get();
+        $userId = auth()->user()->id;
+
+        // Get active cart items (not held)
+        $carts = Cart::with('product')
+            ->where('cashier_id', $userId)
+            ->active()
+            ->latest()
+            ->get();
+
+        // Get held carts grouped by hold_id
+        $heldCarts = Cart::with('product:id,title,sell_price,image')
+            ->where('cashier_id', $userId)
+            ->held()
+            ->get()
+            ->groupBy('hold_id')
+            ->map(function ($items, $holdId) {
+                $first = $items->first();
+                return [
+                    'hold_id'     => $holdId,
+                    'label'       => $first->hold_label,
+                    'held_at'     => $first->held_at?->toISOString(),
+                    'items_count' => $items->sum('qty'),
+                    'total'       => $items->sum('price'),
+                ];
+            })
+            ->values();
 
         //get all customers
         $customers = Customer::latest()->get();
@@ -46,7 +70,7 @@ class TransactionController extends Controller
 
         $carts_total = 0;
         foreach ($carts as $cart) {
-            $carts_total += $cart->price * $cart->qty;
+            $carts_total += $cart->price;
         }
 
         $defaultGateway = $paymentSetting?->default_gateway ?? 'cash';
@@ -60,6 +84,7 @@ class TransactionController extends Controller
         return Inertia::render('Dashboard/Transactions/Index', [
             'carts'                 => $carts,
             'carts_total'           => $carts_total,
+            'heldCarts'             => $heldCarts,
             'customers'             => $customers,
             'products'              => $products,
             'categories'            => $categories,
@@ -198,6 +223,159 @@ class TransactionController extends Controller
         $cart->save();
 
         return back()->with('success', 'Quantity updated successfully');
+    }
+
+    /**
+     * holdCart - Hold current cart items for later
+     *
+     * @param  Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function holdCart(Request $request)
+    {
+        $request->validate([
+            'label' => 'nullable|string|max:50',
+        ]);
+
+        $userId = auth()->user()->id;
+
+        // Get active cart items
+        $activeCarts = Cart::where('cashier_id', $userId)
+            ->active()
+            ->get();
+
+        if ($activeCarts->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Keranjang kosong, tidak ada yang bisa ditahan',
+            ], 422);
+        }
+
+        // Generate unique hold ID
+        $holdId = 'HOLD-' . strtoupper(uniqid());
+        $label  = $request->label ?: 'Transaksi ' . now()->format('H:i');
+
+        // Mark all active cart items as held
+        Cart::where('cashier_id', $userId)
+            ->active()
+            ->update([
+                'hold_id'    => $holdId,
+                'hold_label' => $label,
+                'held_at'    => now(),
+            ]);
+
+        return back()->with('success', 'Transaksi ditahan: ' . $label);
+    }
+
+    /**
+     * resumeCart - Resume a held cart
+     *
+     * @param  string $holdId
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function resumeCart($holdId)
+    {
+        $userId = auth()->user()->id;
+
+        // Check if there are any active carts (not held)
+        $activeCarts = Cart::where('cashier_id', $userId)
+            ->active()
+            ->count();
+
+        if ($activeCarts > 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Selesaikan atau tahan transaksi aktif terlebih dahulu',
+            ], 422);
+        }
+
+        // Get held carts
+        $heldCarts = Cart::where('cashier_id', $userId)
+            ->forHold($holdId)
+            ->get();
+
+        if ($heldCarts->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Transaksi ditahan tidak ditemukan',
+            ], 404);
+        }
+
+        // Resume by clearing hold info
+        Cart::where('cashier_id', $userId)
+            ->forHold($holdId)
+            ->update([
+                'hold_id'    => null,
+                'hold_label' => null,
+                'held_at'    => null,
+            ]);
+
+        return back()->with('success', 'Transaksi dilanjutkan');
+    }
+
+    /**
+     * clearHold - Delete a held cart
+     *
+     * @param  string $holdId
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function clearHold($holdId)
+    {
+        $userId = auth()->user()->id;
+
+        $deleted = Cart::where('cashier_id', $userId)
+            ->forHold($holdId)
+            ->delete();
+
+        if ($deleted === 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Transaksi ditahan tidak ditemukan',
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Transaksi ditahan berhasil dihapus',
+        ]);
+    }
+
+    /**
+     * getHeldCarts - Get all held carts for current user
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getHeldCarts()
+    {
+        $userId = auth()->user()->id;
+
+        $heldCarts = Cart::with('product:id,title,sell_price,image')
+            ->where('cashier_id', $userId)
+            ->held()
+            ->get()
+            ->groupBy('hold_id')
+            ->map(function ($items, $holdId) {
+                $first = $items->first();
+                return [
+                    'hold_id'     => $holdId,
+                    'label'       => $first->hold_label,
+                    'held_at'     => $first->held_at,
+                    'items_count' => $items->sum('qty'),
+                    'total'       => $items->sum('price'),
+                    'items'       => $items->map(fn($item) => [
+                        'id'      => $item->id,
+                        'product' => $item->product,
+                        'qty'     => $item->qty,
+                        'price'   => $item->price,
+                    ]),
+                ];
+            })
+            ->values();
+
+        return response()->json([
+            'success'    => true,
+            'held_carts' => $heldCarts,
+        ]);
     }
 
     /**
