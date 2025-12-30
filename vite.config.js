@@ -10,4 +10,13 @@ export default defineConfig({
         }),
         react(),
     ],
+    server: {
+        // Enable CORS for all origins (useful for local development)
+        cors: true,
+
+        // OR, if you need to be specific for security:
+        // proxy: {
+        //   // Proxy API requests if you are accessing a backend server
+        // }
+    },
 });
