@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 class Transaction extends Model
 {
     use HasFactory;
-    
+
     /**
      * fillable
      *
@@ -20,6 +20,9 @@ class Transaction extends Model
         'cashier_id',
         'customer_id',
         'invoice',
+        'service_order_id',
+        'mechanic_id',
+        'vehicle_id',
         'cash',
         'change',
         'discount',
@@ -68,6 +71,36 @@ class Transaction extends Model
     public function profits()
     {
         return $this->hasMany(Profit::class);
+    }
+
+    /**
+     * mechanic
+     *
+     * @return void
+     */
+    public function mechanic()
+    {
+        return $this->belongsTo(Mechanic::class);
+    }
+
+    /**
+     * vehicle
+     *
+     * @return void
+     */
+    public function vehicle()
+    {
+        return $this->belongsTo(Vehicle::class);
+    }
+
+    /**
+     * serviceOrder
+     *
+     * @return void
+     */
+    public function serviceOrder()
+    {
+        return $this->belongsTo(ServiceOrder::class);
     }
 
     /**

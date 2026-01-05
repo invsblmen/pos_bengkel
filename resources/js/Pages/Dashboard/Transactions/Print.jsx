@@ -252,7 +252,7 @@ export default function Print({ transaction }) {
                                     <thead>
                                         <tr className="border-b border-slate-100 dark:border-slate-800">
                                             <th className="pb-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                                                Produk
+                                                Item
                                             </th>
                                             <th className="pb-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                                                 Harga
@@ -278,18 +278,16 @@ export default function Print({ transaction }) {
                                                 <tr key={item.id ?? index}>
                                                     <td className="py-3">
                                                         <p className="font-medium text-slate-900 dark:text-white">
-                                                            {
-                                                                item.product
-                                                                    ?.title
-                                                            }
+                                                            {item.part?.name || item.service?.title || item.product?.title}
                                                         </p>
-                                                        {item.product
-                                                            ?.barcode && (
+                                                        {item.part?.sku && (
                                                             <p className="text-xs text-slate-500 dark:text-slate-400">
-                                                                {
-                                                                    item.product
-                                                                        .barcode
-                                                                }
+                                                                {item.part.sku}
+                                                            </p>
+                                                        )}
+                                                        {item.service?.title && (
+                                                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                                                                {item.service?.description}
                                                             </p>
                                                         )}
                                                     </td>

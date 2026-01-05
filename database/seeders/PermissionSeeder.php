@@ -61,5 +61,32 @@ class PermissionSeeder extends Seeder
 
         // payment settings
         Permission::create(['name' => 'payment-settings-access']);
+
+        // workshop permissions (service orders, appointments, mechanics, parts)
+        Permission::create(['name' => 'service-orders-access']);
+        Permission::create(['name' => 'service-orders-create']);
+        Permission::create(['name' => 'service-orders-update']);
+
+        Permission::create(['name' => 'appointments-access']);
+        Permission::create(['name' => 'appointments-create']);
+        Permission::create(['name' => 'appointments-update']);
+
+        // mechanics
+        Permission::create(['name' => 'mechanics-access']);
+        Permission::create(['name' => 'mechanics-create']);
+        Permission::create(['name' => 'mechanics-update']);
+        Permission::create(['name' => 'mechanics-delete']);
+
+        // parts
+        Permission::create(['name' => 'parts-access']);
+        Permission::create(['name' => 'parts-create']);
+        Permission::create(['name' => 'parts-update']);
+        Permission::create(['name' => 'parts-delete']);
+
+        // suppliers
+        Permission::create(['name' => 'suppliers-access']);
+        Permission::create(['name' => 'suppliers-create']);
+        Permission::create(['name' => 'suppliers-update']);
+        Permission::create(['name' => 'suppliers-delete']);
     }
 }

@@ -44,6 +44,11 @@ export default function Index({
     customers = [],
     products = [],
     categories = [],
+    mechanics = [],
+    vehicles = [],
+    serviceOrders = [],
+    services = [],
+    parts = [],
     paymentGateways = [],
     defaultPaymentGateway = "cash",
 }) {
@@ -61,6 +66,72 @@ export default function Index({
     const [paymentMethod, setPaymentMethod] = useState(
         defaultPaymentGateway ?? "cash"
     );
+
+    // Create Service Order (POS)
+    const [soModalOpen, setSoModalOpen] = useState(false);
+    const [soMechanicId, setSoMechanicId] = useState(null);
+    const [soVehicleId, setSoVehicleId] = useState(null);
+    const [soItems, setSoItems] = useState([]);
+    const [soSelectedServiceId, setSoSelectedServiceId] = useState("");
+    const [soQty, setSoQty] = useState(1);
+    const [soNotes, setSoNotes] = useState("");
+    const [creatingSo, setCreatingSo] = useState(false);
+
+    const addSoItem = () => {
+        if (!soSelectedServiceId) return;
+        const svc = services.find((s) => String(s.id) === String(soSelectedServiceId));
+        if (!svc) return;
+        setSoItems((prev) => [...prev, { service_id: svc.id, qty: Number(soQty) || 1, price: svc.price }]);
+        setSoSelectedServiceId("");
+        setSoQty(1);
+    };
+
+    const removeSoItem = (index) => {
+        setSoItems((prev) => prev.filter((_, i) => i !== index));
+    };
+
+    const submitCreateSo = async () => {
+        if (!selectedCustomer?.id) {
+            toast.error("Pilih pelanggan sebelum membuat service order");
+            return;
+        }
+        if (soItems.length === 0) {
+            toast.error("Tambahkan minimal satu layanan");
+            return;
+        }
+        setCreatingSo(true);
+        try {
+            const payload = {
+                customer_id: selectedCustomer.id,
+                mechanic_id: soMechanicId || selectedServiceOrder?.mechanic_id || null,
+                vehicle_id: soVehicleId || (selectedServiceOrder?.vehicle_id ?? null),
+                items: soItems,
+                notes: soNotes,
+            };
+
+            const res = await axios.post(route("transactions.service-orders.store"), payload);
+            if (res.data?.success) {
+                toast.success("Service order dibuat");
+                // add to serviceOrders list and select
+                const created = res.data.order;
+                setSelectedServiceOrder(created);
+                // prepend locally
+                setLocalServiceOrders((prev) => [created, ...(prev || [])]);
+                setSoModalOpen(false);
+                setSoItems([]);
+                setSoMechanicId(null);
+                setSoVehicleId(null);
+                setSoNotes("");
+            } else {
+                toast.error("Gagal membuat service order");
+            }
+        } catch (err) {
+            toast.error(err?.response?.data?.message || 'Gagal membuat service order');
+        } finally {
+            setCreatingSo(false);
+        }
+    };
+
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [mobileView, setMobileView] = useState("products"); // 'products' | 'cart'
     const [numpadOpen, setNumpadOpen] = useState(false);
@@ -294,8 +365,11 @@ export default function Index({
     };
 
     // Handle submit transaction
+    const [selectedServiceOrder, setSelectedServiceOrder] = useState(null);
+    const [localServiceOrders, setLocalServiceOrders] = useState(serviceOrders);
+
     const handleSubmitTransaction = () => {
-        if (carts.length === 0) {
+        if (carts.length === 0 && !selectedServiceOrder) {
             toast.error("Keranjang masih kosong");
             return;
         }
@@ -316,6 +390,9 @@ export default function Index({
             route("transactions.store"),
             {
                 customer_id: selectedCustomer.id,
+                service_order_id: selectedServiceOrder?.id ?? null,
+                mechanic_id: selectedServiceOrder?.mechanic_id ?? null,
+                vehicle_id: selectedServiceOrder?.vehicle_id ?? null,
                 discount,
                 grand_total: payable,
                 cash: isCashPayment ? cash : payable,
@@ -327,6 +404,7 @@ export default function Index({
                     setDiscountInput("");
                     setCashInput("");
                     setSelectedCustomer(null);
+                    setSelectedServiceOrder(null);
                     setPaymentMethod(defaultPaymentGateway ?? "cash");
                     setIsSubmitting(false);
                     toast.success("Transaksi berhasil!");
@@ -361,6 +439,18 @@ export default function Index({
             <Head title="Transaksi" />
 
             <div className="h-[calc(100vh-4rem)] flex flex-col lg:flex-row">
+                {/* Floating total button for mobile when browsing products */}
+                {mobileView === 'products' && carts.length > 0 && (
+                    <div className="fixed right-4 bottom-4 z-50 lg:hidden">
+                        <button onClick={() => setMobileView('cart')} aria-label={`Buka keranjang - ${cartCount} item`} className="inline-flex items-center gap-3 px-4 py-3 rounded-2xl bg-primary-500 text-white shadow-lg hover:bg-primary-600 focus:outline-none">
+                            <div className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-white text-primary-600 font-bold text-sm">{cartCount}</div>
+                            <div className="flex flex-col text-right">
+                                <div className="text-xs">Total</div>
+                                <div className="text-sm font-semibold">{formatPrice(payable)}</div>
+                            </div>
+                        </button>
+                    </div>
+                )}
                 {/* Mobile Tab Switcher */}
                 <div className="lg:hidden flex border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
                     <button
@@ -615,7 +705,109 @@ export default function Index({
                                     ))}
                                 </div>
                             </div>
+                            {/* Service Order Selection */}
+                            <div>
+                                <div className="flex items-center justify-between mb-2">
+                                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400">Service Order (opsional)</label>
+                                    <button onClick={() => setSoModalOpen(true)} className="text-xs text-primary-600">Buat Baru</button>
+                                </div>
 
+                                <select
+                                    value={selectedServiceOrder?.id ?? ""}
+                                    onChange={(e) => {
+                                        const id = e.target.value;
+                                        const so = localServiceOrders.find((s) => String(s.id) === String(id));
+                                        setSelectedServiceOrder(so || null);
+                                    }}
+                                    className="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm"
+                                >
+                                    <option value="">-- Pilih Service Order --</option>
+                                    {localServiceOrders.map((so) => (
+                                        <option key={so.id} value={so.id}>
+                                            {so.order_number} — {so.customer?.name ?? "Pelanggan"} — {so.total ? so.total.toLocaleString('id-ID') : 0}
+                                        </option>
+                                    ))}
+                                </select>
+
+                                {selectedServiceOrder && (
+                                    <div className="text-xs mt-2 text-slate-600 dark:text-slate-400">
+                                        Mekanik: {mechanics.find((m) => m.id === selectedServiceOrder.mechanic_id)?.name ?? '-'} | Kendaraan: {vehicles.find((v) => v.id === selectedServiceOrder.vehicle_id)?.plate_number ?? '-'}
+                                    </div>
+                                )}
+
+                                {/* Create Service Order Modal */}
+                                {soModalOpen && (
+                                    <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
+                                        <div className="absolute inset-0 bg-slate-900/60" onClick={() => setSoModalOpen(false)} />
+                                        <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl p-6 max-w-lg w-full">
+                                            <h3 className="text-lg font-bold mb-3">Buat Service Order</h3>
+                                            <div className="space-y-3">
+                                                <div>
+                                                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Mekanik</label>
+                                                    <select value={soMechanicId || ""} onChange={(e) => setSoMechanicId(e.target.value)} className="w-full h-10 rounded-xl border px-3">
+                                                        <option value="">-- Pilih Mekanik (opsional) --</option>
+                                                        {mechanics.map((m) => (
+                                                            <option key={m.id} value={m.id}>{m.name}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Kendaraan</label>
+                                                    <select value={soVehicleId || ""} onChange={(e) => setSoVehicleId(e.target.value)} className="w-full h-10 rounded-xl border px-3">
+                                                        <option value="">-- Pilih Kendaraan (opsional) --</option>
+                                                        {vehicles.map((v) => (
+                                                            <option key={v.id} value={v.id}>{v.plate_number} — {v.brand}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Tambah Layanan</label>
+                                                    <div className="flex gap-2">
+                                                        <select value={soSelectedServiceId} onChange={(e) => setSoSelectedServiceId(e.target.value)} className="flex-1 h-10 rounded-xl border px-3">
+                                                            <option value="">-- Pilih Layanan --</option>
+                                                            {services.map((s) => (
+                                                                <option key={s.id} value={s.id}>{s.title} — Rp {Number(s.price).toLocaleString('id-ID')}</option>
+                                                            ))}
+                                                        </select>
+                                                        <input type="number" min="1" value={soQty} onChange={(e) => setSoQty(e.target.value)} className="w-20 h-10 rounded-xl border px-3" />
+                                                        <button onClick={addSoItem} className="px-4 rounded-xl bg-primary-500 text-white">Tambah</button>
+                                                    </div>
+
+                                                    <div>
+                                                        {soItems.length === 0 ? (
+                                                            <div className="text-xs text-slate-500">Belum ada layanan</div>
+                                                        ) : (
+                                                            <ul className="space-y-2">
+                                                                {soItems.map((it, idx) => (
+                                                                    <li key={idx} className="flex items-center justify-between bg-slate-50 dark:bg-slate-800 p-2 rounded">
+                                                                        <div className="text-sm">{services.find((s) => s.id === it.service_id)?.title} × {it.qty}</div>
+                                                                        <div className="flex items-center gap-2">
+                                                                            <div className="text-sm font-semibold">Rp {(it.price * it.qty).toLocaleString('id-ID')}</div>
+                                                                            <button onClick={() => removeSoItem(idx)} className="text-xs text-danger-500">Hapus</button>
+                                                                        </div>
+                                                                    </li>
+                                                                ))}
+                                                            </ul>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Catatan</label>
+                                                    <textarea value={soNotes} onChange={(e) => setSoNotes(e.target.value)} className="w-full rounded-xl border px-3 py-2" rows={3} />
+                                                </div>
+
+                                                <div className="flex justify-end gap-2">
+                                                    <button onClick={() => setSoModalOpen(false)} className="px-4 py-2 rounded-xl border">Batal</button>
+                                                    <button onClick={submitCreateSo} disabled={creatingSo} className="px-4 py-2 rounded-xl bg-primary-500 text-white">{creatingSo ? 'Membuat...' : 'Buat Service Order'}</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                             {/* Quick Amounts - Only for cash */}
                             {paymentMethod === "cash" && (
                                 <div>
@@ -748,13 +940,13 @@ export default function Index({
                         <button
                             onClick={handleSubmitTransaction}
                             disabled={
-                                !carts.length ||
+                                (!carts.length && !selectedServiceOrder) ||
                                 !selectedCustomer ||
                                 (paymentMethod === "cash" && cash < payable) ||
                                 isSubmitting
                             }
                             className={`w-full h-12 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all ${
-                                carts.length &&
+                                (carts.length || selectedServiceOrder) &&
                                 selectedCustomer &&
                                 (paymentMethod !== "cash" || cash >= payable)
                                     ? "bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white shadow-lg shadow-primary-500/30"
@@ -767,7 +959,7 @@ export default function Index({
                                 <>
                                     <IconReceipt size={18} />
                                     <span>
-                                        {!carts.length
+                                        {!(carts.length || selectedServiceOrder)
                                             ? "Keranjang Kosong"
                                             : !selectedCustomer
                                             ? "Pilih Pelanggan"

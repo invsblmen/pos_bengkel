@@ -46,6 +46,19 @@ npm run dev
 php artisan serve
 ```
 
+### Fitur Bengkel (baru)
+- Service Orders (antrian, assignment mekanik, detail layanan & parts)
+- Mechanics (tabel terpisah untuk data mekanik)
+- Parts (stok & harga terpisah dari produk toko)
+- Vehicles (kendaraan pelanggan, linked ke customer)
+- Appointments (booking jadwal service)
+
+Untuk menyiapkan data contoh bengkel jalankan:
+
+```bash
+php artisan db:seed --class=WorkshopSeeder
+```
+
 ### Default Login
 
 -   **Admin**: `arya@gmail.com` / `password`

@@ -19,6 +19,13 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             PaymentSettingSeeder::class,
             SampleDataSeeder::class,
+            WorkshopSeeder::class,
+            SupplierSeeder::class,
+            \Database\Seeders\AddPartPermissionsSeeder::class,
+            PartSeeder::class,
+            \Database\Seeders\AddPartStockPermissionsSeeder::class,
+            \Database\Seeders\AddPurchasePermissionsSeeder::class,
+            \Database\Seeders\AddSalesPermissionsSeeder::class,
         ]);
     }
 }

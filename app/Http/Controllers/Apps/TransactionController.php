@@ -88,6 +88,11 @@ class TransactionController extends Controller
             'customers'             => $customers,
             'products'              => $products,
             'categories'            => $categories,
+            'mechanics'             => \App\Models\Mechanic::orderBy('name')->get(),
+            'vehicles'              => \App\Models\Vehicle::orderBy('plate_number')->get(),
+            'serviceOrders'         => \App\Models\ServiceOrder::where('status', 'pending')->orderBy('estimated_start_at')->get(),
+            'services'              => \App\Models\Service::orderBy('title')->get(),
+            'parts'                 => \App\Models\Part::orderBy('name')->get(),
             'paymentGateways'       => $paymentSetting?->enabledGateways() ?? [],
             'defaultPaymentGateway' => $defaultGateway,
         ]);
@@ -402,6 +407,17 @@ class TransactionController extends Controller
             }
         }
 
+        $request->validate([
+            'customer_id' => 'nullable|exists:customers,id',
+            'service_order_id' => 'nullable|exists:service_orders,id',
+            'mechanic_id' => 'nullable|exists:mechanics,id',
+            'vehicle_id' => 'nullable|exists:vehicles,id',
+            'discount' => 'nullable|integer|min:0',
+            'grand_total' => 'required|integer|min:0',
+            'cash' => 'nullable|integer|min:0',
+            'change' => 'nullable|integer|min:0',
+        ]);
+
         $length = 10;
         $random = '';
         for ($i = 0; $i < $length; $i++) {
@@ -425,6 +441,9 @@ class TransactionController extends Controller
                 'cashier_id'     => auth()->user()->id,
                 'customer_id'    => $request->customer_id,
                 'invoice'        => $invoice,
+                'service_order_id' => $request->service_order_id ?? null,
+                'mechanic_id'    => $request->mechanic_id ?? null,
+                'vehicle_id'     => $request->vehicle_id ?? null,
                 'cash'           => $cashAmount,
                 'change'         => $changeAmount,
                 'discount'       => $request->discount,
@@ -433,12 +452,64 @@ class TransactionController extends Controller
                 'payment_status' => $isCashPayment ? 'paid' : 'pending',
             ]);
 
+            // If service order provided, convert service order details into transaction details
+            if ($request->service_order_id) {
+                $serviceOrder = \App\Models\ServiceOrder::with('details')->find($request->service_order_id);
+                if ($serviceOrder) {
+                    foreach ($serviceOrder->details as $detail) {
+                        // create transaction detail for service or part
+                        $transaction->details()->create([
+                            'transaction_id' => $transaction->id,
+                            'product_id'     => null,
+                            'service_id'     => $detail->service_id,
+                            'part_id'        => $detail->part_id,
+                            'qty'            => $detail->qty,
+                            'price'          => $detail->price * $detail->qty,
+                        ]);
+
+                        // If part used, reduce part stock
+                        if ($detail->part_id) {
+                            $part = \App\Models\Part::find($detail->part_id);
+                            if ($part) {
+                                $part->stock = max(0, $part->stock - $detail->qty);
+                                $part->save();
+
+                                // record profit if applicable
+                                $total_buy_price  = $part->buy_price * $detail->qty;
+                                $total_sell_price = $part->sell_price * $detail->qty;
+                                $profitAmount     = $total_sell_price - $total_buy_price;
+
+                                $transaction->profits()->create([
+                                    'transaction_id' => $transaction->id,
+                                    'total'          => $profitAmount,
+                                ]);
+                            }
+                        }
+
+                        // For services, optionally create profit record (service margin = price)
+                        if ($detail->service_id && (int) $detail->price > 0) {
+                            $transaction->profits()->create([
+                                'transaction_id' => $transaction->id,
+                                'total'          => $detail->price * $detail->qty,
+                            ]);
+                        }
+                    }
+
+                    // mark service order as completed
+                    $serviceOrder->status = 'completed';
+                    $serviceOrder->save();
+                }
+            }
+
+            // regular product carts
             $carts = Cart::where('cashier_id', auth()->user()->id)->get();
 
             foreach ($carts as $cart) {
                 $transaction->details()->create([
                     'transaction_id' => $transaction->id,
                     'product_id'     => $cart->product_id,
+                    'service_id'     => null,
+                    'part_id'        => null,
                     'qty'            => $cart->qty,
                     'price'          => $cart->price,
                 ]);
@@ -483,7 +554,7 @@ class TransactionController extends Controller
     public function print($invoice)
     {
         //get transaction
-        $transaction = Transaction::with('details.product', 'cashier', 'customer')->where('invoice', $invoice)->firstOrFail();
+        $transaction = Transaction::with(['details.product', 'details.service', 'details.part', 'cashier', 'customer', 'mechanic', 'vehicle'])->where('invoice', $invoice)->firstOrFail();
 
         return Inertia::render('Dashboard/Transactions/Print', [
             'transaction' => $transaction,

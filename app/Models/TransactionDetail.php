@@ -15,7 +15,7 @@ class TransactionDetail extends Model
      * @var array
      */
     protected $fillable = [
-        'transaction_id', 'product_id', 'qty', 'price'
+        'transaction_id', 'product_id', 'service_id', 'part_id', 'qty', 'price'
     ];
 
     /**
@@ -36,5 +36,25 @@ class TransactionDetail extends Model
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    /**
+     * service
+     *
+     * @return void
+     */
+    public function service()
+    {
+        return $this->belongsTo(Service::class);
+    }
+
+    /**
+     * part
+     *
+     * @return void
+     */
+    public function part()
+    {
+        return $this->belongsTo(Part::class);
     }
 }

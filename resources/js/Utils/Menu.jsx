@@ -21,6 +21,8 @@ import {
     IconUserSquare,
     IconUsers,
     IconUsersPlus,
+    IconArrowUp,
+    IconArrowDown,
 } from "@tabler/icons-react";
 import hasAnyPermission from "./Permission";
 import React from "react";
@@ -59,6 +61,48 @@ export default function Menu() {
                     active: url === "/dashboard/products" ? true : false, // Update comparison here
                     icon: <IconBox size={20} strokeWidth={1.5} />,
                     permissions: hasAnyPermission(["products-access"]),
+                },
+                {
+                    title: "Supplier",
+                    href: route("suppliers.index"),
+                    active: url === "/dashboard/suppliers" || url.startsWith("/dashboard/suppliers") ? true : false,
+                    icon: <IconFileCertificate size={20} strokeWidth={1.5} />,
+                    permissions: hasAnyPermission(["suppliers-access"]),
+                },
+                {
+                    title: "Sparepart",
+                    icon: <IconBox size={20} strokeWidth={1.5} />,
+                    permissions: hasAnyPermission(["parts-access"]),
+                    subdetails: [
+                        {
+                            title: "Daftar Sparepart",
+                            href: route("parts.index"),
+                            active: url === "/dashboard/parts" || url.startsWith("/dashboard/parts") ? true : false,
+                            icon: <IconTable size={20} strokeWidth={1.5} />,
+                            permissions: hasAnyPermission(["parts-access"]),
+                        },
+                        {
+                            title: "Sparepart Masuk",
+                            href: route("parts.stock.in.create"),
+                            active: url === "/dashboard/parts/stock/in" || url.startsWith("/dashboard/parts/stock/in") ? true : false,
+                            icon: <IconArrowUp size={20} strokeWidth={1.5} />,
+                            permissions: hasAnyPermission(["parts-stock-in"]),
+                        },
+                        {
+                            title: "Sparepart Keluar",
+                            href: route("parts.stock.out.create"),
+                            active: url === "/dashboard/parts/stock/out" || url.startsWith("/dashboard/parts/stock/out") ? true : false,
+                            icon: <IconArrowDown size={20} strokeWidth={1.5} />,
+                            permissions: hasAnyPermission(["parts-stock-out"]),
+                        },
+                        {
+                            title: "Penjualan Sparepart",
+                            href: route("parts.sales.index"),
+                            active: url === "/dashboard/parts/sales" || url.startsWith("/dashboard/parts/sales") ? true : false,
+                            icon: <IconShoppingCart size={20} strokeWidth={1.5} />,
+                            permissions: hasAnyPermission(["parts-sales-access"]),
+                        },
+                    ],
                 },
                 {
                     title: "Pelanggan",
@@ -154,6 +198,33 @@ export default function Menu() {
                 },
             ],
         },
+        {
+            title: "Workshop",
+            details: [
+                {
+                    title: "Mekanik",
+                    href: route("mechanics.index"),
+                    active: url === "/dashboard/mechanics" ? true : false,
+                    icon: <IconUserSquare size={20} strokeWidth={1.5} />,
+                    permissions: hasAnyPermission(["mechanics-access"]),
+                },
+                {
+                    title: "Service Orders",
+                    href: route("service-orders.index"),
+                    active: url === "/dashboard/service-orders" ? true : false,
+                    icon: <IconFileDescription size={20} strokeWidth={1.5} />,
+                    permissions: hasAnyPermission(["service-orders-access"]),
+                },
+                {
+                    title: "Appointments",
+                    href: route("appointments.index"),
+                    active: url === "/dashboard/appointments" ? true : false,
+                    icon: <IconClockHour6 size={20} strokeWidth={1.5} />,
+                    permissions: hasAnyPermission(["appointments-access"]),
+                },
+            ],
+        },
+
         {
             title: "Pengaturan",
             details: [
