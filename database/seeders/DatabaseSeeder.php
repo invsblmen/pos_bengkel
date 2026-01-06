@@ -15,17 +15,17 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             PermissionSeeder::class,
+            \Database\Seeders\AddPartPermissionsSeeder::class,
+            \Database\Seeders\AddPartStockPermissionsSeeder::class,
+            \Database\Seeders\AddPurchasePermissionsSeeder::class,
+            \Database\Seeders\AddSalesPermissionsSeeder::class,
             RoleSeeder::class,
             UserSeeder::class,
             PaymentSettingSeeder::class,
             SampleDataSeeder::class,
             WorkshopSeeder::class,
             SupplierSeeder::class,
-            \Database\Seeders\AddPartPermissionsSeeder::class,
             PartSeeder::class,
-            \Database\Seeders\AddPartStockPermissionsSeeder::class,
-            \Database\Seeders\AddPurchasePermissionsSeeder::class,
-            \Database\Seeders\AddSalesPermissionsSeeder::class,
         ]);
     }
 }

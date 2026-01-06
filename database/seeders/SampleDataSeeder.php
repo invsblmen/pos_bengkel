@@ -88,14 +88,14 @@ class SampleDataSeeder extends Seeder
     private function seedCustomers(): Collection
     {
         $customers = collect([
-            ['name' => 'Andi Nugraha', 'no_telp' => '6281211111111', 'address' => 'Jl. Melati No. 21, Bandung'],
-            ['name' => 'Bunga Maharani', 'no_telp' => '6281312345678', 'address' => 'Jl. Mawar No. 5, Jakarta'],
-            ['name' => 'Cici Amelia', 'no_telp' => '6281512340000', 'address' => 'Jl. Anggrek No. 17, Surabaya'],
-            ['name' => 'Davin Pradipta', 'no_telp' => '6285612349911', 'address' => 'Jl. Kenanga No. 2, Yogyakarta'],
-            ['name' => 'Eko Saputra', 'no_telp' => '6287712348822', 'address' => 'Jl. Cemara No. 45, Semarang'],
-            ['name' => 'Fitri Lestari', 'no_telp' => '6282213345566', 'address' => 'Jl. Sakura No. 7, Medan'],
-            ['name' => 'Gina Putri', 'no_telp' => '6281399887766', 'address' => 'Jl. Dahlia No. 12, Malang'],
-            ['name' => 'Hendra Wijaya', 'no_telp' => '6285544332211', 'address' => 'Jl. Flamboyan No. 8, Denpasar'],
+            ['name' => 'Andi Nugraha', 'phone' => '6281211111111', 'address' => 'Jl. Melati No. 21, Bandung'],
+            ['name' => 'Bunga Maharani', 'phone' => '6281312345678', 'address' => 'Jl. Mawar No. 5, Jakarta'],
+            ['name' => 'Cici Amelia', 'phone' => '6281512340000', 'address' => 'Jl. Anggrek No. 17, Surabaya'],
+            ['name' => 'Davin Pradipta', 'phone' => '6285612349911', 'address' => 'Jl. Kenanga No. 2, Yogyakarta'],
+            ['name' => 'Eko Saputra', 'phone' => '6287712348822', 'address' => 'Jl. Cemara No. 45, Semarang'],
+            ['name' => 'Fitri Lestari', 'phone' => '6282213345566', 'address' => 'Jl. Sakura No. 7, Medan'],
+            ['name' => 'Gina Putri', 'phone' => '6281399887766', 'address' => 'Jl. Dahlia No. 12, Malang'],
+            ['name' => 'Hendra Wijaya', 'phone' => '6285544332211', 'address' => 'Jl. Flamboyan No. 8, Denpasar'],
         ]);
 
         return $customers

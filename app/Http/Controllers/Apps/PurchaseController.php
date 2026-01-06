@@ -33,6 +33,15 @@ class PurchaseController extends Controller
         ]);
     }
 
+    public function show($id)
+    {
+        $purchase = Purchase::with(['details.part', 'supplier', 'user'])->findOrFail($id);
+
+        return Inertia::render('Dashboard/Parts/Purchases/Show', [
+            'purchase' => $purchase,
+        ]);
+    }
+
     public function store(Request $request)
     {
         $data = $request->validate([

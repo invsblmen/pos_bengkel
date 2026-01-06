@@ -10,7 +10,15 @@ class Mechanic extends Model
     use HasFactory;
 
     protected $fillable = [
-        'name', 'phone', 'employee_number', 'notes',
+        'name', 'phone', 'email', 'employee_number', 'notes',
+        'status', 'specialization', 'hourly_rate', 'commission_percentage', 'certification'
+    ];
+
+    protected $casts = [
+        'specialization' => 'array',
+        'certification' => 'array',
+        'hourly_rate' => 'integer',
+        'commission_percentage' => 'decimal:2',
     ];
 
     public function serviceOrders()
@@ -26,5 +34,10 @@ class Mechanic extends Model
     public function getDisplayAttribute()
     {
         return $this->employee_number ? $this->name . ' (' . $this->employee_number . ')' : $this->name;
+    }
+
+    public function scopeActive($query)
+    {
+        return $query->where('status', 'active');
     }
 }

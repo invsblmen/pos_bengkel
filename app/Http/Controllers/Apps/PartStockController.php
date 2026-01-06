@@ -67,7 +67,7 @@ class PartStockController extends Controller
             'created_by' => Auth::id(),
         ]);
 
-        return redirect()->route('parts.stock.index')->with('success', 'Stok berhasil ditambah');
+        return redirect()->route('part-stock-history.index')->with('success', 'Stok berhasil ditambah');
     }
 
     public function createOut()
@@ -105,6 +105,6 @@ class PartStockController extends Controller
             'created_by' => Auth::id(),
         ]);
 
-        return redirect()->route('parts.stock.index')->with('success', 'Stok berhasil dikurangi');
+        return redirect()->route('part-stock-history.index')->with('success', 'Stok berhasil dikurangi');
     }
 }

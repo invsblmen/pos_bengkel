@@ -31,6 +31,15 @@ class PartSaleController extends Controller
         ]);
     }
 
+    public function show($id)
+    {
+        $sale = PartSale::with(['details.part', 'user'])->findOrFail($id);
+
+        return Inertia::render('Dashboard/Parts/Sales/Show', [
+            'sale' => $sale,
+        ]);
+    }
+
     public function store(Request $request)
     {
         $data = $request->validate([

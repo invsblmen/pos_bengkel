@@ -14,7 +14,7 @@ class PartController extends Controller
     {
         $q = $request->query('q', '');
 
-        $query = Part::with('supplier')->orderBy('name');
+        $query = Part::with(['supplier', 'category'])->orderBy('name');
         if ($q) {
             $query->where(function ($sub) use ($q) {
                 $sub->where('name', 'like', "%{$q}%")
@@ -29,6 +29,7 @@ class PartController extends Controller
             'parts' => $parts,
             'filters' => ['q' => $q],
             'suppliers' => Supplier::orderBy('name')->get(),
+            'categories' => \App\Models\PartCategory::orderBy('name')->get(),
         ]);
     }
 
@@ -44,12 +45,19 @@ class PartController extends Controller
         $data = $request->validate([
             'name' => 'required|string|max:255',
             'sku' => 'nullable|string|max:50|unique:parts,sku',
+            'part_number' => 'nullable|string|max:50',
+            'part_category_id' => 'nullable|exists:part_categories,id',
             'supplier_id' => 'nullable|exists:suppliers,id',
             'buy_price' => 'nullable|numeric|min:0',
-            'sell_price' => 'nullable|numeric|min:0',
+            'sell_price' => 'required|numeric|min:0',
             'stock' => 'nullable|integer|min:0',
             'description' => 'nullable|string',
         ]);
+
+        // Set default stock if not provided
+        if (!isset($data['stock'])) {
+            $data['stock'] = 0;
+        }
 
         $part = Part::create($data);
 
@@ -57,7 +65,10 @@ class PartController extends Controller
             return response()->json(['success' => true, 'data' => $part]);
         }
 
-        return redirect()->route('parts.index')->with('success', 'Part created.');
+        return redirect()->route('parts.index')->with([
+            'success' => 'Part created.',
+            'part' => $part
+        ]);
     }
 
     public function update(Request $request, $id)

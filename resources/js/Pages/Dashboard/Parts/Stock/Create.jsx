@@ -29,9 +29,9 @@ export default function Create({ type, parts, suppliers }) {
             <Head title={type === 'in' ? 'Sparepart Masuk' : 'Sparepart Keluar'} />
 
             <div className="mb-6">
-                <Link href={route('parts.stock.index')} className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-primary-600 mb-3">
+                <Link href={route('part-stock-history.index')} className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-primary-600 mb-3">
                     <IconArrowLeft size={16} />
-                    Kembali ke Mutasi Stok
+                    Kembali ke History Sparepart
                 </Link>
                 <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
                     {type === 'in' ? <IconArrowUp size={28} className="text-primary-500" /> : <IconArrowDown size={28} className="text-danger-500" />}
@@ -64,7 +64,7 @@ export default function Create({ type, parts, suppliers }) {
                         </div>
 
                         <div className="flex justify-end gap-3 mt-6 pt-6 border-t border-slate-100 dark:border-slate-800">
-                            <Link href={route('parts.stock.index')} className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium transition-colors">Batal</Link>
+                            <Link href={route('part-stock-history.index')} className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium transition-colors">Batal</Link>
                             <button type="submit" disabled={processing} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white font-medium transition-colors disabled:opacity-50"><IconDeviceFloppy size={18} />{processing ? 'Menyimpan...' : 'Simpan'}</button>
                         </div>
                     </div>

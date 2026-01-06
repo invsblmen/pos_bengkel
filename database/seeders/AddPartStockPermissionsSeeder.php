@@ -13,6 +13,7 @@ class AddPartStockPermissionsSeeder extends Seeder
             'parts-stock-access',
             'parts-stock-in',
             'parts-stock-out',
+            'part-stock-history-access',
         ];
 
         foreach ($permissions as $name) {

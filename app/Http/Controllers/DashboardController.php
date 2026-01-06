@@ -3,8 +3,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Category;
 use App\Models\Customer;
+use App\Models\Mechanic;
+use App\Models\Part;
 use App\Models\Profit;
 use App\Models\Product;
+use App\Models\ServiceOrder;
 use App\Models\Transaction;
 use App\Models\TransactionDetail;
 use App\Models\User;
@@ -16,6 +19,7 @@ class DashboardController extends Controller
 {
     public function index()
     {
+        // Original retail stats
         $totalCategories   = Category::count();
         $totalProducts     = Product::count();
         $totalTransactions = Transaction::count();
@@ -24,6 +28,27 @@ class DashboardController extends Controller
         $totalProfit       = Profit::sum('total');
         $averageOrder      = Transaction::avg('grand_total') ?? 0;
         $todayTransactions = Transaction::whereDate('created_at', Carbon::today())->count();
+
+        // Workshop-specific statistics
+        $totalServiceOrders = ServiceOrder::count();
+        $pendingOrders = ServiceOrder::where('status', 'pending')->count();
+        $inProgressOrders = ServiceOrder::where('status', 'in_progress')->count();
+        $completedOrdersToday = ServiceOrder::where('status', 'completed')
+            ->whereDate('updated_at', Carbon::today())
+            ->count();
+
+        $todayRevenue = ServiceOrder::where('status', 'completed')
+            ->whereDate('updated_at', Carbon::today())
+            ->sum(DB::raw('COALESCE(labor_cost, 0) + COALESCE(material_cost, 0)'));
+
+        $activeMechanics = Mechanic::where('status', 'active')->count();
+        $totalMechanics = Mechanic::count();
+
+        $lowStockParts = Part::where('status', 'active')
+            ->whereColumn('stock', '<=', 'reorder_level')
+            ->count();
+
+        $totalParts = Part::where('status', 'active')->count();
 
         $revenueTrend      = Transaction::selectRaw('DATE(created_at) as date, SUM(grand_total) as total')
             ->groupBy('date')
@@ -84,6 +109,7 @@ class DashboardController extends Controller
             });
 
         return Inertia::render('Dashboard/Index', [
+            // Original retail stats
             'totalCategories'   => $totalCategories,
             'totalProducts'     => $totalProducts,
             'totalTransactions' => $totalTransactions,
@@ -96,6 +122,19 @@ class DashboardController extends Controller
             'topProducts'       => $topProducts,
             'recentTransactions'=> $recentTransactions,
             'topCustomers'      => $topCustomers,
+
+            // Workshop statistics
+            'workshop' => [
+                'totalServiceOrders' => $totalServiceOrders,
+                'pendingOrders' => $pendingOrders,
+                'inProgressOrders' => $inProgressOrders,
+                'completedOrdersToday' => $completedOrdersToday,
+                'todayRevenue' => (int) $todayRevenue,
+                'activeMechanics' => $activeMechanics,
+                'totalMechanics' => $totalMechanics,
+                'lowStockParts' => $lowStockParts,
+                'totalParts' => $totalParts,
+            ],
         ]);
     }
 }

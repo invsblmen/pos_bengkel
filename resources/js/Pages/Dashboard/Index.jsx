@@ -15,6 +15,10 @@ import {
     IconShoppingCart,
     IconChartBar,
     IconClock,
+    IconTool,
+    IconUser,
+    IconPackage,
+    IconAlertTriangle,
 } from "@tabler/icons-react";
 
 const formatCurrency = (value = 0) =>
@@ -146,6 +150,7 @@ export default function Dashboard({
     topProducts = [],
     recentTransactions = [],
     topCustomers = [],
+    workshop = {},
 }) {
     const chartRef = useRef(null);
     const chartInstance = useRef(null);
@@ -322,6 +327,87 @@ export default function Dashboard({
                         icon={IconUsers}
                     />
                 </div>
+
+                {/* Workshop Statistics Section */}
+                {workshop && Object.keys(workshop).length > 0 && (
+                    <>
+                        <div className="mt-8">
+                            <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-1">
+                                Statistik Bengkel
+                            </h2>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">
+                                Ringkasan operasional bengkel motor
+                            </p>
+                        </div>
+
+                        {/* Workshop Main Stats */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <StatCard
+                                title="Pendapatan Hari Ini"
+                                value={formatCurrency(workshop.todayRevenue || 0)}
+                                subtitle="Dari service yang selesai"
+                                icon={IconCoin}
+                                gradient="from-emerald-500 to-emerald-700"
+                                trend="up"
+                            />
+                            <StatCard
+                                title="Order Menunggu"
+                                value={workshop.pendingOrders || 0}
+                                subtitle="Belum dikerjakan"
+                                icon={IconClock}
+                                gradient="from-amber-500 to-amber-600"
+                            />
+                            <StatCard
+                                title="Sedang Dikerjakan"
+                                value={workshop.inProgressOrders || 0}
+                                subtitle="Order dalam proses"
+                                icon={IconTool}
+                                gradient="from-blue-500 to-blue-700"
+                            />
+                            <StatCard
+                                title="Selesai Hari Ini"
+                                value={workshop.completedOrdersToday || 0}
+                                subtitle="Order yang rampung"
+                                icon={IconReceipt}
+                                gradient="from-green-500 to-green-700"
+                                trend="up"
+                            />
+                        </div>
+
+                        {/* Workshop Secondary Stats */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <InfoCard
+                                title="Total Service Order"
+                                value={workshop.totalServiceOrders || 0}
+                                subtitle="Semua waktu"
+                                icon={IconTool}
+                            />
+                            <InfoCard
+                                title="Mekanik Aktif"
+                                value={`${workshop.activeMechanics || 0}/${workshop.totalMechanics || 0}`}
+                                subtitle="Yang tersedia"
+                                icon={IconUser}
+                            />
+                            <InfoCard
+                                title="Stok Sparepart"
+                                value={workshop.totalParts || 0}
+                                subtitle="Part aktif"
+                                icon={IconPackage}
+                            />
+                            <Link
+                                href={route('parts.index', { filter: 'low_stock' })}
+                                className="block"
+                            >
+                                <InfoCard
+                                    title="Stok Menipis"
+                                    value={workshop.lowStockParts || 0}
+                                    subtitle="Perlu restock"
+                                    icon={IconAlertTriangle}
+                                />
+                            </Link>
+                        </div>
+                    </>
+                )}
 
                 {/* Charts and Lists Row */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

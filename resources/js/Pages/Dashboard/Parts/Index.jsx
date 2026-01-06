@@ -9,12 +9,12 @@ import { Link } from '@inertiajs/react';
 
 const defaultFilters = { q: '' };
 
-export default function Index({ parts, suppliers, filters }) {
+export default function Index({ parts, suppliers, categories, filters }) {
     // keep part form only for editing if needed; creation is handled on separate page
     const [createErrors, setCreateErrors] = useState({});
     const [editModalOpen, setEditModalOpen] = useState(false);
     const [editId, setEditId] = useState(null);
-    const [editForm, setEditForm] = useState({ name: '', sku: '', supplier_id: '', buy_price: '', sell_price: '', stock: 0, description: '' });
+    const [editForm, setEditForm] = useState({ name: '', sku: '', part_category_id: '', supplier_id: '', buy_price: '', sell_price: '', stock: 0, description: '' });
     const [editing, setEditing] = useState(false);
     const [editErrors, setEditErrors] = useState({});
 
@@ -51,7 +51,16 @@ export default function Index({ parts, suppliers, filters }) {
 
     const openEdit = (p) => {
         setEditId(p.id);
-        setEditForm({ name: p.name || '', sku: p.sku || '', supplier_id: p.supplier_id || '', buy_price: p.buy_price || '', sell_price: p.sell_price || '', stock: p.stock || 0, description: p.description || '' });
+        setEditForm({
+            name: p.name || '',
+            sku: p.sku || '',
+            part_category_id: p.part_category_id || '',
+            supplier_id: p.supplier_id || '',
+            buy_price: p.buy_price || '',
+            sell_price: p.sell_price || '',
+            stock: p.stock || 0,
+            description: p.description || ''
+        });
         setEditErrors({});
         setEditModalOpen(true);
     };
@@ -129,31 +138,54 @@ export default function Index({ parts, suppliers, filters }) {
                         <div className="overflow-x-auto">
                             <table className="w-full">
                                 <thead>
-                                    <tr className="border-b border-slate-100 dark:border-slate-800">
+                                    <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
                                         <th className="px-4 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">No</th>
-                                        <th className="px-4 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Nama</th>
+                                        <th className="px-4 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Nama Part</th>
                                         <th className="px-4 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">SKU</th>
+                                        <th className="px-4 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Kategori</th>
                                         <th className="px-4 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Supplier</th>
                                         <th className="px-4 py-4 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Stok</th>
+                                        <th className="px-4 py-4 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Harga Beli</th>
                                         <th className="px-4 py-4 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Harga Jual</th>
-                                        <th className="px-4 py-4 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Aksi</th>
+                                        <th className="px-4 py-4 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Aksi</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                    {parts.data.map((p, idx) => (
-                                        <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                                            <td className="px-4 py-4 text-sm text-slate-600 dark:text-slate-400">{idx + 1 + ((parts.current_page || 1) - 1) * (parts.per_page || parts.data.length)}</td>
-                                            <td className="px-4 py-4 text-sm font-semibold text-slate-900 dark:text-white">{p.name}</td>
-                                            <td className="px-4 py-4 text-sm text-slate-600 dark:text-slate-400">{p.sku || '-'}</td>
-                                            <td className="px-4 py-4 text-sm text-slate-600 dark:text-slate-400">{p.supplier?.name || '-'}</td>
-                                            <td className="px-4 py-4 text-center text-sm text-slate-600 dark:text-slate-400">{p.stock}</td>
-                                            <td className="px-4 py-4 text-right text-sm font-semibold text-slate-900 dark:text-white">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(p.sell_price || 0)}</td>
-                                            <td className="px-4 py-4 text-right">
-                                                <button onClick={() => openEdit(p)} className="inline-flex items-center justify-center px-3 py-1 rounded-md text-sm text-primary-600">Edit</button>
-                                                <button onClick={() => remove(p.id)} className="inline-flex items-center justify-center px-3 py-1 rounded-md text-sm text-danger-500">Hapus</button>
-                                            </td>
-                                        </tr>
-                                    ))}
+                                    {parts.data.map((p, idx) => {
+                                        const stockStatus = p.stock === 0 ? 'out' : (p.stock <= (p.reorder_level || 10) ? 'low' : 'normal');
+                                        const stockBadge = {
+                                            out: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300',
+                                            low: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300',
+                                            normal: 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+                                        }[stockStatus];
+
+                                        return (
+                                            <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                                <td className="px-4 py-4 text-sm text-slate-600 dark:text-slate-400">{idx + 1 + ((parts.current_page || 1) - 1) * (parts.per_page || parts.data.length)}</td>
+                                                <td className="px-4 py-4">
+                                                    <div className="text-sm font-semibold text-slate-900 dark:text-white">{p.name}</div>
+                                                    {p.description && <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">{p.description}</div>}
+                                                </td>
+                                                <td className="px-4 py-4 text-sm text-slate-600 dark:text-slate-400 font-mono">{p.sku || '-'}</td>
+                                                <td className="px-4 py-4 text-sm text-slate-600 dark:text-slate-400">{p.category?.name || '-'}</td>
+                                                <td className="px-4 py-4 text-sm text-slate-600 dark:text-slate-400">{p.supplier?.name || '-'}</td>
+                                                <td className="px-4 py-4 text-center">
+                                                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${stockBadge}`}>
+                                                        <IconBox size={14} />
+                                                        {p.stock}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-4 text-right text-sm text-slate-600 dark:text-slate-400">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(p.buy_price || 0)}</td>
+                                                <td className="px-4 py-4 text-right text-sm font-semibold text-slate-900 dark:text-white">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(p.sell_price || 0)}</td>
+                                                <td className="px-4 py-4 text-center">
+                                                    <div className="flex items-center justify-center gap-1">
+                                                        <button onClick={() => openEdit(p)} className="inline-flex items-center justify-center px-3 py-1.5 rounded-lg text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 dark:bg-primary-900/30 dark:text-primary-300 dark:hover:bg-primary-900/50 transition-colors">Edit</button>
+                                                        <button onClick={() => remove(p.id)} className="inline-flex items-center justify-center px-3 py-1.5 rounded-lg text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-300 dark:hover:bg-red-900/50 transition-colors">Hapus</button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>
@@ -177,30 +209,63 @@ export default function Index({ parts, suppliers, filters }) {
             {editModalOpen && (
                 <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-slate-900/60" onClick={() => setEditModalOpen(false)} />
-                    <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl p-6 max-w-lg w-full">
-                        <h3 className="text-lg font-bold mb-3">Edit Part</h3>
+                    <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto">
+                        <h3 className="text-lg font-bold mb-4">Edit Part</h3>
                         <div className="space-y-3">
-                            <input placeholder="Nama" value={editForm.name} onChange={(e) => { setEditForm({...editForm, name: e.target.value}); setEditErrors(prev => ({...prev, name: undefined})); }} className="w-full h-10 rounded-xl border px-3" />
-                            {editErrors.name && <div className="text-xs text-danger-500 mt-1">{editErrors.name[0]}</div>}
+                            <div>
+                                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Nama Part *</label>
+                                <input placeholder="Nama Part" value={editForm.name} onChange={(e) => { setEditForm({...editForm, name: e.target.value}); setEditErrors(prev => ({...prev, name: undefined})); }} className="w-full h-10 rounded-xl border px-3" />
+                                {editErrors.name && <div className="text-xs text-red-500 mt-1">{editErrors.name[0]}</div>}
+                            </div>
 
-                            <input placeholder="SKU" value={editForm.sku} onChange={(e) => setEditForm({...editForm, sku: e.target.value})} className="w-full h-10 rounded-xl border px-3" />
-                            {editErrors.sku && <div className="text-xs text-danger-500 mt-1">{editErrors.sku[0]}</div>}
+                            <div>
+                                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">SKU</label>
+                                <input placeholder="SKU" value={editForm.sku} onChange={(e) => setEditForm({...editForm, sku: e.target.value})} className="w-full h-10 rounded-xl border px-3" />
+                                {editErrors.sku && <div className="text-xs text-red-500 mt-1">{editErrors.sku[0]}</div>}
+                            </div>
 
-                            <select value={editForm.supplier_id} onChange={(e) => setEditForm({...editForm, supplier_id: e.target.value})} className="w-full h-11 rounded-xl border px-3">
-                                <option value="">Pilih Supplier (opsional)</option>
-                                {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                            </select>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Kategori</label>
+                                    <select value={editForm.part_category_id} onChange={(e) => setEditForm({...editForm, part_category_id: e.target.value})} className="w-full h-11 rounded-xl border px-3">
+                                        <option value="">Pilih Kategori</option>
+                                        {categories?.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Supplier</label>
+                                    <select value={editForm.supplier_id} onChange={(e) => setEditForm({...editForm, supplier_id: e.target.value})} className="w-full h-11 rounded-xl border px-3">
+                                        <option value="">Pilih Supplier</option>
+                                        {suppliers?.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                    </select>
+                                </div>
+                            </div>
 
                             <div className="grid grid-cols-3 gap-2">
-                                <input placeholder="Harga Beli" value={editForm.buy_price} onChange={(e) => setEditForm({...editForm, buy_price: e.target.value})} className="w-full h-10 rounded-xl border px-3" />
-                                <input placeholder="Harga Jual" value={editForm.sell_price} onChange={(e) => setEditForm({...editForm, sell_price: e.target.value})} className="w-full h-10 rounded-xl border px-3" />
-                                <input placeholder="Stok" value={editForm.stock} onChange={(e) => setEditForm({...editForm, stock: e.target.value})} className="w-full h-10 rounded-xl border px-3" />
+                                <div>
+                                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Harga Beli</label>
+                                    <input type="number" placeholder="Harga Beli" value={editForm.buy_price} onChange={(e) => setEditForm({...editForm, buy_price: e.target.value})} className="w-full h-10 rounded-xl border px-3" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Harga Jual *</label>
+                                    <input type="number" placeholder="Harga Jual" value={editForm.sell_price} onChange={(e) => setEditForm({...editForm, sell_price: e.target.value})} className="w-full h-10 rounded-xl border px-3" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Stok (readonly)</label>
+                                    <input type="number" placeholder="Stok" value={editForm.stock} readOnly disabled className="w-full h-10 rounded-xl border px-3 bg-slate-100 dark:bg-slate-800 cursor-not-allowed" />
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Stok hanya berubah melalui transaksi</p>
+                                </div>
                             </div>
-                            <textarea placeholder="Deskripsi" value={editForm.description} onChange={(e) => setEditForm({...editForm, description: e.target.value})} className="w-full rounded-xl border px-3 py-2" rows={3} />
 
-                            <div className="flex justify-end gap-2">
-                                <button onClick={() => { setEditModalOpen(false); setEditErrors({}); }} className="px-4 py-2 rounded-xl border">Batal</button>
-                                <button onClick={submitEdit} disabled={editing} className="px-4 py-2 rounded-xl bg-primary-500 text-white">{editing ? 'Menyimpan...' : 'Simpan Perubahan'}</button>
+                            <div>
+                                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Deskripsi</label>
+                                <textarea placeholder="Deskripsi" value={editForm.description} onChange={(e) => setEditForm({...editForm, description: e.target.value})} className="w-full rounded-xl border px-3 py-2" rows={3} />
+                            </div>
+
+                            <div className="flex justify-end gap-2 pt-2">
+                                <button onClick={() => { setEditModalOpen(false); setEditErrors({}); }} className="px-4 py-2 rounded-xl border hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Batal</button>
+                                <button onClick={submitEdit} disabled={editing} className="px-4 py-2 rounded-xl bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-50 transition-colors">{editing ? 'Menyimpan...' : 'Simpan Perubahan'}</button>
                             </div>
                         </div>
                     </div>

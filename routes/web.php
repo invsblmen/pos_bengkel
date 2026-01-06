@@ -15,6 +15,14 @@ use App\Http\Controllers\UserController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use App\Http\Controllers\Apps\ServiceCategoryController;
+use App\Http\Controllers\Apps\PartCategoryController;
+use App\Http\Controllers\Apps\ServiceController;
+use App\Http\Controllers\Apps\VehicleController;
+use App\Http\Controllers\Apps\PartPurchaseController;
+use App\Http\Controllers\Apps\PartSalesOrderController;
+use App\Http\Controllers\Apps\PartPurchaseOrderController;
+use App\Http\Controllers\Apps\PartStockHistoryController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -24,6 +32,24 @@ Route::get('/', function () {
         'phpVersion'     => PHP_VERSION,
     ]);
 });
+
+// Test route untuk cek permissions
+Route::get('/test-permissions', function () {
+    if (!auth()->check()) {
+        return 'User not authenticated. Please login first.';
+    }
+
+    $user = auth()->user();
+    $permissions = $user->getAllPermissions()->pluck('name');
+
+    return [
+        'user' => $user->name,
+        'email' => $user->email,
+        'roles' => $user->roles->pluck('name'),
+        'permissions_count' => $permissions->count(),
+        'permissions' => $permissions->sort()->values(),
+    ];
+})->middleware('auth');
 
 Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
     Route::get('/', [DashboardController::class, 'index'])->middleware(['auth', 'verified', 'permission:dashboard-access'])->name('dashboard');
@@ -58,6 +84,34 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
         ->middlewareFor(['create', 'store'], 'permission:customers-create')
         ->middlewareFor(['edit', 'update'], 'permission:customers-edit')
         ->middlewareFor('destroy', 'permission:customers-delete');
+
+    // Vehicles Management
+    Route::resource('vehicles', VehicleController::class)
+        ->middlewareFor(['index', 'show'], 'permission:vehicles-access')
+        ->middlewareFor(['create', 'store'], 'permission:vehicles-create')
+        ->middlewareFor(['edit', 'update'], 'permission:vehicles-edit')
+        ->middlewareFor('destroy', 'permission:vehicles-delete');
+
+    // Service Categories
+    Route::resource('service-categories', ServiceCategoryController::class)
+        ->middlewareFor(['index', 'show'], 'permission:service-categories-access')
+        ->middlewareFor(['create', 'store'], 'permission:service-categories-create')
+        ->middlewareFor(['edit', 'update'], 'permission:service-categories-edit')
+        ->middlewareFor('destroy', 'permission:service-categories-delete');
+
+    // Part Categories
+    Route::resource('part-categories', PartCategoryController::class)
+        ->middlewareFor(['index', 'show'], 'permission:part-categories-access')
+        ->middlewareFor(['create', 'store'], 'permission:part-categories-create')
+        ->middlewareFor(['edit', 'update'], 'permission:part-categories-edit')
+        ->middlewareFor('destroy', 'permission:part-categories-delete');
+
+    // Services Management
+    Route::resource('services', ServiceController::class)
+        ->middlewareFor(['index', 'show'], 'permission:services-access')
+        ->middlewareFor(['create', 'store'], 'permission:services-create')
+        ->middlewareFor(['edit', 'update'], 'permission:services-edit')
+        ->middlewareFor('destroy', 'permission:services-delete');
     // mechanics management
     Route::get('/mechanics', [\App\Http\Controllers\Apps\MechanicController::class, 'index'])->middleware('permission:mechanics-access')->name('mechanics.index');
     Route::post('/mechanics', [\App\Http\Controllers\Apps\MechanicController::class, 'store'])->middleware('permission:mechanics-create')->name('mechanics.store');
@@ -77,18 +131,47 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
     Route::patch('/parts/{id}', [\App\Http\Controllers\Apps\PartController::class, 'update'])->middleware('permission:parts-update')->name('parts.update');
     Route::delete('/parts/{id}', [\App\Http\Controllers\Apps\PartController::class, 'destroy'])->middleware('permission:parts-delete')->name('parts.destroy');
 
+    // Part Purchases
+    Route::get('/part-purchases', [PartPurchaseController::class, 'index'])->middleware('permission:part-purchases-access')->name('part-purchases.index');
+    Route::get('/part-purchases/create', [PartPurchaseController::class, 'create'])->middleware('permission:part-purchases-create')->name('part-purchases.create');
+    Route::post('/part-purchases', [PartPurchaseController::class, 'store'])->middleware('permission:part-purchases-create')->name('part-purchases.store');
+    Route::get('/part-purchases/{id}', [PartPurchaseController::class, 'show'])->middleware('permission:part-purchases-access')->name('part-purchases.show');
+    Route::post('/part-purchases/{id}/update-status', [PartPurchaseController::class, 'updateStatus'])->middleware('permission:part-purchases-update')->name('part-purchases.update-status');
+
+    // Part Sales Orders
+    Route::get('/part-sales-orders', [PartSalesOrderController::class, 'index'])->middleware('permission:part-sales-orders-access')->name('part-sales-orders.index');
+    Route::get('/part-sales-orders/create', [PartSalesOrderController::class, 'create'])->middleware('permission:part-sales-orders-create')->name('part-sales-orders.create');
+    Route::post('/part-sales-orders', [PartSalesOrderController::class, 'store'])->middleware('permission:part-sales-orders-create')->name('part-sales-orders.store');
+    Route::get('/part-sales-orders/{id}', [PartSalesOrderController::class, 'show'])->middleware('permission:part-sales-orders-access')->name('part-sales-orders.show');
+    Route::post('/part-sales-orders/{id}/update-status', [PartSalesOrderController::class, 'updateStatus'])->middleware('permission:part-sales-orders-update')->name('part-sales-orders.update-status');
+
+    // Part Purchase Orders
+    Route::get('/part-purchase-orders', [PartPurchaseOrderController::class, 'index'])->middleware('permission:part-purchase-orders-access')->name('part-purchase-orders.index');
+    Route::get('/part-purchase-orders/create', [PartPurchaseOrderController::class, 'create'])->middleware('permission:part-purchase-orders-create')->name('part-purchase-orders.create');
+    Route::post('/part-purchase-orders', [PartPurchaseOrderController::class, 'store'])->middleware('permission:part-purchase-orders-create')->name('part-purchase-orders.store');
+    Route::get('/part-purchase-orders/{partPurchaseOrder}', [PartPurchaseOrderController::class, 'show'])->middleware('permission:part-purchase-orders-access')->name('part-purchase-orders.show');
+    Route::post('/part-purchase-orders/{partPurchaseOrder}/update-status', [PartPurchaseOrderController::class, 'updateStatus'])->middleware('permission:part-purchase-orders-update')->name('part-purchase-orders.update-status');
+
+    // Part Stock History
+    Route::get('/part-stock-history', [PartStockHistoryController::class, 'index'])->middleware('permission:part-stock-history-access|parts-stock-access')->name('part-stock-history.index');
+    Route::get('/part-stock-history/export', [PartStockHistoryController::class, 'export'])->middleware('permission:part-stock-history-access|parts-stock-access')->name('part-stock-history.export');
+
     // Purchases
     Route::get('/parts/purchases', [\App\Http\Controllers\Apps\PurchaseController::class, 'index'])->middleware('permission:purchases-access')->name('parts.purchases.index');
     Route::get('/parts/purchases/create', [\App\Http\Controllers\Apps\PurchaseController::class, 'create'])->middleware('permission:purchases-create')->name('parts.purchases.create');
+    Route::get('/parts/purchases/{id}', [\App\Http\Controllers\Apps\PurchaseController::class, 'show'])->middleware('permission:purchases-access')->name('parts.purchases.show');
     Route::post('/parts/purchases', [\App\Http\Controllers\Apps\PurchaseController::class, 'store'])->middleware('permission:purchases-create')->name('parts.purchases.store');
 
     // Sales (Sparepart)
     Route::get('/parts/sales', [\App\Http\Controllers\Apps\PartSaleController::class, 'index'])->middleware('permission:parts-sales-access')->name('parts.sales.index');
     Route::get('/parts/sales/create', [\App\Http\Controllers\Apps\PartSaleController::class, 'create'])->middleware('permission:parts-sales-create')->name('parts.sales.create');
+    Route::get('/parts/sales/{id}', [\App\Http\Controllers\Apps\PartSaleController::class, 'show'])->middleware('permission:parts-sales-access')->name('parts.sales.show');
     Route::post('/parts/sales', [\App\Http\Controllers\Apps\PartSaleController::class, 'store'])->middleware('permission:parts-sales-create')->name('parts.sales.store');
 
-    // parts stock / movements
-    Route::get('/parts/stock', [\App\Http\Controllers\Apps\PartStockController::class, 'index'])->middleware('permission:parts-stock-access')->name('parts.stock.index');
+    // parts stock / movements (redirect to unified history)
+    Route::get('/parts/stock', function () {
+        return redirect()->route('part-stock-history.index');
+    })->middleware('permission:parts-stock-access|part-stock-history-access')->name('parts.stock.index');
     Route::get('/parts/stock/in', [\App\Http\Controllers\Apps\PartStockController::class, 'createIn'])->middleware('permission:parts-stock-in')->name('parts.stock.in.create');
     Route::post('/parts/stock/in', [\App\Http\Controllers\Apps\PartStockController::class, 'storeIn'])->middleware('permission:parts-stock-in')->name('parts.stock.in.store');
     Route::get('/parts/stock/out', [\App\Http\Controllers\Apps\PartStockController::class, 'createOut'])->middleware('permission:parts-stock-out')->name('parts.stock.out.create');
@@ -133,10 +216,13 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
 
     // service orders
     Route::get('/service-orders', [\App\Http\Controllers\Apps\ServiceOrderController::class, 'index'])->middleware('permission:service-orders-access')->name('service-orders.index');
+    Route::get('/service-orders/create', [\App\Http\Controllers\Apps\ServiceOrderController::class, 'create'])->middleware('permission:service-orders-create')->name('service-orders.create');
     Route::get('/service-orders/{id}', [\App\Http\Controllers\Apps\ServiceOrderController::class, 'show'])->middleware('permission:service-orders-access')->name('service-orders.show');
+    Route::get('/service-orders/{id}/edit', [\App\Http\Controllers\Apps\ServiceOrderController::class, 'edit'])->middleware('permission:service-orders-update')->name('service-orders.edit');
     Route::post('/service-orders', [\App\Http\Controllers\Apps\ServiceOrderController::class, 'store'])->middleware('permission:service-orders-create')->name('service-orders.store');
+    Route::put('/service-orders/{id}', [\App\Http\Controllers\Apps\ServiceOrderController::class, 'update'])->middleware('permission:service-orders-update')->name('service-orders.update');
     Route::post('/transactions/service-orders', [\App\Http\Controllers\Apps\ServiceOrderController::class, 'store'])->middleware('permission:transactions-access')->name('transactions.service-orders.store');
-    Route::patch('/service-orders/{id}/status', [\App\Http\Controllers\Apps\ServiceOrderController::class, 'updateStatus'])->middleware('permission:service-orders-update')->name('service-orders.updateStatus');
+    Route::post('/service-orders/{id}/status', [\App\Http\Controllers\Apps\ServiceOrderController::class, 'updateStatus'])->middleware('permission:service-orders-update')->name('service-orders.update-status');
 
     //appointments
     Route::get('/appointments', [\App\Http\Controllers\Apps\AppointmentController::class, 'index'])->middleware('permission:appointments-access')->name('appointments.index');
