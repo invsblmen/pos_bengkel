@@ -1,7 +1,19 @@
 import React from 'react';
 import { Head, Link } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
-import { IconArrowLeft, IconPencil, IconUser, IconCar, IconTool, IconCalendar, IconClock, IconFileText } from '@tabler/icons-react';
+import {
+    IconArrowLeft,
+    IconPencil,
+    IconUser,
+    IconCar,
+    IconTool,
+    IconCalendar,
+    IconClock,
+    IconFileText,
+    IconCircleCheck,
+    IconCurrencyDollar
+} from '@tabler/icons-react';
+import { toDisplayDateTime } from '@/Utils/datetime';
 
 export default function Show({ order }) {
     const formatPrice = (price) => {
@@ -12,16 +24,7 @@ export default function Show({ order }) {
         }).format(price);
     };
 
-    const formatDate = (dateString) => {
-        if (!dateString) return '-';
-        return new Date(dateString).toLocaleDateString('id-ID', {
-            day: '2-digit',
-            month: 'long',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-        });
-    };
+    const formatDate = (dateString) => (dateString ? toDisplayDateTime(dateString) : '-');
 
     const getStatusBadge = (status) => {
         const badges = {
@@ -61,7 +64,7 @@ export default function Show({ order }) {
                         </Link>
                         <Link
                             href={route('service-orders.edit', order.id)}
-                            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-700"
+                            className="inline-flex items-center gap-2 rounded-xl bg-primary-500 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-primary-600"
                         >
                             <IconPencil size={18} />
                             Edit Order
@@ -81,7 +84,7 @@ export default function Show({ order }) {
                     {/* Customer Info */}
                     <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
                         <div className="mb-4 flex items-center gap-2">
-                            <IconUser size={20} className="text-indigo-600 dark:text-indigo-400" />
+                            <IconUser size={20} className="text-primary-600 dark:text-primary-400" />
                             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
                                 Informasi Pelanggan
                             </h2>
@@ -113,7 +116,7 @@ export default function Show({ order }) {
                     {/* Vehicle Info */}
                     <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
                         <div className="mb-4 flex items-center gap-2">
-                            <IconCar size={20} className="text-indigo-600 dark:text-indigo-400" />
+                            <IconCar size={20} className="text-primary-600 dark:text-primary-400" />
                             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
                                 Informasi Kendaraan
                             </h2>
@@ -145,7 +148,7 @@ export default function Show({ order }) {
                     {/* Mechanic Info */}
                     <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
                         <div className="mb-4 flex items-center gap-2">
-                            <IconTool size={20} className="text-indigo-600 dark:text-indigo-400" />
+                            <IconTool size={20} className="text-primary-600 dark:text-primary-400" />
                             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
                                 Mekanik
                             </h2>
@@ -171,12 +174,18 @@ export default function Show({ order }) {
                     {/* Schedule Info */}
                     <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
                         <div className="mb-4 flex items-center gap-2">
-                            <IconCalendar size={20} className="text-indigo-600 dark:text-indigo-400" />
+                            <IconCalendar size={20} className="text-primary-600 dark:text-primary-400" />
                             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
                                 Jadwal
                             </h2>
                         </div>
                         <div className="space-y-3">
+                            <div>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">Odometer (Km)</p>
+                                <p className="font-medium text-gray-900 dark:text-white">
+                                    {order.odometer_km ? `${order.odometer_km.toLocaleString('id-ID')} km` : '-'}
+                                </p>
+                            </div>
                             <div>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">Estimasi Mulai</p>
                                 <p className="font-medium text-gray-900 dark:text-white">
@@ -205,6 +214,72 @@ export default function Show({ order }) {
                                     </p>
                                 </div>
                             )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Cost Breakdown */}
+                <div className="rounded-2xl border border-gray-200 bg-gradient-to-br from-primary-50 to-white p-6 shadow-sm dark:border-gray-800 dark:from-primary-900/10 dark:to-gray-900">
+                    <div className="mb-4 flex items-center gap-2">
+                        <IconCurrencyDollar size={20} className="text-primary-600 dark:text-primary-400" />
+                        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                            Rincian Biaya
+                        </h2>
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-3">
+                        <div className="rounded-xl bg-white p-4 shadow-sm dark:bg-gray-800">
+                            <div className="flex items-center gap-3">
+                                <div className="rounded-lg bg-blue-100 p-3 dark:bg-blue-900/30">
+                                    <IconTool size={20} className="text-blue-600 dark:text-blue-400" />
+                                </div>
+                                <div>
+                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Biaya Jasa</p>
+                                    <p className="text-xl font-bold text-gray-900 dark:text-white">
+                                        {formatPrice(order.labor_cost || 0)}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="rounded-xl bg-white p-4 shadow-sm dark:bg-gray-800">
+                            <div className="flex items-center gap-3">
+                                <div className="rounded-lg bg-amber-100 p-3 dark:bg-amber-900/30">
+                                    <IconCar size={20} className="text-amber-600 dark:text-amber-400" />
+                                </div>
+                                <div>
+                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Biaya Part</p>
+                                    <p className="text-xl font-bold text-gray-900 dark:text-white">
+                                        {formatPrice(order.material_cost || 0)}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="rounded-xl bg-primary-100 p-4 shadow-sm dark:bg-primary-900/30">
+                            <div className="flex items-center gap-3">
+                                <div className="rounded-lg bg-primary-200 p-3 dark:bg-primary-800">
+                                    <IconCurrencyDollar size={20} className="text-primary-700 dark:text-primary-300" />
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-xs font-medium text-primary-700 dark:text-primary-300">Total</p>
+                                    {(order.discount_amount > 0 || order.tax_amount > 0) ? (
+                                        <div>
+                                            <p className="text-sm line-through text-primary-700 dark:text-primary-400">{formatPrice(order.total || 0)}</p>
+                                            <p className="text-xl font-bold text-primary-900 dark:text-primary-100">
+                                                {formatPrice(order.grand_total || order.total || 0)}
+                                            </p>
+                                            {order.discount_amount > 0 && (
+                                                <p className="text-xs text-red-600">Diskon: -{formatPrice(order.discount_amount)}</p>
+                                            )}
+                                            {order.tax_amount > 0 && (
+                                                <p className="text-xs text-green-600">Pajak: +{formatPrice(order.tax_amount)}</p>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <p className="text-xl font-bold text-primary-900 dark:text-primary-100">
+                                            {formatPrice(order.total || 0)}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -264,11 +339,39 @@ export default function Show({ order }) {
                             </tbody>
                             <tfoot className="bg-gray-50 dark:bg-gray-800">
                                 <tr>
-                                    <td colSpan="3" className="px-6 py-4 text-right text-sm font-semibold text-gray-900 dark:text-white">
-                                        Total
+                                    <td colSpan="3" className="px-6 py-4 text-right text-sm text-gray-600 dark:text-gray-400">
+                                        Subtotal
                                     </td>
-                                    <td className="px-6 py-4 text-right text-lg font-bold text-indigo-600 dark:text-indigo-400">
+                                    <td className="px-6 py-4 text-right text-sm font-medium text-gray-900 dark:text-white">
                                         {formatPrice(order.total || 0)}
+                                    </td>
+                                </tr>
+                                {order.discount_amount > 0 && (
+                                    <tr>
+                                        <td colSpan="3" className="px-6 py-4 text-right text-sm text-gray-600 dark:text-gray-400">
+                                            Diskon {order.discount_type === 'percent' ? `(${order.discount_value}%)` : '(Fixed)'}
+                                        </td>
+                                        <td className="px-6 py-4 text-right text-sm font-medium text-red-600">
+                                            -{formatPrice(order.discount_amount)}
+                                        </td>
+                                    </tr>
+                                )}
+                                {order.tax_amount > 0 && (
+                                    <tr>
+                                        <td colSpan="3" className="px-6 py-4 text-right text-sm text-gray-600 dark:text-gray-400">
+                                            Pajak {order.tax_type === 'percent' ? `(${order.tax_value}%)` : '(Fixed)'}
+                                        </td>
+                                        <td className="px-6 py-4 text-right text-sm font-medium text-green-600">
+                                            +{formatPrice(order.tax_amount)}
+                                        </td>
+                                    </tr>
+                                )}
+                                <tr className="border-t-2 border-gray-300 dark:border-gray-600">
+                                    <td colSpan="3" className="px-6 py-4 text-right text-sm font-semibold text-gray-900 dark:text-white">
+                                        Total Akhir
+                                    </td>
+                                    <td className="px-6 py-4 text-right text-lg font-bold text-primary-600 dark:text-primary-400">
+                                        {formatPrice(order.grand_total || order.total || 0)}
                                     </td>
                                 </tr>
                             </tfoot>
@@ -280,7 +383,7 @@ export default function Show({ order }) {
                 {order.notes && (
                     <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
                         <div className="mb-4 flex items-center gap-2">
-                            <IconFileText size={20} className="text-indigo-600 dark:text-indigo-400" />
+                            <IconFileText size={20} className="text-primary-600 dark:text-primary-400" />
                             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
                                 Catatan
                             </h2>

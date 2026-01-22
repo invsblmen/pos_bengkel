@@ -3,6 +3,7 @@ import { Head, router, Link } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import Pagination from '@/Components/Dashboard/Pagination';
 import { IconFilter, IconArrowUp, IconArrowDown, IconDatabaseOff, IconDownload } from '@tabler/icons-react';
+import { toDisplayDateTime, dateToLocalDateInput } from '@/Utils/datetime';
 
 const defaultFilters = { q: '', part_id: '', type: '', date_from: '', date_to: '' };
 
@@ -18,6 +19,8 @@ const typeColors = {
     stock_out: 'bg-red-100 text-red-700',
     in: 'bg-green-100 text-green-700',
     out: 'bg-red-100 text-red-700',
+    purchase: 'bg-green-100 text-green-700',
+    sale: 'bg-red-100 text-red-700',
 };
 
 const typeLabels = {
@@ -32,6 +35,8 @@ const typeLabels = {
     stock_out: 'Stock Out',
     in: 'Stock In (Manual)',
     out: 'Stock Out (Manual)',
+    purchase: 'Part Purchase',
+    sale: 'Part Sale',
 };
 
 export default function Index({ movements, parts, types, filters }) {
@@ -41,7 +46,7 @@ export default function Index({ movements, parts, types, filters }) {
     });
     const [showFilters, setShowFilters] = useState(false);
 
-    const formatDateInput = (dateObj) => dateObj.toISOString().split('T')[0];
+    const formatDateInput = (dateObj) => dateToLocalDateInput(dateObj);
 
     const applyPreset = (days) => {
         const today = new Date();
@@ -90,16 +95,7 @@ export default function Index({ movements, parts, types, filters }) {
         });
     };
 
-    const formatDate = (dateString) => {
-        if (!dateString) return '-';
-        return new Date(dateString).toLocaleDateString('id-ID', {
-            day: '2-digit',
-            month: 'short',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-        });
-    };
+    const formatDate = (dateString) => (dateString ? toDisplayDateTime(dateString) : '-');
 
     const hasActiveFilters = filterData.q || filterData.part_id || filterData.type || filterData.date_from || filterData.date_to;
 
@@ -120,10 +116,6 @@ export default function Index({ movements, parts, types, filters }) {
                 return route('part-sales-orders.show', m.reference_id);
             case 'App\\Models\\PartPurchaseOrder':
                 return route('part-purchase-orders.show', m.reference_id);
-            case 'App\\Models\\PartSale':
-                return route('parts.sales.show', m.reference_id);
-            case 'App\\Models\\Purchase':
-                return route('parts.purchases.show', m.reference_id);
             default:
                 return null;
         }
@@ -290,15 +282,15 @@ export default function Index({ movements, parts, types, filters }) {
                                                 </td>
                                                 <td className="py-4 px-6 text-center">
                                                     <div className="inline-flex items-center gap-1">
-                                                        {m.qty > 0 ? (
+                                                        {['sale', 'stock_out', 'out', 'sales_order', 'sales_order_reversal', 'purchase_reversal'].includes(m.type) ? (
                                                             <>
-                                                                <IconArrowUp size={16} className="text-green-600" />
-                                                                <span className="text-green-600 font-medium">+{m.qty}</span>
+                                                                <IconArrowDown size={16} className="text-red-600" />
+                                                                <span className="text-red-600 font-medium">-{m.qty}</span>
                                                             </>
                                                         ) : (
                                                             <>
-                                                                <IconArrowDown size={16} className="text-red-600" />
-                                                                <span className="text-red-600 font-medium">{m.qty}</span>
+                                                                <IconArrowUp size={16} className="text-green-600" />
+                                                                <span className="text-green-600 font-medium">+{m.qty}</span>
                                                             </>
                                                         )}
                                                     </div>

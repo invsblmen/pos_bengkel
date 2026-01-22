@@ -12,6 +12,7 @@ import {
     IconUser,
     IconPhone,
     IconMapPin,
+    IconMail,
 } from "@tabler/icons-react";
 import Search from "@/Components/Dashboard/Search";
 import Table from "@/Components/Dashboard/Table";
@@ -37,10 +38,16 @@ function CustomerCard({ customer }) {
 
             {/* Contact Info */}
             <div className="space-y-2 mb-4">
-                {customer.no_telp && (
+                {customer.phone && (
                     <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
                         <IconPhone size={16} />
-                        <span>{customer.no_telp}</span>
+                        <span>{customer.phone}</span>
+                    </div>
+                )}
+                {customer.email && (
+                    <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+                        <IconMail size={16} />
+                        <span className="line-clamp-1">{customer.email}</span>
                     </div>
                 )}
                 {customer.address && (
@@ -164,6 +171,7 @@ export default function Index({ customers }) {
                                     <Table.Th className="w-10">No</Table.Th>
                                     <Table.Th>Pelanggan</Table.Th>
                                     <Table.Th>No. Telepon</Table.Th>
+                                    <Table.Th>Email</Table.Th>
                                     <Table.Th>Alamat</Table.Th>
                                     <Table.Th></Table.Th>
                                 </tr>
@@ -193,7 +201,12 @@ export default function Index({ customers }) {
                                         </Table.Td>
                                         <Table.Td>
                                             <span className="text-sm text-slate-600 dark:text-slate-400">
-                                                {customer.no_telp || "-"}
+                                                {customer.phone || "-"}
+                                            </span>
+                                        </Table.Td>
+                                        <Table.Td>
+                                            <span className="text-sm text-slate-600 dark:text-slate-400 line-clamp-1">
+                                                {customer.email || "-"}
                                             </span>
                                         </Table.Td>
                                         <Table.Td>

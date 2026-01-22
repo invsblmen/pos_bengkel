@@ -15,6 +15,7 @@ export default function AddCustomerModal({ isOpen, onClose, onSuccess }) {
     const [form, setForm] = useState({
         name: "",
         no_telp: "",
+        email: "",
         address: "",
     });
     const [errors, setErrors] = useState({});
@@ -36,6 +37,9 @@ export default function AddCustomerModal({ isOpen, onClose, onSuccess }) {
         const newErrors = {};
         if (!form.name.trim()) newErrors.name = "Nama wajib diisi";
         if (!form.no_telp.trim()) newErrors.no_telp = "No. telepon wajib diisi";
+        if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+            newErrors.email = "Email tidak valid";
+        }
         if (!form.address.trim()) newErrors.address = "Alamat wajib diisi";
 
         if (Object.keys(newErrors).length > 0) {
@@ -53,7 +57,7 @@ export default function AddCustomerModal({ isOpen, onClose, onSuccess }) {
 
             if (response.data.success) {
                 toast.success("Pelanggan berhasil ditambahkan");
-                setForm({ name: "", no_telp: "", address: "" });
+                setForm({ name: "", no_telp: "", email: "", address: "" });
                 setIsSubmitting(false);
                 onSuccess?.(response.data.customer);
                 onClose();
@@ -77,7 +81,7 @@ export default function AddCustomerModal({ isOpen, onClose, onSuccess }) {
     };
 
     const handleClose = () => {
-        setForm({ name: "", no_telp: "", address: "" });
+        setForm({ name: "", no_telp: "", email: "", address: "" });
         setErrors({});
         onClose();
     };
@@ -159,6 +163,30 @@ export default function AddCustomerModal({ isOpen, onClose, onSuccess }) {
                         {errors.no_telp && (
                             <p className="mt-1 text-xs text-danger-500">
                                 {errors.no_telp}
+                            </p>
+                        )}
+                    </div>
+
+                    {/* Email (optional) */}
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                            Email (opsional)
+                        </label>
+                        <input
+                            type="email"
+                            name="email"
+                            value={form.email}
+                            onChange={handleChange}
+                            placeholder="pelanggan@email.com"
+                            className={`w-full h-11 px-4 rounded-xl border ${
+                                errors.email
+                                    ? "border-danger-500 focus:ring-danger-500/20"
+                                    : "border-slate-200 dark:border-slate-700 focus:ring-primary-500/20"
+                            } bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-4 focus:border-primary-500 transition-all`}
+                        />
+                        {errors.email && (
+                            <p className="mt-1 text-xs text-danger-500">
+                                {errors.email}
                             </p>
                         )}
                     </div>

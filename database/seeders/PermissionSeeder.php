@@ -13,86 +13,84 @@ class PermissionSeeder extends Seeder
      */
     public function run(): void
     {
-        // dashboard permissions
-        Permission::create(['name' => 'dashboard-access']);
+        $permissions = [
+            // dashboard
+            'dashboard-access',
 
-        // users permissions
-        Permission::create(['name' => 'users-access']);
-        Permission::create(['name' => 'users-create']);
-        Permission::create(['name' => 'users-update']);
-        Permission::create(['name' => 'users-delete']);
+            // users
+            'users-access', 'users-create', 'users-update', 'users-delete',
 
-        // roles permissions
-        Permission::create(['name' => 'roles-access']);
-        Permission::create(['name' => 'roles-create']);
-        Permission::create(['name' => 'roles-update']);
-        Permission::create(['name' => 'roles-delete']);
+            // roles
+            'roles-access', 'roles-create', 'roles-update', 'roles-delete',
 
-        // permissions permissions
-        Permission::create(['name' => 'permissions-access']);
-        Permission::create(['name' => 'permissions-create']);
-        Permission::create(['name' => 'permissions-update']);
-        Permission::create(['name' => 'permissions-delete']);
+            // permissions
+            'permissions-access', 'permissions-create', 'permissions-update', 'permissions-delete',
 
-        //permission categories
-        Permission::create(['name' => 'categories-access']);
-        Permission::create(['name' => 'categories-create']);
-        Permission::create(['name' => 'categories-edit']);
-        Permission::create(['name' => 'categories-delete']);
+            // categories
+            'categories-access', 'categories-create', 'categories-edit', 'categories-delete',
 
-        //permission products
-        Permission::create(['name' => 'products-access']);
-        Permission::create(['name' => 'products-create']);
-        Permission::create(['name' => 'products-edit']);
-        Permission::create(['name' => 'products-delete']);
+            // products
+            'products-access', 'products-create', 'products-edit', 'products-delete',
 
-        //permission customers
-        Permission::create(['name' => 'customers-access']);
-        Permission::create(['name' => 'customers-create']);
-        Permission::create(['name' => 'customers-edit']);
-        Permission::create(['name' => 'customers-delete']);
+            // customers
+            'customers-access', 'customers-create', 'customers-edit', 'customers-delete',
 
-        //permission transactions
-        Permission::create(['name' => 'transactions-access']);
+            // transactions
+            'transactions-access',
 
-        // permission reports
-        Permission::create(['name' => 'reports-access']);
-        Permission::create(['name' => 'profits-access']);
+            // reports
+            'reports-access', 'profits-access',
 
-        // payment settings
-        Permission::create(['name' => 'payment-settings-access']);
+            // payment settings
+            'payment-settings-access',
 
-        // workshop permissions (service orders, appointments, mechanics, parts)
-        Permission::create(['name' => 'service-orders-access']);
-        Permission::create(['name' => 'service-orders-create']);
-        Permission::create(['name' => 'service-orders-update']);
+            // vehicles
+            'vehicles-access', 'vehicles-create', 'vehicles-edit', 'vehicles-delete',
 
-        Permission::create(['name' => 'appointments-access']);
-        Permission::create(['name' => 'appointments-create']);
-        Permission::create(['name' => 'appointments-update']);
+            // service categories
+            'service-categories-access', 'service-categories-create', 'service-categories-edit', 'service-categories-delete',
 
-        // mechanics
-        Permission::create(['name' => 'mechanics-access']);
-        Permission::create(['name' => 'mechanics-create']);
-        Permission::create(['name' => 'mechanics-update']);
-        Permission::create(['name' => 'mechanics-delete']);
+            // part categories
+            'part-categories-access', 'part-categories-create', 'part-categories-edit', 'part-categories-delete',
 
-        // parts
-        Permission::create(['name' => 'parts-access']);
-        Permission::create(['name' => 'parts-create']);
-        Permission::create(['name' => 'parts-update']);
-        Permission::create(['name' => 'parts-delete']);
+            // services
+            'services-access', 'services-create', 'services-edit', 'services-delete',
 
-        // part purchases
-        Permission::create(['name' => 'part-purchases-access']);
-        Permission::create(['name' => 'part-purchases-create']);
-        Permission::create(['name' => 'part-purchases-update']);
-        Permission::create(['name' => 'part-purchases-delete']);
+            // service orders
+            'service-orders-access', 'service-orders-create', 'service-orders-update', 'service-orders-delete',
 
-        // suppliers
-        Permission::create(['name' => 'suppliers-access']);
-        Permission::create(['name' => 'suppliers-create']);
-        Permission::create(['name' => 'suppliers-update']);
-        Permission::create(['name' => 'suppliers-delete']);
+            // appointments
+            'appointments-access', 'appointments-create', 'appointments-update', 'appointments-delete',
+
+            // mechanics
+            'mechanics-access', 'mechanics-create', 'mechanics-update', 'mechanics-delete',
+
+            // parts
+            'parts-access', 'parts-create', 'parts-update', 'parts-delete',
+
+            // part purchases
+            'part-purchases-access', 'part-purchases-create', 'part-purchases-update', 'part-purchases-delete',
+
+            // part sales
+            'part-sales-access', 'part-sales-create', 'part-sales-show', 'part-sales-edit', 'part-sales-delete',
+
+            // part sales orders
+            'part-sales-orders-access', 'part-sales-orders-create', 'part-sales-orders-update', 'part-sales-orders-delete',
+
+            // part purchase orders
+            'part-purchase-orders-access', 'part-purchase-orders-create', 'part-purchase-orders-update', 'part-purchase-orders-delete',
+
+            // part stock history
+            'part-stock-history-access', 'parts-stock-access', 'parts-stock-in', 'parts-stock-out',
+
+            // suppliers
+            'suppliers-access', 'suppliers-create', 'suppliers-update', 'suppliers-delete',
+        ];
+
+        foreach ($permissions as $permission) {
+            Permission::firstOrCreate(
+                ['name' => $permission, 'guard_name' => 'web']
+            );
+        }
     }
 }

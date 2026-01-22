@@ -46,11 +46,10 @@ class MechanicController extends Controller
 
         $mechanic = Mechanic::create($request->only(['name', 'phone', 'employee_number', 'notes']));
 
-        if ($request->wantsJson() || $request->ajax()) {
-            return response()->json(['success' => true, 'mechanic' => $mechanic]);
-        }
-
-        return redirect()->route('mechanics.index')->with('success', 'Mechanic created.');
+        return redirect()->back()->with([
+            'success' => 'Mechanic created successfully.',
+            'flash' => ['mechanic' => $mechanic]
+        ]);
     }
 
     public function update(Request $request, $id)
@@ -66,11 +65,10 @@ class MechanicController extends Controller
 
         $mechanic->update($request->only(['name', 'phone', 'employee_number', 'notes']));
 
-        if ($request->wantsJson() || $request->ajax()) {
-            return response()->json(['success' => true, 'mechanic' => $mechanic]);
-        }
-
-        return back()->with('success', 'Mechanic updated.');
+        return redirect()->back()->with([
+            'success' => 'Mechanic updated successfully.',
+            'flash' => ['mechanic' => $mechanic]
+        ]);
     }
 
     public function destroy(Request $request, $id)
@@ -78,10 +76,6 @@ class MechanicController extends Controller
         $mechanic = Mechanic::findOrFail($id);
         $mechanic->delete();
 
-        if ($request->wantsJson() || $request->ajax()) {
-            return response()->json(['success' => true]);
-        }
-
-        return back()->with('success', 'Mechanic deleted.');
+        return redirect()->back()->with('success', 'Mechanic deleted successfully.');
     }
 }

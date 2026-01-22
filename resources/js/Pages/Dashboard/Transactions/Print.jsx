@@ -10,6 +10,7 @@ import {
 import ThermalReceipt, {
     ThermalReceipt58mm,
 } from "@/Components/Receipt/ThermalReceipt";
+import { toDisplayDateTime } from "@/Utils/datetime";
 
 export default function Print({ transaction }) {
     const [printMode, setPrintMode] = useState("invoice"); // 'invoice' | 'thermal80' | 'thermal58'
@@ -21,14 +22,7 @@ export default function Print({ transaction }) {
             minimumFractionDigits: 0,
         });
 
-    const formatDateTime = (value) =>
-        new Date(value).toLocaleString("id-ID", {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-        });
+    const formatDateTime = (value) => toDisplayDateTime(value);
 
     const items = transaction?.details ?? [];
 

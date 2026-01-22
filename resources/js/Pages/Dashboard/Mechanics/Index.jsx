@@ -58,27 +58,31 @@ export default function Index({ mechanics, filters }) {
     const submitEdit = async () => {
         if (!editForm.name) return toast.error('Nama mekanik diperlukan');
         setEditing(true);
-        try {
-            await axios.patch(route('mechanics.update', editId), editForm);
-            toast.success('Mekanik diperbarui');
-            setEditModalOpen(false);
-            window.location.reload();
-        } catch (err) {
-            toast.error(err?.response?.data?.message || 'Gagal memperbarui mekanik');
-        } finally {
-            setEditing(false);
-        }
+
+        router.patch(route('mechanics.update', editId), editForm, {
+            onSuccess: () => {
+                toast.success('Mekanik diperbarui');
+                setEditModalOpen(false);
+                setEditForm({ name: '', phone: '', employee_number: '', notes: '' });
+            },
+            onError: () => {
+                toast.error('Gagal memperbarui mekanik');
+            },
+            onFinish: () => setEditing(false),
+        });
     };
 
     const remove = async (id) => {
         if (!confirm('Hapus mekanik ini?')) return;
-        try {
-            await axios.delete(route('mechanics.destroy', id));
-            toast.success('Mekanik dihapus');
-            window.location.reload();
-        } catch (err) {
-            toast.error('Gagal menghapus mekanik');
-        }
+
+        router.delete(route('mechanics.destroy', id), {
+            onSuccess: () => {
+                toast.success('Mekanik dihapus');
+            },
+            onError: () => {
+                toast.error('Gagal menghapus mekanik');
+            },
+        });
     };
 
     return (

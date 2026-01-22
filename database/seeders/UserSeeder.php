@@ -15,11 +15,10 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
-        $user = User::create([
-            'name' => 'Arya Dwi Putra',
-            'email' => 'arya@gmail.com',
-            'password' => bcrypt('password'),
-        ]);
+        $user = User::firstOrCreate(
+            ['email' => 'arya@gmail.com'],
+            ['name' => 'Arya Dwi Putra', 'password' => bcrypt('password')]
+        );
 
         // get admin role
         $role = Role::where('name', 'super-admin')->first();
@@ -33,11 +32,10 @@ class UserSeeder extends Seeder
         // assign a role to user
         $user->assignRole($role);
 
-        $cashier = User::create([
-            'name' => 'Cashier',
-            'email' => 'cashier@gmail.com',
-            'password' => bcrypt('password'),
-        ]);
+        $cashier = User::firstOrCreate(
+            ['email' => 'cashier@gmail.com'],
+            ['name' => 'Cashier', 'password' => bcrypt('password')]
+        );
 
         $transactionsPermission = Permission::where('name', 'transactions-access')->first();
 

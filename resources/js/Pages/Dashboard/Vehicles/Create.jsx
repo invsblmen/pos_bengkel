@@ -1,10 +1,16 @@
-import React from 'react';
-import { Head, useForm, Link } from '@inertiajs/react';
+import React, { useState } from 'react';
+import { Head, useForm, Link, router } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
+import Autocomplete from '@/Components/Dashboard/Autocomplete';
+import QuickCreateCustomerModal from '@/Components/Dashboard/QuickCreateCustomerModal';
 import { IconArrowLeft, IconDeviceFloppy } from '@tabler/icons-react';
 import toast from 'react-hot-toast';
 
 export default function Create({ customers }) {
+    const [showCustomerModal, setShowCustomerModal] = useState(false);
+    const [customerSearchTerm, setCustomerSearchTerm] = useState('');
+    const [customersList, setCustomersList] = useState(customers);
+
     const { data, setData, post, processing, errors } = useForm({
         customer_id: '',
         plate_number: '',
@@ -15,10 +21,17 @@ export default function Create({ customers }) {
         engine_type: '',
         transmission_type: '',
         cylinder_volume: '',
-        km: '',
         last_service_date: '',
         next_service_date: '',
         notes: '',
+        // STNK fields
+        chassis_number: '',
+        engine_number: '',
+        manufacture_year: '',
+        registration_number: '',
+        registration_date: '',
+        stnk_expiry_date: '',
+        previous_owner: '',
     });
 
     const handleSubmit = (e) => {
@@ -69,25 +82,22 @@ export default function Create({ customers }) {
                         <div className="grid gap-6 md:grid-cols-2">
                             {/* Customer */}
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Pemilik <span className="text-red-500">*</span>
-                                </label>
-                                <select
+                                <Autocomplete
+                                    label="Pemilik"
                                     value={data.customer_id}
-                                    onChange={(e) => setData('customer_id', e.target.value)}
-                                    className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                                    onChange={(value) => setData('customer_id', value)}
+                                    options={customersList}
+                                    displayField={(customer) => `${customer.name} - ${customer.phone}`}
+                                    searchFields={['name', 'phone', 'email']}
+                                    placeholder="Cari pelanggan..."
+                                    onCreateNew={(searchTerm) => {
+                                        setCustomerSearchTerm(searchTerm);
+                                        setShowCustomerModal(true);
+                                    }}
+                                    createLabel="Tambah Pelanggan"
+                                    errors={errors.customer_id}
                                     required
-                                >
-                                    <option value="">Pilih Pemilik</option>
-                                    {customers.map((customer) => (
-                                        <option key={customer.id} value={customer.id}>
-                                            {customer.name} - {customer.phone}
-                                        </option>
-                                    ))}
-                                </select>
-                                {errors.customer_id && (
-                                    <p className="mt-1 text-sm text-red-500">{errors.customer_id}</p>
-                                )}
+                                />
                             </div>
 
                             {/* Plate Number */}
@@ -243,23 +253,6 @@ export default function Create({ customers }) {
                                 )}
                             </div>
 
-                            {/* KM */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Kilometer Saat Ini
-                                </label>
-                                <input
-                                    type="number"
-                                    value={data.km}
-                                    onChange={(e) => setData('km', e.target.value)}
-                                    placeholder="10000"
-                                    min="0"
-                                    className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                                />
-                                {errors.km && (
-                                    <p className="mt-1 text-sm text-red-500">{errors.km}</p>
-                                )}
-                            </div>
                         </div>
                     </div>
 
@@ -303,6 +296,133 @@ export default function Create({ customers }) {
                         </div>
                     </div>
 
+                    {/* Data STNK */}
+                    <div className="rounded-lg bg-white p-6 shadow dark:bg-gray-800">
+                        <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
+                            Data STNK (Surat Tanda Nomor Kendaraan)
+                        </h3>
+                        <div className="grid gap-6 md:grid-cols-2">
+                            {/* Chassis Number */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Nomor Rangka (VIN)
+                                </label>
+                                <input
+                                    type="text"
+                                    value={data.chassis_number}
+                                    onChange={(e) => setData('chassis_number', e.target.value)}
+                                    placeholder="Nomor rangka kendaraan"
+                                    className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                                />
+                                {errors.chassis_number && (
+                                    <p className="mt-1 text-sm text-red-500">{errors.chassis_number}</p>
+                                )}
+                            </div>
+
+                            {/* Engine Number */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Nomor Mesin
+                                </label>
+                                <input
+                                    type="text"
+                                    value={data.engine_number}
+                                    onChange={(e) => setData('engine_number', e.target.value)}
+                                    placeholder="Nomor mesin kendaraan"
+                                    className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                                />
+                                {errors.engine_number && (
+                                    <p className="mt-1 text-sm text-red-500">{errors.engine_number}</p>
+                                )}
+                            </div>
+
+                            {/* Manufacture Year */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Tahun Pembuatan
+                                </label>
+                                <input
+                                    type="number"
+                                    value={data.manufacture_year}
+                                    onChange={(e) => setData('manufacture_year', e.target.value)}
+                                    placeholder="2024"
+                                    min="1900"
+                                    max={new Date().getFullYear()}
+                                    className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                                />
+                                {errors.manufacture_year && (
+                                    <p className="mt-1 text-sm text-red-500">{errors.manufacture_year}</p>
+                                )}
+                            </div>
+
+                            {/* Registration Number */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Nomor Registrasi
+                                </label>
+                                <input
+                                    type="text"
+                                    value={data.registration_number}
+                                    onChange={(e) => setData('registration_number', e.target.value)}
+                                    placeholder="Nomor registrasi STNK"
+                                    className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                                />
+                                {errors.registration_number && (
+                                    <p className="mt-1 text-sm text-red-500">{errors.registration_number}</p>
+                                )}
+                            </div>
+
+                            {/* Registration Date */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Tanggal Registrasi
+                                </label>
+                                <input
+                                    type="date"
+                                    value={data.registration_date}
+                                    onChange={(e) => setData('registration_date', e.target.value)}
+                                    className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                                />
+                                {errors.registration_date && (
+                                    <p className="mt-1 text-sm text-red-500">{errors.registration_date}</p>
+                                )}
+                            </div>
+
+                            {/* STNK Expiry Date */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Tanggal Berakhir STNK
+                                </label>
+                                <input
+                                    type="date"
+                                    value={data.stnk_expiry_date}
+                                    onChange={(e) => setData('stnk_expiry_date', e.target.value)}
+                                    className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                                />
+                                {errors.stnk_expiry_date && (
+                                    <p className="mt-1 text-sm text-red-500">{errors.stnk_expiry_date}</p>
+                                )}
+                            </div>
+
+                            {/* Previous Owner */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Pemilik Sebelumnya
+                                </label>
+                                <input
+                                    type="text"
+                                    value={data.previous_owner}
+                                    onChange={(e) => setData('previous_owner', e.target.value)}
+                                    placeholder="Nama pemilik sebelumnya (opsional)"
+                                    className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                                />
+                                {errors.previous_owner && (
+                                    <p className="mt-1 text-sm text-red-500">{errors.previous_owner}</p>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Notes */}
                     <div className="rounded-lg bg-white p-6 shadow dark:bg-gray-800">
                         <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
@@ -338,6 +458,21 @@ export default function Create({ customers }) {
                         </Link>
                     </div>
                 </form>
+
+                {/* Quick Create Customer Modal */}
+                <QuickCreateCustomerModal
+                    isOpen={showCustomerModal}
+                    onClose={() => {
+                        setShowCustomerModal(false);
+                        setCustomerSearchTerm('');
+                    }}
+                    initialName={customerSearchTerm}
+                    onSuccess={(newCustomer) => {
+                        setCustomersList([...customersList, newCustomer]);
+                        setData('customer_id', newCustomer.id);
+                        router.reload({ only: ['customers'] });
+                    }}
+                />
             </div>
         </>
     );

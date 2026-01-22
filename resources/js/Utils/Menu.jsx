@@ -26,6 +26,10 @@ import {
     IconUsersPlus,
     IconArrowUp,
     IconArrowDown,
+    IconTrendingUp,
+    IconCalendar,
+    IconPackage,
+    IconAlertCircle,
 } from "@tabler/icons-react";
 import hasAnyPermission from "./Permission";
 import React from "react";
@@ -92,6 +96,13 @@ export default function Menu() {
                             permissions: hasAnyPermission(["part-purchases-access"]),
                         },
                         {
+                            title: "Penjualan Sparepart",
+                            href: route("part-sales.index"),
+                            active: url.includes("/dashboard/part-sales") && !url.includes("/part-sales-orders") ? true : false,
+                            icon: <IconReceiptText size={20} strokeWidth={1.5} />,
+                            permissions: hasAnyPermission(["part-sales-access"]),
+                        },
+                        {
                             title: "Pesanan Jual Sparepart",
                             href: route("part-sales-orders.index"),
                             active: url.includes("/dashboard/part-sales-orders") ? true : false,
@@ -125,13 +136,6 @@ export default function Menu() {
                             active: url.includes("/dashboard/parts/stock/out") ? true : false,
                             icon: <IconArrowDown size={20} strokeWidth={1.5} />,
                             permissions: hasAnyPermission(["parts-stock-out"]),
-                        },
-                        {
-                            title: "Penjualan Sparepart",
-                            href: route("parts.sales.index"),
-                            active: url.includes("/dashboard/parts/sales") ? true : false,
-                            icon: <IconShoppingCart size={20} strokeWidth={1.5} />,
-                            permissions: hasAnyPermission(["parts-sales-access"]),
                         },
                     ],
                 },
@@ -189,6 +193,41 @@ export default function Menu() {
                     icon: <IconChartBarPopular size={20} strokeWidth={1.5} />,
                     permissions: hasAnyPermission(["profits-access"]),
                 },
+                {
+                    title: "Laporan Lanjut",
+                    icon: <IconChartInfographic size={20} strokeWidth={1.5} />,
+                    permissions: hasAnyPermission(["reports-access"]),
+                    subdetails: [
+                        {
+                            title: "Revenue Servis",
+                            href: route("reports.service-revenue.index"),
+                            active: url.startsWith("/dashboard/reports/service-revenue"),
+                            icon: <IconTrendingUp size={20} strokeWidth={1.5} />,
+                            permissions: hasAnyPermission(["reports-access"]),
+                        },
+                        {
+                            title: "Produktivitas Mekanik",
+                            href: route("reports.mechanic-productivity.index"),
+                            active: url.startsWith("/dashboard/reports/mechanic-productivity"),
+                            icon: <IconUserSquare size={20} strokeWidth={1.5} />,
+                            permissions: hasAnyPermission(["reports-access"]),
+                        },
+                        {
+                            title: "Inventory Sparepart",
+                            href: route("reports.parts-inventory.index"),
+                            active: url.startsWith("/dashboard/reports/parts-inventory"),
+                            icon: <IconPackage size={20} strokeWidth={1.5} />,
+                            permissions: hasAnyPermission(["reports-access"]),
+                        },
+                        {
+                            title: "Pembayaran Tertunggak",
+                            href: route("reports.outstanding-payments.index"),
+                            active: url.startsWith("/dashboard/reports/outstanding-payments"),
+                            icon: <IconAlertCircle size={20} strokeWidth={1.5} />,
+                            permissions: hasAnyPermission(["reports-access"]),
+                        },
+                    ],
+                },
             ],
         },
         {
@@ -241,10 +280,24 @@ export default function Menu() {
             details: [
                 {
                     title: "Mekanik",
-                    href: route("mechanics.index"),
-                    active: url === "/dashboard/mechanics" ? true : false,
                     icon: <IconUserSquare size={20} strokeWidth={1.5} />,
                     permissions: hasAnyPermission(["mechanics-access"]),
+                    subdetails: [
+                        {
+                            title: "Daftar Mekanik",
+                            href: route("mechanics.index"),
+                            active: url === "/dashboard/mechanics" || (url.startsWith("/dashboard/mechanics") && !url.includes("/performance")),
+                            icon: <IconTable size={20} strokeWidth={1.5} />,
+                            permissions: hasAnyPermission(["mechanics-access"]),
+                        },
+                        {
+                            title: "Performa Mekanik",
+                            href: route("mechanics.performance.dashboard"),
+                            active: url.startsWith("/dashboard/mechanics/performance"),
+                            icon: <IconTrendingUp size={20} strokeWidth={1.5} />,
+                            permissions: hasAnyPermission(["mechanics-access"]),
+                        },
+                    ],
                 },
                 {
                     title: "Layanan Service",
@@ -283,10 +336,24 @@ export default function Menu() {
                 },
                 {
                     title: "Appointments",
-                    href: route("appointments.index"),
-                    active: url === "/dashboard/appointments" ? true : false,
                     icon: <IconClockHour6 size={20} strokeWidth={1.5} />,
                     permissions: hasAnyPermission(["appointments-access"]),
+                    subdetails: [
+                        {
+                            title: "Daftar Appointments",
+                            href: route("appointments.index"),
+                            active: url === "/dashboard/appointments" || (url.startsWith("/dashboard/appointments") && !url.includes("/calendar")),
+                            icon: <IconTable size={20} strokeWidth={1.5} />,
+                            permissions: hasAnyPermission(["appointments-access"]),
+                        },
+                        {
+                            title: "Kalender Appointments",
+                            href: route("appointments.calendar"),
+                            active: url.startsWith("/dashboard/appointments/calendar"),
+                            icon: <IconCalendar size={20} strokeWidth={1.5} />,
+                            permissions: hasAnyPermission(["appointments-access"]),
+                        },
+                    ],
                 },
             ],
         },

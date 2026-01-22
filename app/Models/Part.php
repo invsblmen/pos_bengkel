@@ -11,7 +11,7 @@ class Part extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'sku', 'name', 'description', 'buy_price', 'sell_price', 'stock', 'supplier_id',
+        'sku', 'part_number', 'barcode', 'name', 'description', 'buy_price', 'sell_price', 'stock', 'supplier_id',
         'part_category_id', 'unit_measure', 'reorder_level', 'status'
     ];
 

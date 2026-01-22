@@ -1,5 +1,6 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
+import { IconArrowLeft, IconDeviceFloppy } from '@tabler/icons-react';
 import toast from 'react-hot-toast';
 
 function Create({ auth }) {
@@ -22,18 +23,16 @@ function Create({ auth }) {
         <>
             <Head title="Tambah Kategori Layanan" />
 
-            <div className="py-6">
-                <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="p-6">
+                <div className="max-w-3xl mx-auto">
                     {/* Header */}
                     <div className="mb-6">
                         <Link
                             href={route('service-categories.index')}
-                            className="inline-flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-4"
+                            className="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-4 transition-colors"
                         >
-                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                            </svg>
-                            Kembali
+                            <IconArrowLeft size={20} />
+                            <span>Kembali ke Daftar</span>
                         </Link>
                         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
                             Tambah Kategori Layanan Servis
@@ -44,7 +43,7 @@ function Create({ auth }) {
                     </div>
 
                     {/* Form */}
-                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
                         <form onSubmit={handleSubmit} className="space-y-6">
                             {/* Name */}
                             <div>
@@ -56,9 +55,11 @@ function Create({ auth }) {
                                     id="name"
                                     value={data.name}
                                     onChange={(e) => setData('name', e.target.value)}
-                                    className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 ${
-                                        errors.name ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
-                                    }`}
+                                    className={`w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-primary-500 transition-colors ${
+                                        errors.name
+                                            ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
+                                            : 'border-gray-200 dark:border-gray-700 focus:border-transparent'
+                                    } bg-white dark:bg-gray-900 text-gray-900 dark:text-white`}
                                     placeholder="Contoh: Tune Up & Maintenance"
                                     required
                                 />
@@ -77,9 +78,11 @@ function Create({ auth }) {
                                     value={data.description}
                                     onChange={(e) => setData('description', e.target.value)}
                                     rows={4}
-                                    className={`w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 ${
-                                        errors.description ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
-                                    }`}
+                                    className={`w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-primary-500 transition-colors ${
+                                        errors.description
+                                            ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
+                                            : 'border-gray-200 dark:border-gray-700 focus:border-transparent'
+                                    } bg-white dark:bg-gray-900 text-gray-900 dark:text-white`}
                                     placeholder="Deskripsi singkat tentang kategori ini"
                                 />
                                 {errors.description && (
@@ -87,40 +90,42 @@ function Create({ auth }) {
                                 )}
                             </div>
 
-                            {/* Icon */}
-                            <div>
-                                <label htmlFor="icon" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                    Icon (Opsional)
-                                </label>
-                                <input
-                                    type="text"
-                                    id="icon"
-                                    value={data.icon}
-                                    onChange={(e) => setData('icon', e.target.value)}
-                                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-                                    placeholder="wrench, engine, brake"
-                                />
-                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                    Nama icon untuk ditampilkan (gunakan Tabler Icons atau Font Awesome)
-                                </p>
-                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {/* Icon */}
+                                <div>
+                                    <label htmlFor="icon" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                        Icon (Opsional)
+                                    </label>
+                                    <input
+                                        type="text"
+                                        id="icon"
+                                        value={data.icon}
+                                        onChange={(e) => setData('icon', e.target.value)}
+                                        className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                                        placeholder="🔧 atau wrench"
+                                    />
+                                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                        Gunakan emoji atau nama icon
+                                    </p>
+                                </div>
 
-                            {/* Sort Order */}
-                            <div>
-                                <label htmlFor="sort_order" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                    Urutan Tampilan
-                                </label>
-                                <input
-                                    type="number"
-                                    id="sort_order"
-                                    value={data.sort_order}
-                                    onChange={(e) => setData('sort_order', parseInt(e.target.value) || 0)}
-                                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-                                    min="0"
-                                />
-                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                    Kategori dengan urutan lebih kecil akan tampil lebih dulu
-                                </p>
+                                {/* Sort Order */}
+                                <div>
+                                    <label htmlFor="sort_order" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                        Urutan Tampilan
+                                    </label>
+                                    <input
+                                        type="number"
+                                        id="sort_order"
+                                        value={data.sort_order}
+                                        onChange={(e) => setData('sort_order', parseInt(e.target.value) || 0)}
+                                        className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                                        min="0"
+                                    />
+                                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                        Urutan lebih kecil tampil lebih dulu
+                                    </p>
+                                </div>
                             </div>
 
                             {/* Buttons */}
@@ -128,13 +133,14 @@ function Create({ auth }) {
                                 <button
                                     type="submit"
                                     disabled={processing}
-                                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="inline-flex items-center gap-2 px-6 py-2.5 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
+                                    <IconDeviceFloppy size={20} />
                                     {processing ? 'Menyimpan...' : 'Simpan Kategori'}
                                 </button>
                                 <Link
                                     href={route('service-categories.index')}
-                                    className="px-6 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-white font-medium rounded-lg transition-colors"
+                                    className="px-6 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-white font-medium rounded-xl transition-colors"
                                 >
                                     Batal
                                 </Link>

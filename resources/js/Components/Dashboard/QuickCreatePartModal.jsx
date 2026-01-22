@@ -13,6 +13,7 @@ export default function QuickCreatePartModal({
         name: initialName,
         sku: '',
         part_number: '',
+        barcode: '',
         sell_price: '',
         part_category_id: '',
     });
@@ -83,6 +84,27 @@ export default function QuickCreatePartModal({
                             {errors.name && (
                                 <p className="mt-1 text-xs text-red-600 dark:text-red-400">
                                     {errors.name}
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Barcode */}
+                        <div>
+                            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Barcode
+                            </label>
+                            <input
+                                type="text"
+                                value={data.barcode}
+                                onChange={(e) => setData('barcode', e.target.value)}
+                                placeholder="SCAN-001"
+                                className={`block w-full rounded-xl border ${
+                                    errors.barcode ? 'border-red-300' : 'border-gray-300'
+                                } bg-white px-4 py-2.5 text-gray-900 shadow-sm transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100`}
+                            />
+                            {errors.barcode && (
+                                <p className="mt-1 text-xs text-red-600 dark:text-red-400">
+                                    {errors.barcode}
                                 </p>
                             )}
                         </div>

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Apps;
 
 use App\Http\Controllers\Controller;
 use App\Models\Part;
+use App\Models\PartSale;
 use App\Models\PartStockMovement;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -12,7 +13,18 @@ class PartStockHistoryController extends Controller
 {
     public function index(Request $request)
     {
-        $query = PartStockMovement::with(['part', 'supplier', 'user', 'reference'])
+        // Build query - exclude records with deleted model references to prevent errors
+        $query = PartStockMovement::query()
+            ->where(function ($q) {
+                $q->whereIn('reference_type', [
+                    \App\Models\PartPurchase::class,
+                    \App\Models\PartSale::class,
+                    \App\Models\PartSalesOrder::class,
+                    \App\Models\PartPurchaseOrder::class,
+                ])
+                ->orWhereNull('reference_type');
+            })
+            ->with(['part', 'supplier', 'user', 'reference'])
             ->orderBy('created_at', 'desc');
 
         // Filter by part
@@ -43,9 +55,17 @@ class PartStockHistoryController extends Controller
                         $q2->where('name', 'like', "%{$search}%")
                             ->orWhere('sku', 'like', "%{$search}%");
                     })
-                    ->orWhereHasMorph('reference', ['*'], function ($q) use ($search) {
+                    // Only search in valid model types (exclude deleted PartSale, Purchase)
+                    ->orWhereHasMorph('reference', [
+                        \App\Models\PartPurchase::class,
+                        \App\Models\PartSale::class,
+                        \App\Models\PartSalesOrder::class,
+                        \App\Models\PartPurchaseOrder::class,
+                    ], function ($q) use ($search) {
                         $q->where('purchase_number', 'like', "%{$search}%")
+                            ->orWhere('sale_number', 'like', "%{$search}%")
                             ->orWhere('order_number', 'like', "%{$search}%")
+                            ->orWhere('so_number', 'like', "%{$search}%")
                             ->orWhere('po_number', 'like', "%{$search}%");
                     });
             });

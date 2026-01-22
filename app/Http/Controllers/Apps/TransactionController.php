@@ -11,6 +11,7 @@ use App\Models\Transaction;
 use App\Services\Payments\PaymentGatewayManager;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -24,7 +25,7 @@ class TransactionController extends Controller
      */
     public function index()
     {
-        $userId = auth()->user()->id;
+        $userId = Auth::id();
 
         // Get active cart items (not held)
         $carts = Cart::with('product')
@@ -146,7 +147,7 @@ class TransactionController extends Controller
         // Cek keranjang
         $cart = Cart::with('product')
             ->where('product_id', $request->product_id)
-            ->where('cashier_id', auth()->user()->id)
+            ->where('cashier_id', Auth::id())
             ->first();
 
         if ($cart) {
@@ -160,7 +161,7 @@ class TransactionController extends Controller
         } else {
             // Insert ke keranjang
             Cart::create([
-                'cashier_id' => auth()->user()->id,
+                'cashier_id' => Auth::id(),
                 'product_id' => $request->product_id,
                 'qty'        => $request->qty,
                 'price'      => $request->sell_price * $request->qty,
@@ -204,7 +205,7 @@ class TransactionController extends Controller
         ]);
 
         $cart = Cart::with('product')->whereId($cart_id)
-            ->where('cashier_id', auth()->user()->id)
+            ->where('cashier_id', Auth::id())
             ->first();
 
         if (! $cart) {
@@ -242,7 +243,7 @@ class TransactionController extends Controller
             'label' => 'nullable|string|max:50',
         ]);
 
-        $userId = auth()->user()->id;
+        $userId = Auth::id();
 
         // Get active cart items
         $activeCarts = Cart::where('cashier_id', $userId)
@@ -280,7 +281,7 @@ class TransactionController extends Controller
      */
     public function resumeCart($holdId)
     {
-        $userId = auth()->user()->id;
+        $userId = Auth::id();
 
         // Check if there are any active carts (not held)
         $activeCarts = Cart::where('cashier_id', $userId)
@@ -326,7 +327,7 @@ class TransactionController extends Controller
      */
     public function clearHold($holdId)
     {
-        $userId = auth()->user()->id;
+        $userId = Auth::id();
 
         $deleted = Cart::where('cashier_id', $userId)
             ->forHold($holdId)
@@ -352,7 +353,7 @@ class TransactionController extends Controller
      */
     public function getHeldCarts()
     {
-        $userId = auth()->user()->id;
+        $userId = Auth::id();
 
         $heldCarts = Cart::with('product:id,title,sell_price,image')
             ->where('cashier_id', $userId)
@@ -438,7 +439,7 @@ class TransactionController extends Controller
             $isCashPayment
         ) {
             $transaction = Transaction::create([
-                'cashier_id'     => auth()->user()->id,
+                'cashier_id'     => Auth::id(),
                 'customer_id'    => $request->customer_id,
                 'invoice'        => $invoice,
                 'service_order_id' => $request->service_order_id ?? null,
@@ -502,7 +503,7 @@ class TransactionController extends Controller
             }
 
             // regular product carts
-            $carts = Cart::where('cashier_id', auth()->user()->id)->get();
+            $carts = Cart::where('cashier_id', Auth::id())->get();
 
             foreach ($carts as $cart) {
                 $transaction->details()->create([
@@ -528,7 +529,7 @@ class TransactionController extends Controller
                 $product->save();
             }
 
-            Cart::where('cashier_id', auth()->user()->id)->delete();
+            Cart::where('cashier_id', Auth::id())->delete();
 
             return $transaction->fresh(['customer']);
         });

@@ -10,6 +10,7 @@ import {
     IconArrowLeft,
     IconPhone,
     IconMapPin,
+    IconMail,
 } from "@tabler/icons-react";
 
 export default function Create() {
@@ -17,7 +18,8 @@ export default function Create() {
 
     const { data, setData, post, processing } = useForm({
         name: "",
-        no_telp: "",
+        phone: "",
+        email: "",
         address: "",
     });
 
@@ -67,13 +69,25 @@ export default function Create() {
                                         type="text"
                                         label="No. Handphone"
                                         placeholder="08xxxxxxxxxx"
-                                        errors={errors.no_telp}
+                                        errors={errors.phone}
                                         onChange={(e) =>
-                                            setData("no_telp", e.target.value)
+                                            setData("phone", e.target.value)
                                         }
-                                        value={data.no_telp}
+                                        value={data.phone}
                                     />
                                 </div>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <Input
+                                    type="email"
+                                    label="Email"
+                                    placeholder="pelanggan@email.com"
+                                    errors={errors.email}
+                                    onChange={(e) =>
+                                        setData("email", e.target.value)
+                                    }
+                                    value={data.email}
+                                />
                             </div>
                             <Textarea
                                 label="Alamat"

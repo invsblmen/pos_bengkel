@@ -48,44 +48,45 @@ export default function Index({ suppliers, filters }) {
         router.get(route('suppliers.index'), defaultFilters, { preserveScroll: true, preserveState: true, replace: true });
     };
 
- 
+
 
     const openEdit = (s) => {
         setEditId(s.id);
         setEditForm({ name: s.name || '', phone: s.phone || '', email: s.email || '', address: s.address || '', contact_person: s.contact_person || '' });
         setEditErrors({});
         setEditModalOpen(true);
-    }; 
+    };
 
     const submitEdit = async () => {
         if (!editForm.name) return toast.error('Nama supplier diperlukan');
         setEditing(true);
         setEditErrors({});
-        try {
-            await axios.patch(route('suppliers.update', editId), editForm);
-            toast.success('Supplier diperbarui');
-            setEditModalOpen(false);
-            window.location.reload();
-        } catch (err) {
-            if (err.response?.status === 422) {
-                setEditErrors(err.response.data.errors || {});
-            } else {
-                toast.error(err?.response?.data?.message || 'Gagal memperbarui supplier');
-            }
-        } finally {
-            setEditing(false);
-        }
-    }; 
+
+        router.patch(route('suppliers.update', editId), editForm, {
+            onSuccess: (page) => {
+                toast.success('Supplier diperbarui');
+                setEditModalOpen(false);
+                setEditForm({ name: '', phone: '', email: '', address: '', contact_person: '' });
+            },
+            onError: (errors) => {
+                setEditErrors(errors);
+                toast.error('Gagal memperbarui supplier');
+            },
+            onFinish: () => setEditing(false),
+        });
+    };
 
     const remove = async (id) => {
         if (!confirm('Hapus supplier ini?')) return;
-        try {
-            await axios.delete(route('suppliers.destroy', id));
-            toast.success('Supplier dihapus');
-            window.location.reload();
-        } catch (err) {
-            toast.error('Gagal menghapus supplier');
-        }
+
+        router.delete(route('suppliers.destroy', id), {
+            onSuccess: () => {
+                toast.success('Supplier dihapus');
+            },
+            onError: () => {
+                toast.error('Gagal menghapus supplier');
+            },
+        });
     };
 
     return (

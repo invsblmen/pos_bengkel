@@ -8,9 +8,11 @@ use App\Models\PartSalesOrderDetail;
 use App\Models\Customer;
 use App\Models\Part;
 use App\Models\PartStockMovement;
+use App\Services\DiscountTaxService;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class PartSalesOrderController extends Controller
 {
@@ -71,6 +73,12 @@ class PartSalesOrderController extends Controller
             'items.*.part_id' => 'required|exists:parts,id',
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.unit_price' => 'required|integer|min:0',
+            'items.*.discount_type' => 'nullable|in:none,percent,fixed',
+            'items.*.discount_value' => 'nullable|numeric|min:0',
+            'discount_type' => 'nullable|in:none,percent,fixed',
+            'discount_value' => 'nullable|numeric|min:0',
+            'tax_type' => 'nullable|in:none,percent,fixed',
+            'tax_value' => 'nullable|numeric|min:0',
         ]);
 
         DB::beginTransaction();
@@ -87,6 +95,10 @@ class PartSalesOrderController extends Controller
                 'status' => 'pending',
                 'total_amount' => $totalAmount,
                 'notes' => $validated['notes'] ?? null,
+                'discount_type' => $validated['discount_type'] ?? 'none',
+                'discount_value' => $validated['discount_value'] ?? 0,
+                'tax_type' => $validated['tax_type'] ?? 'none',
+                'tax_value' => $validated['tax_value'] ?? 0,
             ]);
 
             foreach ($validated['items'] as $item) {
@@ -98,6 +110,9 @@ class PartSalesOrderController extends Controller
                     'subtotal' => $item['quantity'] * $item['unit_price'],
                 ]);
             }
+
+            // Calculate totals with discount and tax
+            $order->recalculateTotals()->save();
 
             DB::commit();
 
@@ -160,7 +175,7 @@ class PartSalesOrderController extends Controller
                         'reference_type' => 'App\\Models\\PartSalesOrder',
                         'reference_id' => $order->id,
                         'notes' => "Sales order to {$order->customer->name} - {$order->order_number}",
-                        'created_by' => auth()->id(),
+                        'created_by' => Auth::id(),
                     ]);
                 }
 
@@ -187,7 +202,7 @@ class PartSalesOrderController extends Controller
                         'reference_type' => 'App\\Models\\PartSalesOrder',
                         'reference_id' => $order->id,
                         'notes' => "Reversal - {$order->order_number} status changed from fulfilled to {$newStatus}",
-                        'created_by' => auth()->id(),
+                        'created_by' => Auth::id(),
                     ]);
                 }
             }

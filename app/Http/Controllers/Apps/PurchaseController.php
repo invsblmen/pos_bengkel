@@ -8,6 +8,7 @@ use App\Models\Purchase;
 use App\Models\PurchaseDetail;
 use App\Models\Supplier;
 use App\Models\PartStockMovement;
+use App\Services\DiscountTaxService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -51,6 +52,12 @@ class PurchaseController extends Controller
             'items.*.part_id' => 'required|exists:parts,id',
             'items.*.qty' => 'required|integer|min:1',
             'items.*.unit_price' => 'required|numeric|min:0',
+            'items.*.discount_type' => 'nullable|in:none,percent,fixed',
+            'items.*.discount_value' => 'nullable|numeric|min:0',
+            'discount_type' => 'nullable|in:none,percent,fixed',
+            'discount_value' => 'nullable|numeric|min:0',
+            'tax_type' => 'nullable|in:none,percent,fixed',
+            'tax_value' => 'nullable|numeric|min:0',
         ]);
 
         DB::transaction(function () use ($data) {
@@ -63,6 +70,10 @@ class PurchaseController extends Controller
                 'notes' => $data['notes'] ?? null,
                 'total' => 0,
                 'created_by' => Auth::id(),
+                'discount_type' => $data['discount_type'] ?? 'none',
+                'discount_value' => $data['discount_value'] ?? 0,
+                'tax_type' => $data['tax_type'] ?? 'none',
+                'tax_value' => $data['tax_value'] ?? 0,
             ]);
 
             foreach ($data['items'] as $item) {
@@ -71,12 +82,17 @@ class PurchaseController extends Controller
                 $unitPrice = (float) $item['unit_price'];
                 $subtotal = (int) round($qty * $unitPrice);
 
-                $purchase->details()->create([
+                $detail = $purchase->details()->create([
                     'part_id' => $part->id,
                     'qty' => $qty,
                     'unit_price' => $unitPrice,
                     'subtotal' => $subtotal,
+                    'discount_type' => $item['discount_type'] ?? 'none',
+                    'discount_value' => $item['discount_value'] ?? 0,
                 ]);
+
+                // Calculate final amount for item discount
+                $detail->calculateFinalAmount()->save();
 
                 $before = $part->stock;
                 $part->stock = $part->stock + $qty;
@@ -96,11 +112,13 @@ class PurchaseController extends Controller
                     'created_by' => Auth::id(),
                 ]);
 
-                $total += $subtotal;
+                // Use final_amount (after item discount) for total calculation
+                $total += $detail->final_amount ?? $subtotal;
             }
 
             $purchase->total = $total;
-            $purchase->save();
+            // Calculate transaction-level discount and tax
+            $purchase->recalculateTotals()->save();
         });
 
         return redirect()->route('parts.purchases.index')->with('success', 'Pembelian sparepart berhasil disimpan');

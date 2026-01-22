@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import { IconArrowLeft, IconCalendar } from '@tabler/icons-react';
+import { toDisplayDate } from '@/Utils/datetime';
 
 export default function Show({ order }) {
     const { data, setData, post, processing } = useForm({
@@ -38,14 +39,7 @@ export default function Show({ order }) {
         }).format(value);
     };
 
-    const formatDate = (date) => {
-        if (!date) return '-';
-        return new Date(date).toLocaleDateString('id-ID', {
-            day: '2-digit',
-            month: 'long',
-            year: 'numeric',
-        });
-    };
+    const formatDate = (date) => (date ? toDisplayDate(date) : '-');
 
     return (
         <>
@@ -102,7 +96,30 @@ export default function Show({ order }) {
                                     </tr>
                                 ))}
                             </tbody>
+                            <tfoot className="bg-slate-50 border-t border-slate-200">
+                                <tr>
+                                    <td colSpan="3" className="py-3 px-6 text-sm font-semibold text-right">Total:</td>
+                                    <td className="py-3 px-6 text-sm font-bold text-right">{formatCurrency(order.total_amount)}</td>
+                                </tr>
+                            </tfoot>
                         </table>
+                    </div>
+
+                    {/* Pricing Summary */}
+                    <div className="bg-white rounded-2xl border border-slate-200 p-6 mb-6">
+                        <h3 className="font-semibold text-lg mb-4">Ringkasan Harga</h3>
+                        <div className="space-y-3">
+                            <div className="flex justify-between text-sm">
+                                <span className="text-slate-600">Subtotal Items:</span>
+                                <span className="font-medium">{formatCurrency(order.total_amount)}</span>
+                            </div>
+                            <div className="border-t border-slate-200 pt-3">
+                                <div className="flex justify-between text-lg font-bold text-primary-600">
+                                    <span>Total Amount:</span>
+                                    <span>{formatCurrency(order.total_amount)}</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

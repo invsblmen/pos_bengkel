@@ -5,19 +5,67 @@ namespace App\Http\Controllers\Apps;
 use App\Http\Controllers\Controller;
 use App\Models\ServiceOrder;
 use App\Models\ServiceOrderDetail;
+use App\Models\ServiceOrderStatusHistory;
+use App\Services\DiscountTaxService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Auth;
 
 class ServiceOrderController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $orders = ServiceOrder::with('customer', 'vehicle', 'mechanic', 'details.service', 'details.part')
-            ->orderByDesc('created_at')
-            ->paginate(15);
+        $query = ServiceOrder::with('customer', 'vehicle', 'mechanic', 'details.service', 'details.part');
+
+        // Search filter
+        if ($request->search) {
+            $query->where(function($q) use ($request) {
+                $q->where('order_number', 'like', '%' . $request->search . '%')
+                  ->orWhereHas('customer', function($q) use ($request) {
+                      $q->where('name', 'like', '%' . $request->search . '%');
+                  })
+                  ->orWhereHas('vehicle', function($q) use ($request) {
+                      $q->where('plate_number', 'like', '%' . $request->search . '%')
+                        ->orWhere('brand', 'like', '%' . $request->search . '%')
+                        ->orWhere('model', 'like', '%' . $request->search . '%');
+                  });
+            });
+        }
+
+        // Status filter
+        if ($request->status && $request->status !== 'all') {
+            $query->where('status', $request->status);
+        }
+
+        // Date range filter
+        if ($request->date_from) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+        if ($request->date_to) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        // Mechanic filter
+        if ($request->mechanic_id && $request->mechanic_id !== 'all') {
+            $query->where('mechanic_id', $request->mechanic_id);
+        }
+
+        $orders = $query->orderByDesc('created_at')->paginate(15)->withQueryString();
+
+        // Stats for dashboard cards
+        $stats = [
+            'pending' => ServiceOrder::where('status', 'pending')->count(),
+            'in_progress' => ServiceOrder::where('status', 'in_progress')->count(),
+            'completed' => ServiceOrder::where('status', 'completed')->count(),
+            'paid' => ServiceOrder::where('status', 'paid')->count(),
+            'total_revenue' => ServiceOrder::whereIn('status', ['completed', 'paid'])->sum('total'),
+        ];
 
         return inertia('Dashboard/ServiceOrders/Index', [
             'orders' => $orders,
+            'stats' => $stats,
+            'mechanics' => \App\Models\Mechanic::all(['id', 'name']),
+            'filters' => $request->only(['search', 'status', 'date_from', 'date_to', 'mechanic_id']),
         ]);
     }
 
@@ -28,13 +76,14 @@ class ServiceOrderController extends Controller
             'vehicles' => \App\Models\Vehicle::all(),
             'mechanics' => \App\Models\Mechanic::all(),
             'services' => \App\Models\Service::all(),
-            'parts' => \App\Models\Part::all(),
+            'parts' => \App\Models\Part::with('category')->get(),
+            'tags' => \App\Models\Tag::all(),
         ]);
     }
 
     public function edit($id)
     {
-        $order = ServiceOrder::with('customer', 'vehicle', 'mechanic', 'details.service', 'details.part')
+        $order = ServiceOrder::with('customer', 'vehicle', 'mechanic', 'details.service', 'details.part', 'tags')
             ->findOrFail($id);
 
         return inertia('Dashboard/ServiceOrders/Edit', [
@@ -43,7 +92,8 @@ class ServiceOrderController extends Controller
             'vehicles' => \App\Models\Vehicle::all(),
             'mechanics' => \App\Models\Mechanic::all(),
             'services' => \App\Models\Service::all(),
-            'parts' => \App\Models\Part::all(),
+            'parts' => \App\Models\Part::with('category')->get(),
+            'tags' => \App\Models\Tag::all(),
         ]);
     }
 
@@ -64,15 +114,30 @@ class ServiceOrderController extends Controller
             'vehicle_id' => 'nullable|exists:vehicles,id',
             'mechanic_id' => 'nullable|exists:mechanics,id',
             'status' => 'nullable|in:pending,in_progress,completed,paid,cancelled',
+            'odometer_km' => 'required|integer|min:0|max:1000000',
             'estimated_start_at' => 'nullable|date',
             'estimated_finish_at' => 'nullable|date',
+            'labor_cost' => 'nullable|integer|min:0',
             'notes' => 'nullable|string',
+            'maintenance_type' => 'nullable|string',
+            'next_service_km' => 'nullable|integer|min:0',
+            'next_service_date' => 'nullable|date',
+            'tags' => 'nullable|array',
+            'tags.*' => 'integer|exists:tags,id',
             'items' => 'required|array|min:1',
             'items.*.service_id' => 'nullable|exists:services,id',
+            'items.*.service_discount_type' => 'nullable|in:none,percent,fixed',
+            'items.*.service_discount_value' => 'nullable|numeric|min:0',
             'items.*.parts' => 'nullable|array',
             'items.*.parts.*.part_id' => 'nullable|exists:parts,id',
             'items.*.parts.*.qty' => 'required|integer|min:1',
             'items.*.parts.*.price' => 'required|integer|min:0',
+            'items.*.parts.*.discount_type' => 'nullable|in:none,percent,fixed',
+            'items.*.parts.*.discount_value' => 'nullable|numeric|min:0',
+            'discount_type' => 'nullable|in:none,percent,fixed',
+            'discount_value' => 'nullable|numeric|min:0',
+            'tax_type' => 'nullable|in:none,percent,fixed',
+            'tax_value' => 'nullable|numeric|min:0',
         ]);
 
         $orderNumber = 'SO-' . strtoupper(Str::random(8));
@@ -83,43 +148,41 @@ class ServiceOrderController extends Controller
             'vehicle_id' => $request->vehicle_id,
             'mechanic_id' => $request->mechanic_id,
             'status' => $request->status ?? 'pending',
+            'odometer_km' => $request->odometer_km,
             'estimated_start_at' => $request->estimated_start_at,
             'estimated_finish_at' => $request->estimated_finish_at,
+            'labor_cost' => $request->labor_cost ?? 0,
             'notes' => $request->notes,
+            'maintenance_type' => $request->maintenance_type,
+            'next_service_km' => $request->next_service_km,
+            'next_service_date' => $request->next_service_date,
             'total' => 0,
+            'discount_type' => $request->discount_type ?? 'none',
+            'discount_value' => $request->discount_value ?? 0,
+            'tax_type' => $request->tax_type ?? 'none',
+            'tax_value' => $request->tax_value ?? 0,
         ]);
 
-        $total = 0;
-        foreach ($request->items as $item) {
-            // Tambah service jika ada
-            if (!empty($item['service_id'])) {
-                $detail = ServiceOrderDetail::create([
-                    'service_order_id' => $order->id,
-                    'service_id' => $item['service_id'],
-                    'part_id' => null,
-                    'qty' => 1,
-                    'price' => \App\Models\Service::find($item['service_id'])->price ?? 0,
-                ]);
-                $total += $detail->price;
-            }
+        // Attach tags
+        if ($request->tags) {
+            $order->tags()->sync($request->tags);
+        }
 
-            // Tambah parts jika ada
-            if (!empty($item['parts']) && is_array($item['parts'])) {
-                foreach ($item['parts'] as $part) {
-                    $detail = ServiceOrderDetail::create([
-                        'service_order_id' => $order->id,
-                        'service_id' => null,
-                        'part_id' => $part['part_id'] ?? null,
-                        'qty' => $part['qty'],
-                        'price' => $part['price'],
-                    ]);
-                    $total += $detail->price * $detail->qty;
-                }
+        // Validate odometer progression against previous records
+        if ($order->vehicle_id && $order->odometer_km !== null) {
+            $vehicle = \App\Models\Vehicle::find($order->vehicle_id);
+            $prevOrderKm = ServiceOrder::where('vehicle_id', $order->vehicle_id)
+                ->whereNotNull('odometer_km')
+                ->where('id', '!=', $order->id)
+                ->max('odometer_km');
+            $prevKm = max((int)($vehicle->km ?? 0), (int)($prevOrderKm ?? 0));
+            if ($order->odometer_km < $prevKm) {
+                $order->delete();
+                return back()->withErrors(['odometer_km' => 'Odometer tidak boleh kurang dari km sebelumnya (' . number_format($prevKm, 0, ',', '.') . ' km).'])->withInput();
             }
         }
 
-        $order->total = $total;
-        $order->save();
+        $this->calculateServiceOrderCosts($order, $request->items);
 
         return redirect()->route('service-orders.index')->with('success', 'Service order created.');
     }
@@ -130,15 +193,30 @@ class ServiceOrderController extends Controller
             'customer_id' => 'nullable|exists:customers,id',
             'vehicle_id' => 'nullable|exists:vehicles,id',
             'mechanic_id' => 'nullable|exists:mechanics,id',
+            'odometer_km' => 'required_if:status,completed,paid|nullable|integer|min:0|max:1000000',
             'estimated_start_at' => 'nullable|date',
             'estimated_finish_at' => 'nullable|date',
+            'labor_cost' => 'nullable|integer|min:0',
             'notes' => 'nullable|string',
+            'maintenance_type' => 'nullable|string',
+            'next_service_km' => 'nullable|integer|min:0',
+            'next_service_date' => 'nullable|date',
+            'tags' => 'nullable|array',
+            'tags.*' => 'integer|exists:tags,id',
             'items' => 'required|array|min:1',
             'items.*.service_id' => 'nullable|exists:services,id',
+            'items.*.service_discount_type' => 'nullable|in:none,percent,fixed',
+            'items.*.service_discount_value' => 'nullable|numeric|min:0',
             'items.*.parts' => 'nullable|array',
             'items.*.parts.*.part_id' => 'nullable|exists:parts,id',
             'items.*.parts.*.qty' => 'required|integer|min:1',
             'items.*.parts.*.price' => 'required|integer|min:0',
+            'items.*.parts.*.discount_type' => 'nullable|in:none,percent,fixed',
+            'items.*.parts.*.discount_value' => 'nullable|numeric|min:0',
+            'discount_type' => 'nullable|in:none,percent,fixed',
+            'discount_value' => 'nullable|numeric|min:0',
+            'tax_type' => 'nullable|in:none,percent,fixed',
+            'tax_value' => 'nullable|numeric|min:0',
         ]);
 
         $order = ServiceOrder::findOrFail($id);
@@ -146,57 +224,241 @@ class ServiceOrderController extends Controller
             'customer_id' => $request->customer_id,
             'vehicle_id' => $request->vehicle_id,
             'mechanic_id' => $request->mechanic_id,
+            'odometer_km' => $request->odometer_km,
             'estimated_start_at' => $request->estimated_start_at,
             'estimated_finish_at' => $request->estimated_finish_at,
+            'labor_cost' => $request->labor_cost ?? $order->labor_cost,
             'notes' => $request->notes,
+            'maintenance_type' => $request->maintenance_type,
+            'next_service_km' => $request->next_service_km,
+            'next_service_date' => $request->next_service_date,
+            'discount_type' => $request->discount_type ?? 'none',
+            'discount_value' => $request->discount_value ?? 0,
+            'tax_type' => $request->tax_type ?? 'none',
+            'tax_value' => $request->tax_value ?? 0,
         ]);
 
-        // Delete old items and create new ones
-        $order->details()->delete();
-        $total = 0;
+        // Sync tags
+        if ($request->tags) {
+            $order->tags()->sync($request->tags);
+        } else {
+            $order->tags()->detach();
+        }
 
-        foreach ($request->items as $item) {
-            // Tambah service jika ada
-            if (!empty($item['service_id'])) {
-                $detail = ServiceOrderDetail::create([
-                    'service_order_id' => $order->id,
-                    'service_id' => $item['service_id'],
-                    'part_id' => null,
-                    'qty' => 1,
-                    'price' => \App\Models\Service::find($item['service_id'])->price ?? 0,
-                ]);
-                $total += $detail->price;
-            }
-
-            // Tambah parts jika ada
-            if (!empty($item['parts']) && is_array($item['parts'])) {
-                foreach ($item['parts'] as $part) {
-                    $detail = ServiceOrderDetail::create([
-                        'service_order_id' => $order->id,
-                        'service_id' => null,
-                        'part_id' => $part['part_id'] ?? null,
-                        'qty' => $part['qty'],
-                        'price' => $part['price'],
-                    ]);
-                    $total += $detail->price * $detail->qty;
-                }
+        // Validate odometer progression
+        if ($order->vehicle_id && $order->odometer_km !== null) {
+            $vehicle = \App\Models\Vehicle::find($order->vehicle_id);
+            $prevOrderKm = ServiceOrder::where('vehicle_id', $order->vehicle_id)
+                ->whereNotNull('odometer_km')
+                ->where('id', '!=', $order->id)
+                ->max('odometer_km');
+            $prevKm = max((int)($vehicle->km ?? 0), (int)($prevOrderKm ?? 0));
+            if ($order->odometer_km < $prevKm) {
+                return back()->withErrors(['odometer_km' => 'Odometer tidak boleh kurang dari km sebelumnya (' . number_format($prevKm, 0, ',', '.') . ' km).'])->withInput();
             }
         }
 
-        $order->total = $total;
-        $order->save();
+        // Delete old items and create new ones
+        $order->details()->delete();
+
+        $this->calculateServiceOrderCosts($order, $request->items);
 
         return redirect()->route('service-orders.show', $order->id)->with('success', 'Service order updated.');
     }
 
     public function updateStatus(Request $request, $id)
     {
-        $request->validate(['status' => 'required|in:pending,in_progress,completed,paid,cancelled']);
+        $request->validate([
+            'status' => 'required|in:pending,in_progress,completed,paid,cancelled',
+            'odometer_km' => 'nullable|integer|min:0|max:1000000',
+        ]);
 
         $order = ServiceOrder::findOrFail($id);
+        $oldStatus = $order->status;
+
+        // If moving to completed/paid, require odometer (either existing or provided now)
+        if (in_array($request->status, ['completed', 'paid'])) {
+            if (is_null($order->odometer_km) && is_null($request->odometer_km)) {
+                return back()->withErrors(['odometer_km' => 'Odometer (km) wajib diisi saat menyelesaikan atau menandai order sebagai dibayar.'])->withInput();
+            }
+            if (!is_null($request->odometer_km)) {
+                // Validate progression vs previous
+                if ($order->vehicle_id) {
+                    $vehicle = \App\Models\Vehicle::find($order->vehicle_id);
+                    $prevOrderKm = ServiceOrder::where('vehicle_id', $order->vehicle_id)
+                        ->whereNotNull('odometer_km')
+                        ->where('id', '!=', $order->id)
+                        ->max('odometer_km');
+                    $prevKm = max((int)($vehicle->km ?? 0), (int)($prevOrderKm ?? 0));
+                    if ((int)$request->odometer_km < $prevKm) {
+                        return back()->withErrors(['odometer_km' => 'Odometer tidak boleh kurang dari km sebelumnya (' . number_format($prevKm, 0, ',', '.') . ' km).'])->withInput();
+                    }
+                }
+                $order->odometer_km = $request->odometer_km;
+            }
+        }
+
         $order->status = $request->status;
+
+        // When status changes to completed, deduct parts from inventory
+        if ($oldStatus !== 'completed' && $request->status === 'completed') {
+            $this->deductPartsFromInventory($order);
+            // Sync vehicle km with odometer if higher
+            if ($order->vehicle_id && $order->odometer_km !== null) {
+                $vehicle = \App\Models\Vehicle::find($order->vehicle_id);
+                if ($vehicle && (is_null($vehicle->km) || $order->odometer_km > (int)$vehicle->km)) {
+                    $vehicle->km = $order->odometer_km;
+                    $vehicle->last_service_date = now()->toDateString();
+                    $vehicle->save();
+                }
+            }
+        }
+
         $order->save();
 
+        // Record status history
+        ServiceOrderStatusHistory::create([
+            'service_order_id' => $order->id,
+            'old_status' => $oldStatus,
+            'new_status' => $request->status,
+            'user_id' => Auth::id(),
+            'notes' => $request->notes ?? null,
+        ]);
+
         return back()->with('success', 'Status updated.');
+    }
+
+    public function destroy($id)
+    {
+        $order = ServiceOrder::findOrFail($id);
+        $order->delete();
+
+        return redirect()->route('service-orders.index')->with('success', 'Service order deleted.');
+    }
+
+    /**
+     * Calculate and update service order costs
+     */
+    private function calculateServiceOrderCosts($order, $items)
+    {
+        $laborCost = 0;
+        $materialCost = 0;
+        $itemDiscountTotal = 0;
+
+        foreach ($items as $item) {
+            // Add service if exists
+            if (!empty($item['service_id'])) {
+                $service = \App\Models\Service::find($item['service_id']);
+                $servicePrice = $service ? (int) $service->price : 0;
+                $serviceAmount = $servicePrice;
+                $serviceDiscountType = $item['service_discount_type'] ?? 'none';
+                $serviceDiscountValue = $item['service_discount_value'] ?? 0;
+                $serviceFinal = DiscountTaxService::calculateAmountWithDiscount(
+                    $serviceAmount,
+                    $serviceDiscountType,
+                    $serviceDiscountValue
+                );
+                $serviceDiscountAmount = max(0, $serviceAmount - $serviceFinal);
+
+                $detail = ServiceOrderDetail::create([
+                    'service_order_id' => $order->id,
+                    'service_id' => $item['service_id'],
+                    'part_id' => null,
+                    'qty' => 1,
+                    'price' => $servicePrice,
+                    'amount' => $serviceAmount,
+                    'discount_type' => $serviceDiscountType,
+                    'discount_value' => $serviceDiscountValue,
+                    'discount_amount' => $serviceDiscountAmount,
+                    'final_amount' => $serviceFinal,
+                ]);
+
+                $detail->calculateFinalAmount()->save();
+
+                $laborCost += $serviceFinal;
+                $itemDiscountTotal += $serviceDiscountAmount;
+            }
+
+            // Add parts if exists
+            if (!empty($item['parts']) && is_array($item['parts'])) {
+                foreach ($item['parts'] as $part) {
+                    $partPrice = (int)($part['price'] ?? 0);
+                    $partQty = (int)($part['qty'] ?? 1);
+                    $partAmount = $partPrice * $partQty;
+                    $partDiscountType = $part['discount_type'] ?? 'none';
+                    $partDiscountValue = $part['discount_value'] ?? 0;
+                    $partFinal = DiscountTaxService::calculateAmountWithDiscount(
+                        $partAmount,
+                        $partDiscountType,
+                        $partDiscountValue
+                    );
+                    $partDiscountAmount = max(0, $partAmount - $partFinal);
+
+                    $detail = ServiceOrderDetail::create([
+                        'service_order_id' => $order->id,
+                        'service_id' => null,
+                        'part_id' => $part['part_id'] ?? null,
+                        'qty' => $partQty,
+                        'price' => $partPrice,
+                        'amount' => $partAmount,
+                        'discount_type' => $partDiscountType,
+                        'discount_value' => $partDiscountValue,
+                        'discount_amount' => $partDiscountAmount,
+                        'final_amount' => $partFinal,
+                    ]);
+
+                    $detail->calculateFinalAmount()->save();
+
+                    $materialCost += $partFinal;
+                    $itemDiscountTotal += $partDiscountAmount;
+                }
+            }
+        }
+
+        $subtotal = $laborCost + $materialCost;
+        $totals = DiscountTaxService::calculateTotal(
+            $subtotal,
+            $order->discount_type ?? 'none',
+            $order->discount_value ?? 0,
+            $order->tax_type ?? 'none',
+            $order->tax_value ?? 0
+        );
+
+        $order->labor_cost = $laborCost;
+        $order->material_cost = $materialCost;
+        $order->total = $subtotal;
+        $order->discount_amount = ($totals['discount_amount'] ?? 0) + $itemDiscountTotal;
+        $order->tax_amount = $totals['tax_amount'] ?? 0;
+        $order->grand_total = ($subtotal - ($totals['discount_amount'] ?? 0)) + ($totals['tax_amount'] ?? 0);
+        $order->save();
+    }
+
+    /**
+     * Deduct parts from inventory when service order is completed
+     */
+    private function deductPartsFromInventory($order)
+    {
+        foreach ($order->details as $detail) {
+            if ($detail->part_id) {
+                $part = \App\Models\Part::find($detail->part_id);
+                if ($part) {
+                    // Deduct from inventory
+                    $part->stock -= $detail->qty;
+                    $part->save();
+
+                    // Record stock movement
+                    \App\Models\PartStockMovement::create([
+                        'part_id' => $part->id,
+                        'type' => 'out',
+                        'qty' => $detail->qty,
+                        'before_stock' => $part->stock + $detail->qty,
+                        'after_stock' => $part->stock,
+                        'reference_type' => ServiceOrder::class,
+                        'reference_id' => $order->id,
+                        'notes' => "Service Order: {$order->order_number}",
+                    ]);
+                }
+            }
+        }
     }
 }

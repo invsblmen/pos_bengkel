@@ -6,10 +6,13 @@ import Textarea from '@/Components/Dashboard/TextArea';
 import toast from 'react-hot-toast';
 import { IconBox, IconDeviceFloppy, IconArrowLeft } from '@tabler/icons-react';
 
-export default function Create({ suppliers }) {
+export default function Create({ suppliers, categories }) {
     const { data, setData, post, processing, errors } = useForm({
         name: '',
         sku: '',
+        part_number: '',
+        barcode: '',
+        part_category_id: '',
         supplier_id: '',
         buy_price: '',
         sell_price: '',
@@ -46,6 +49,13 @@ export default function Create({ suppliers }) {
                         <div className="space-y-4">
                             <Input label="Nama" placeholder="Nama part" value={data.name} onChange={(e) => setData('name', e.target.value)} errors={errors.name} />
                             <Input label="SKU" placeholder="SKU" value={data.sku} onChange={(e) => setData('sku', e.target.value)} errors={errors.sku} />
+                            <Input label="Part Number" placeholder="Part number" value={data.part_number} onChange={(e) => setData('part_number', e.target.value)} errors={errors.part_number} />
+                            <Input label="Barcode" placeholder="Barcode (opsional)" value={data.barcode} onChange={(e) => setData('barcode', e.target.value)} errors={errors.barcode} />
+
+                            <select value={data.part_category_id} onChange={(e) => setData('part_category_id', e.target.value)} className="w-full h-11 rounded-xl border px-3">
+                                <option value="">Pilih Kategori (opsional)</option>
+                                {categories?.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            </select>
 
                             <select value={data.supplier_id} onChange={(e) => setData('supplier_id', e.target.value)} className="w-full h-11 rounded-xl border px-3">
                                 <option value="">Pilih Supplier (opsional)</option>

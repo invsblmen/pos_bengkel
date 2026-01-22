@@ -3,6 +3,7 @@ import { Head, router, Link } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import Pagination from '@/Components/Dashboard/Pagination';
 import { IconFilter, IconSearch, IconX, IconCirclePlus, IconEye, IconDatabaseOff } from '@tabler/icons-react';
+import { toDisplayDate } from '@/Utils/datetime';
 
 const defaultFilters = { q: '', supplier_id: '', status: '', date_from: '', date_to: '' };
 
@@ -64,14 +65,7 @@ export default function Index({ orders, suppliers, filters }) {
         }).format(value);
     };
 
-    const formatDate = (dateString) => {
-        if (!dateString) return '-';
-        return new Date(dateString).toLocaleDateString('id-ID', {
-            day: '2-digit',
-            month: 'short',
-            year: 'numeric',
-        });
-    };
+    const formatDate = (dateString) => (dateString ? toDisplayDate(dateString) : '-');
 
     const hasActiveFilters = filterData.q || filterData.supplier_id || filterData.status || filterData.date_from || filterData.date_to;
 

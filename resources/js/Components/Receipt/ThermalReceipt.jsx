@@ -1,4 +1,5 @@
 import React from "react";
+import { toDisplayDateTime } from "@/Utils/datetime";
 
 /**
  * ThermalReceipt - Receipt template optimized for thermal printers (58mm/80mm)
@@ -20,15 +21,7 @@ export default function ThermalReceipt({
         return "Rp " + Number(price || 0).toLocaleString("id-ID");
     };
 
-    const formatDate = (value) => {
-        return new Date(value).toLocaleString("id-ID", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-        });
-    };
+    const formatDate = (value) => toDisplayDateTime(value);
 
     const items = transaction?.details ?? [];
 
@@ -186,14 +179,7 @@ export function ThermalReceipt58mm({
         return "Rp" + Number(price || 0).toLocaleString("id-ID");
     };
 
-    const formatTime = (value) => {
-        return new Date(value).toLocaleString("id-ID", {
-            day: "2-digit",
-            month: "2-digit",
-            hour: "2-digit",
-            minute: "2-digit",
-        });
-    };
+    const formatTime = (value) => toDisplayDateTime(value);
 
     const items = transaction?.details ?? [];
     const line = "-".repeat(24);

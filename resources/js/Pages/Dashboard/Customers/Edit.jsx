@@ -16,8 +16,9 @@ export default function Edit({ customer }) {
     const { data, setData, post, processing } = useForm({
         id: customer.id,
         name: customer.name,
-        no_telp: customer.no_telp,
-        address: customer.address,
+        phone: customer.phone,
+        email: customer.email || '',
+        address: customer.address || '',
         _method: "PUT",
     });
 
@@ -67,11 +68,21 @@ export default function Edit({ customer }) {
                                     type="text"
                                     label="No. Handphone"
                                     placeholder="08xxxxxxxxxx"
-                                    errors={errors.no_telp}
+                                    errors={errors.phone}
                                     onChange={(e) =>
-                                        setData("no_telp", e.target.value)
+                                        setData("phone", e.target.value)
                                     }
-                                    value={data.no_telp}
+                                    value={data.phone}
+                                />
+                                <Input
+                                    type="email"
+                                    label="Email"
+                                    placeholder="email@example.com"
+                                    errors={errors.email}
+                                    onChange={(e) =>
+                                        setData("email", e.target.value)
+                                    }
+                                    value={data.email}
                                 />
                             </div>
                             <Textarea

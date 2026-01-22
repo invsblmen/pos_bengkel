@@ -24,12 +24,12 @@ class RoleSeeder extends Seeder
         $this->createRoleWithPermissions('profits-access', '%profits%');
         $this->createRoleWithPermissions('payment-settings-access', '%payment-settings%');
 
-        $superRole = Role::create(['name' => 'super-admin']);
+        $superRole = Role::firstOrCreate(['name' => 'super-admin']);
         // give all permissions to super-admin
         $superRole->givePermissionTo(Permission::all());
 
         // Create cashier role with basic permissions for public registration
-        $cashierRole        = Role::create(['name' => 'cashier']);
+        $cashierRole        = Role::firstOrCreate(['name' => 'cashier']);
         $cashierPermissions = Permission::whereIn('name', [
             'dashboard-access',
             'transactions-access',
@@ -42,7 +42,7 @@ class RoleSeeder extends Seeder
     private function createRoleWithPermissions($roleName, $permissionNamePattern)
     {
         $permissions = Permission::where('name', 'like', $permissionNamePattern)->get();
-        $role        = Role::create(['name' => $roleName]);
+        $role        = Role::firstOrCreate(['name' => $roleName]);
         $role->givePermissionTo($permissions);
     }
 }

@@ -17,8 +17,13 @@ class CustomerController extends Controller
     public function index()
     {
         //get customers
-        $customers = Customer::when(request()->search, function ($customers) {
-            $customers = $customers->where('name', 'like', '%' . request()->search . '%');
+        $customers = Customer::when(request()->search, function ($query) {
+            $search = request()->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%$search%")
+                  ->orWhere('phone', 'like', "%$search%")
+                  ->orWhere('email', 'like', "%$search%");
+            });
         })->latest()->paginate(5);
 
         //return inertia
@@ -48,21 +53,25 @@ class CustomerController extends Controller
         /**
          * validate
          */
-        $request->validate([
+        $validated = $request->validate([
             'name'    => 'required',
-            'no_telp' => 'required|unique:customers',
-            'address' => 'required',
+            'phone'   => 'required|unique:customers',
+            'email'   => 'nullable|email',
+            'address' => 'nullable',
         ]);
 
         //create customer
-        Customer::create([
-            'name'    => $request->name,
-            'no_telp' => $request->no_telp,
-            'address' => $request->address,
+        $customer = Customer::create([
+            'name'    => $validated['name'],
+            'phone'   => $validated['phone'],
+            'email'   => $validated['email'] ?? null,
+            'address' => $validated['address'] ?? null,
         ]);
 
-        //redirect
-        return to_route('customers.index');
+        //redirect with flash data
+        return to_route('customers.index')->with('flash', [
+            'customer' => $customer
+        ]);
     }
 
     /**
@@ -75,15 +84,37 @@ class CustomerController extends Controller
     {
         $validated = $request->validate([
             'name'    => 'required|string|max:255',
-            'no_telp' => 'required|string|unique:customers,no_telp',
-            'address' => 'required|string',
+            'phone'   => 'nullable|string',
+            'no_telp' => 'nullable|string',
+            'email'   => 'nullable|email',
+            'address' => 'nullable|string',
         ]);
+
+        // Accept either 'phone' or legacy 'no_telp'
+        $phone = $validated['phone'] ?? $validated['no_telp'] ?? null;
+        if (!$phone) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Telepon wajib diisi',
+                'errors'  => ['phone' => ['Telepon wajib diisi']],
+            ], 422);
+        }
+
+        // Ensure phone is unique
+        if (Customer::where('phone', $phone)->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Nomor telepon sudah terdaftar',
+                'errors'  => ['phone' => ['Nomor telepon sudah terdaftar']]
+            ], 422);
+        }
 
         try {
             $customer = Customer::create([
                 'name'    => $validated['name'],
-                'no_telp' => $validated['no_telp'],
-                'address' => $validated['address'],
+                'phone'   => $phone,
+                'email'   => $validated['email'] ?? null,
+                'address' => $validated['address'] ?? null,
             ]);
 
             return response()->json([
@@ -92,7 +123,8 @@ class CustomerController extends Controller
                 'customer' => [
                     'id'      => $customer->id,
                     'name'    => $customer->name,
-                    'phone'   => $customer->no_telp,
+                    'phone'   => $customer->phone,
+                    'email'   => $customer->email,
                     'address' => $customer->address,
                 ],
             ]);
@@ -130,17 +162,19 @@ class CustomerController extends Controller
         /**
          * validate
          */
-        $request->validate([
+        $validated = $request->validate([
             'name'    => 'required',
-            'no_telp' => 'required|unique:customers,no_telp,' . $customer->id,
-            'address' => 'required',
+            'phone'   => 'required|unique:customers,phone,' . $customer->id,
+            'email'   => 'nullable|email',
+            'address' => 'nullable',
         ]);
 
         //update customer
         $customer->update([
-            'name'    => $request->name,
-            'no_telp' => $request->no_telp,
-            'address' => $request->address,
+            'name'    => $validated['name'],
+            'phone'   => $validated['phone'],
+            'email'   => $validated['email'] ?? null,
+            'address' => $validated['address'] ?? null,
         ]);
 
         //redirect
@@ -220,6 +254,35 @@ class CustomerController extends Controller
             ],
             'recent_transactions' => $recentTransactions,
             'frequent_products'   => $frequentProducts,
+        ]);
+    }
+
+    /**
+     * Search customers (JSON) for async selectors.
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function search(Request $request)
+    {
+        $q = (string) $request->get('q', '');
+        $limit = (int) $request->get('limit', 20);
+
+        $customers = Customer::query()
+            ->when($q !== '', function ($query) use ($q) {
+                $query->where('name', 'like', "%$q%")
+                      ->orWhere('phone', 'like', "%$q%");
+            })
+            ->orderBy('name')
+            ->limit($limit)
+            ->get(['id', 'name', 'phone']);
+
+        return response()->json([
+            'data' => $customers->map(fn($c) => [
+                'id' => $c->id,
+                'name' => $c->name,
+                'phone' => $c->phone,
+            ]),
         ]);
     }
 }

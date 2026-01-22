@@ -3,6 +3,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import { IconPlus, IconSearch, IconEdit, IconTrash, IconCar, IconCalendar } from '@tabler/icons-react';
 import toast from 'react-hot-toast';
+import { toDisplayDate } from '@/Utils/datetime';
 
 export default function Index({ vehicles }) {
     const [search, setSearch] = useState('');
@@ -33,14 +34,7 @@ export default function Index({ vehicles }) {
         }
     };
 
-    const formatDate = (dateString) => {
-        if (!dateString) return '-';
-        return new Date(dateString).toLocaleDateString('id-ID', {
-            day: '2-digit',
-            month: 'short',
-            year: 'numeric',
-        });
-    };
+    const formatDate = (dateString) => (dateString ? toDisplayDate(dateString) : '-');
 
     return (
         <>
@@ -190,6 +184,13 @@ export default function Index({ vehicles }) {
                                                 </td>
                                                 <td className="whitespace-nowrap px-6 py-4 text-center">
                                                     <div className="flex items-center justify-center gap-2">
+                                                        <Link
+                                                            href={route('vehicles.show', vehicle.id)}
+                                                            className="inline-flex items-center gap-1 rounded bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700 transition hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-200 dark:hover:bg-blue-800"
+                                                        >
+                                                            <IconCar size={14} />
+                                                            Detail
+                                                        </Link>
                                                         <Link
                                                             href={route('vehicles.edit', vehicle.id)}
                                                             className="inline-flex items-center gap-1 rounded bg-yellow-100 px-3 py-1 text-xs font-medium text-yellow-700 transition hover:bg-yellow-200 dark:bg-yellow-900 dark:text-yellow-300 dark:hover:bg-yellow-800"

@@ -15,7 +15,7 @@ class Customer extends Model
      * @var array
      */
     protected $fillable = [
-        'name', 'no_telp', 'phone', 'gender', 'birth_date', 'address', 'city', 'postal_code',
+        'name', 'phone', 'email', 'gender', 'birth_date', 'address', 'city', 'postal_code',
         'identity_type', 'identity_number'
     ];
 
@@ -45,6 +45,6 @@ class Customer extends Model
 
     public function getDisplayNameAttribute()
     {
-        return "{$this->name} (" . ($this->phone ?? $this->no_telp) . ")";
+        return "{$this->name} ({$this->phone})";
     }
 }

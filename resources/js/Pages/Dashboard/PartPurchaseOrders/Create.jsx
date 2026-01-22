@@ -2,11 +2,12 @@ import React from 'react';
 import { Head, useForm, Link } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import { IconArrowLeft, IconPlus, IconX } from '@tabler/icons-react';
+import { todayLocalDate } from '@/Utils/datetime';
 
 export default function Create({ suppliers, parts }) {
     const { data, setData, post, errors, processing } = useForm({
         supplier_id: '',
-        po_date: new Date().toISOString().split('T')[0],
+        po_date: todayLocalDate(),
         expected_delivery_date: '',
         notes: '',
         items: [{ part_id: '', quantity: 1, unit_price: 0 }],

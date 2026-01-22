@@ -7,6 +7,7 @@ use App\Models\Part;
 use App\Models\PartSale;
 use App\Models\PartSaleDetail;
 use App\Models\PartStockMovement;
+use App\Services\DiscountTaxService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -27,7 +28,7 @@ class PartSaleController extends Controller
     public function create()
     {
         return Inertia::render('Dashboard/Parts/Sales/Create', [
-            'parts' => Part::orderBy('name')->get(),
+            'parts' => Part::with('category')->orderBy('name')->get(),
         ]);
     }
 
@@ -48,6 +49,12 @@ class PartSaleController extends Controller
             'items.*.part_id' => 'required|exists:parts,id',
             'items.*.qty' => 'required|integer|min:1',
             'items.*.unit_price' => 'required|numeric|min:0',
+            'items.*.discount_type' => 'nullable|in:none,percent,fixed',
+            'items.*.discount_value' => 'nullable|numeric|min:0',
+            'discount_type' => 'nullable|in:none,percent,fixed',
+            'discount_value' => 'nullable|numeric|min:0',
+            'tax_type' => 'nullable|in:none,percent,fixed',
+            'tax_value' => 'nullable|numeric|min:0',
         ]);
 
         DB::transaction(function () use ($data) {
@@ -59,6 +66,10 @@ class PartSaleController extends Controller
                 'notes' => $data['notes'] ?? null,
                 'total' => 0,
                 'created_by' => Auth::id(),
+                'discount_type' => $data['discount_type'] ?? 'none',
+                'discount_value' => $data['discount_value'] ?? 0,
+                'tax_type' => $data['tax_type'] ?? 'none',
+                'tax_value' => $data['tax_value'] ?? 0,
             ]);
 
             foreach ($data['items'] as $item) {
@@ -71,12 +82,17 @@ class PartSaleController extends Controller
                     throw ValidationException::withMessages(['items' => ["Stok tidak mencukupi untuk {$part->name}"]]);
                 }
 
-                $sale->details()->create([
+                $detail = $sale->details()->create([
                     'part_id' => $part->id,
                     'qty' => $qty,
                     'unit_price' => $unitPrice,
                     'subtotal' => $subtotal,
+                    'discount_type' => $item['discount_type'] ?? 'none',
+                    'discount_value' => $item['discount_value'] ?? 0,
                 ]);
+
+                // Calculate final amount for item discount
+                $detail->calculateFinalAmount()->save();
 
                 $before = $part->stock;
                 $part->stock = max(0, $part->stock - $qty);
@@ -95,11 +111,13 @@ class PartSaleController extends Controller
                     'created_by' => Auth::id(),
                 ]);
 
-                $total += $subtotal;
+                // Use final_amount (after item discount) for total calculation
+                $total += $detail->final_amount ?? $subtotal;
             }
 
             $sale->total = $total;
-            $sale->save();
+            // Calculate transaction-level discount and tax
+            $sale->recalculateTotals()->save();
         });
 
         return redirect()->route('parts.sales.index')->with('success', 'Penjualan sparepart berhasil disimpan');

@@ -67,14 +67,6 @@ class WorkshopPermissionSeeder extends Seeder
             ['name' => 'parts-stock-access', 'guard_name' => 'web'],
             ['name' => 'parts-stock-in', 'guard_name' => 'web'],
             ['name' => 'parts-stock-out', 'guard_name' => 'web'],
-
-            // Purchases
-            ['name' => 'purchases-access', 'guard_name' => 'web'],
-            ['name' => 'purchases-create', 'guard_name' => 'web'],
-
-            // Parts Sales
-            ['name' => 'parts-sales-access', 'guard_name' => 'web'],
-            ['name' => 'parts-sales-create', 'guard_name' => 'web'],
         ];
 
         foreach ($permissions as $permission) {

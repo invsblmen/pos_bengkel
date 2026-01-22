@@ -2,6 +2,7 @@ import React from 'react';
 import { Head, useForm, Link } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import { IconArrowLeft, IconCalendar, IconUser, IconTruck, IconClipboardCheck } from '@tabler/icons-react';
+import { toDisplayDate } from '@/Utils/datetime';
 
 const statusColors = {
     pending: 'bg-yellow-100 text-yellow-700 border-yellow-200',
@@ -31,14 +32,7 @@ export default function Show({ order }) {
         }).format(value);
     };
 
-    const formatDate = (dateString) => {
-        if (!dateString) return '-';
-        return new Date(dateString).toLocaleDateString('id-ID', {
-            day: '2-digit',
-            month: 'long',
-            year: 'numeric',
-        });
-    };
+    const formatDate = (dateString) => (dateString ? toDisplayDate(dateString) : '-');
 
     const handleStatusUpdate = (e) => {
         e.preventDefault();
@@ -137,6 +131,23 @@ export default function Show({ order }) {
                                         </tr>
                                     </tfoot>
                                 </table>
+                            </div>
+                        </div>
+
+                        {/* Pricing Summary */}
+                        <div className="bg-white rounded-2xl border border-slate-200 p-6">
+                            <h2 className="text-lg font-semibold mb-4">Ringkasan Harga</h2>
+                            <div className="space-y-3">
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-slate-600">Subtotal Items:</span>
+                                    <span className="font-medium">{formatCurrency(order.total_amount)}</span>
+                                </div>
+                                <div className="border-t border-slate-200 pt-3">
+                                    <div className="flex justify-between text-lg font-bold text-primary-600">
+                                        <span>Total Amount:</span>
+                                        <span>{formatCurrency(order.total_amount)}</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 

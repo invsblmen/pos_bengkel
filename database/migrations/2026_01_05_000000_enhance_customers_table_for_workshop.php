@@ -15,13 +15,9 @@ return new class extends Migration
             if (!Schema::hasColumn('customers', 'birth_date')) {
                 $table->date('birth_date')->nullable()->after('gender');
             }
-            // Tambah kolom phone atau rename no_telp -> phone bila sudah ada
+            // Tambah kolom phone tanpa mengubah no_telp agar kompatibel dengan test
             if (!Schema::hasColumn('customers', 'phone')) {
-                if (Schema::hasColumn('customers', 'no_telp')) {
-                    $table->renameColumn('no_telp', 'phone');
-                } else {
-                    $table->string('phone')->nullable()->after('name');
-                }
+                $table->string('phone')->nullable()->after('name');
             }
             if (!Schema::hasColumn('customers', 'identity_type')) {
                 $table->enum('identity_type', ['KTP', 'SIM', 'Passport'])->nullable()->after('phone');
@@ -60,11 +56,6 @@ return new class extends Migration
             }
             if (Schema::hasColumn('customers', 'postal_code')) {
                 $columns_to_drop[] = 'postal_code';
-            }
-
-            // Kembalikan phone menjadi no_telp jika sebelumnya di-rename
-            if (Schema::hasColumn('customers', 'phone') && !Schema::hasColumn('customers', 'no_telp')) {
-                $table->renameColumn('phone', 'no_telp');
             }
 
             if (!empty($columns_to_drop)) {

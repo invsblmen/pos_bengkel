@@ -8,7 +8,9 @@ use App\Models\PartPurchase;
 use App\Models\PartPurchaseDetail;
 use App\Models\PartStockMovement;
 use App\Models\Supplier;
+use App\Services\DiscountTaxService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class PartPurchaseController extends Controller
@@ -91,14 +93,36 @@ class PartPurchaseController extends Controller
             'items.*.part_id' => 'required|exists:parts,id',
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.unit_price' => 'required|integer|min:0',
+            'items.*.discount_type' => 'nullable|in:none,percent,fixed',
+            'items.*.discount_value' => 'nullable|numeric|min:0',
+            'discount_type' => 'nullable|in:none,percent,fixed',
+            'discount_value' => 'nullable|numeric|min:0',
+            'tax_type' => 'nullable|in:none,percent,fixed',
+            'tax_value' => 'nullable|numeric|min:0',
         ]);
 
         DB::beginTransaction();
         try {
-            // Calculate total
+            // Calculate total with item discounts
             $totalAmount = 0;
+            $itemsWithDiscount = [];
+
             foreach ($validated['items'] as $item) {
-                $totalAmount += $item['quantity'] * $item['unit_price'];
+                $subtotal = $item['quantity'] * $item['unit_price'];
+
+                // Calculate item discount
+                $finalAmount = DiscountTaxService::calculateAmountWithDiscount(
+                    $subtotal,
+                    $item['discount_type'] ?? 'none',
+                    $item['discount_value'] ?? 0
+                );
+
+                $itemsWithDiscount[] = array_merge($item, [
+                    'subtotal' => $subtotal,
+                    'final_amount' => $finalAmount
+                ]);
+
+                $totalAmount += $finalAmount;
             }
 
             // Create purchase
@@ -109,18 +133,30 @@ class PartPurchaseController extends Controller
                 'status' => 'pending',
                 'total_amount' => $totalAmount,
                 'notes' => $validated['notes'] ?? null,
+                'discount_type' => $validated['discount_type'] ?? 'none',
+                'discount_value' => $validated['discount_value'] ?? 0,
+                'tax_type' => $validated['tax_type'] ?? 'none',
+                'tax_value' => $validated['tax_value'] ?? 0,
             ]);
 
             // Create purchase details
-            foreach ($validated['items'] as $item) {
-                PartPurchaseDetail::create([
+            foreach ($itemsWithDiscount as $item) {
+                $detail = PartPurchaseDetail::create([
                     'part_purchase_id' => $purchase->id,
                     'part_id' => $item['part_id'],
                     'quantity' => $item['quantity'],
                     'unit_price' => $item['unit_price'],
-                    'subtotal' => $item['quantity'] * $item['unit_price'],
+                    'subtotal' => $item['subtotal'],
+                    'discount_type' => $item['discount_type'] ?? 'none',
+                    'discount_value' => $item['discount_value'] ?? 0,
                 ]);
+
+                // Calculate and save final amount
+                $detail->calculateFinalAmount()->save();
             }
+
+            // Calculate totals with discount and tax
+            $purchase->recalculateTotals()->save();
 
             DB::commit();
 
@@ -189,7 +225,7 @@ class PartPurchaseController extends Controller
                         'reference_type' => 'App\Models\PartPurchase',
                         'reference_id' => $purchase->id,
                         'notes' => "Purchase from {$purchase->supplier->name} - {$purchase->purchase_number}",
-                        'created_by' => auth()->id(),
+                        'created_by' => Auth::id(),
                     ]);
                 }
             }

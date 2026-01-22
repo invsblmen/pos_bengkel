@@ -47,11 +47,10 @@ class SupplierController extends Controller
 
         $supplier = Supplier::create($data);
 
-        if ($request->wantsJson() || $request->ajax()) {
-            return response()->json(['success' => true, 'data' => $supplier]);
-        }
-
-        return redirect()->route('suppliers.index')->with('success', 'Supplier created.');
+        return redirect()->back()->with([
+            'success' => 'Supplier created successfully.',
+            'flash' => ['supplier' => $supplier]
+        ]);
     }
 
     public function update(Request $request, $id)
@@ -68,11 +67,10 @@ class SupplierController extends Controller
 
         $supplier->update($data);
 
-        if ($request->wantsJson() || $request->ajax()) {
-            return response()->json(['success' => true, 'data' => $supplier]);
-        }
-
-        return redirect()->route('suppliers.index')->with('success', 'Supplier updated.');
+        return redirect()->back()->with([
+            'success' => 'Supplier updated successfully.',
+            'flash' => ['supplier' => $supplier]
+        ]);
     }
 
     public function destroy($id)
@@ -80,6 +78,6 @@ class SupplierController extends Controller
         $supplier = Supplier::findOrFail($id);
         $supplier->delete();
 
-        return response()->json(['success' => true]);
+        return redirect()->back()->with('success', 'Supplier deleted successfully.');
     }
 }

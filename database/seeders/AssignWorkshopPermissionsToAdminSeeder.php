@@ -72,14 +72,6 @@ class AssignWorkshopPermissionsToAdminSeeder extends Seeder
             'parts-stock-access',
             'parts-stock-in',
             'parts-stock-out',
-
-            // Purchases
-            'purchases-access',
-            'purchases-create',
-
-            // Parts Sales
-            'parts-sales-access',
-            'parts-sales-create',
         ];
 
         $assignedCount = 0;

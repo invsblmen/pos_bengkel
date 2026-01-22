@@ -4,6 +4,7 @@ import DashboardLayout from '@/Layouts/DashboardLayout';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { IconArrowLeft, IconCalendar, IconTruck, IconUser } from '@tabler/icons-react';
+import { toDisplayDate, todayLocalDate } from '@/Utils/datetime';
 
 const statusColors = {
     pending: 'bg-yellow-100 text-yellow-700 border-yellow-200',
@@ -23,7 +24,7 @@ export default function Show({ purchase }) {
     const [updating, setUpdating] = useState(false);
     const [showStatusModal, setShowStatusModal] = useState(false);
     const [newStatus, setNewStatus] = useState(purchase.status);
-    const [actualDeliveryDate, setActualDeliveryDate] = useState(purchase.actual_delivery_date || new Date().toISOString().split('T')[0]);
+    const [actualDeliveryDate, setActualDeliveryDate] = useState(purchase.actual_delivery_date || todayLocalDate());
 
     const formatCurrency = (value) => {
         return new Intl.NumberFormat('id-ID', {
@@ -33,14 +34,7 @@ export default function Show({ purchase }) {
         }).format(value);
     };
 
-    const formatDate = (dateString) => {
-        if (!dateString) return '-';
-        return new Date(dateString).toLocaleDateString('id-ID', {
-            day: '2-digit',
-            month: 'long',
-            year: 'numeric',
-        });
-    };
+    const formatDate = (dateString) => (dateString ? toDisplayDate(dateString) : '-');
 
     const canChangeStatus = () => {
         return purchase.status !== 'cancelled' && purchase.status !== 'received';
@@ -152,9 +146,39 @@ export default function Show({ purchase }) {
                                     <div className="text-slate-900">{purchase.notes}</div>
                                 </div>
                             )}
-                            <div>
-                                <div className="text-sm text-slate-500 mb-2">Total Amount</div>
-                                <div className="text-2xl font-bold text-primary-600">{formatCurrency(purchase.total_amount)}</div>
+                        </div>
+                    </div>
+
+                    {/* Payment Summary Card */}
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6">
+                        <h2 className="text-lg font-semibold mb-4">Payment Summary</h2>
+                        <div className="space-y-2">
+                            <div className="flex justify-between text-sm">
+                                <span className="text-slate-500">Subtotal</span>
+                                <span className="font-medium">{formatCurrency(purchase.total_amount)}</span>
+                            </div>
+
+                            {purchase.discount_amount > 0 && (
+                                <div className="flex justify-between text-sm border-t border-slate-100 pt-2">
+                                    <span className="text-slate-500">
+                                        Discount {purchase.discount_type === 'percent' ? `(${purchase.discount_value}%)` : '(Fixed)'}
+                                    </span>
+                                    <span className="font-medium text-red-600">-{formatCurrency(purchase.discount_amount)}</span>
+                                </div>
+                            )}
+
+                            {purchase.tax_amount > 0 && (
+                                <div className="flex justify-between text-sm border-t border-slate-100 pt-2">
+                                    <span className="text-slate-500">
+                                        Tax {purchase.tax_type === 'percent' ? `(${purchase.tax_value}%)` : '(Fixed)'}
+                                    </span>
+                                    <span className="font-medium text-green-600">+{formatCurrency(purchase.tax_amount)}</span>
+                                </div>
+                            )}
+
+                            <div className="flex justify-between border-t-2 border-slate-200 pt-2">
+                                <span className="text-sm text-slate-700 font-semibold">Grand Total</span>
+                                <span className="text-2xl font-bold text-primary-600">{formatCurrency(purchase.grand_total || purchase.total_amount)}</span>
                             </div>
                         </div>
                     </div>
@@ -174,6 +198,8 @@ export default function Show({ purchase }) {
                                     <th className="px-6 py-4 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Quantity</th>
                                     <th className="px-6 py-4 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Unit Price</th>
                                     <th className="px-6 py-4 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Subtotal</th>
+                                    <th className="px-6 py-4 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Discount</th>
+                                    <th className="px-6 py-4 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -186,23 +212,26 @@ export default function Show({ purchase }) {
                                                 SKU: {detail.part?.sku || '-'}
                                                 {detail.part?.category && ` | ${detail.part.category.name}`}
                                             </div>
+                                            {detail.discount_type && detail.discount_type !== 'none' && (
+                                                <div className="text-xs text-slate-500 mt-0.5">
+                                                    Diskon: {detail.discount_type === 'percent' ? `${detail.discount_value}%` : `Rp ${new Intl.NumberFormat('id-ID').format(detail.discount_value)}`}
+                                                </div>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4 text-center text-sm text-slate-600 dark:text-slate-400">{detail.quantity}</td>
                                         <td className="px-6 py-4 text-right text-sm text-slate-600 dark:text-slate-400">{formatCurrency(detail.unit_price)}</td>
-                                        <td className="px-6 py-4 text-right text-sm font-semibold text-slate-900 dark:text-white">{formatCurrency(detail.subtotal)}</td>
+                                        <td className="px-6 py-4 text-right text-sm text-slate-600 dark:text-slate-400">{formatCurrency(detail.subtotal)}</td>
+                                        <td className="px-6 py-4 text-right text-sm">
+                                            {(detail.discount_amount || 0) > 0 ? (
+                                                <span className="text-red-600 font-medium">-{formatCurrency(detail.discount_amount)}</span>
+                                            ) : (
+                                                <span className="text-slate-400">-</span>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4 text-right text-sm font-semibold text-slate-900 dark:text-white">{formatCurrency(detail.final_amount || detail.subtotal)}</td>
                                     </tr>
                                 ))}
                             </tbody>
-                            <tfoot>
-                                <tr className="border-t-2 border-slate-300">
-                                    <td colSpan="4" className="px-6 py-4 text-right text-base font-semibold text-slate-900">
-                                        Total:
-                                    </td>
-                                    <td className="px-6 py-4 text-right text-base font-bold text-primary-600">
-                                        {formatCurrency(purchase.total_amount)}
-                                    </td>
-                                </tr>
-                            </tfoot>
                         </table>
                     </div>
                 </div>
