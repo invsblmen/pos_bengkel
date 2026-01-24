@@ -14,7 +14,7 @@ export default function Index({ sales, filters }) {
         if (search) query.search = search;
         if (status) query.status = status;
         if (paymentStatus) query.payment_status = paymentStatus;
-        
+
         router.get(route('part-sales.index'), query);
     };
 
@@ -28,7 +28,7 @@ export default function Index({ sales, filters }) {
     return (
         <AuthenticatedLayout>
             <Head title="Penjualan Sparepart" />
-            
+
             <div className="py-6">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
                     {/* Header */}

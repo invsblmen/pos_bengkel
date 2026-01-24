@@ -134,7 +134,7 @@ class CustomerController extends Controller
                 'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Gagal menambahkan pelanggan: ' . $e->getMessage(),
