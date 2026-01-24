@@ -129,9 +129,15 @@ class CustomerController extends Controller
                 ],
             ]);
         } catch (\Exception $e) {
+            \Log::error('Customer storeAjax error: ' . $e->getMessage(), [
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal menambahkan pelanggan',
+                'message' => 'Gagal menambahkan pelanggan: ' . $e->getMessage(),
                 'errors'  => [],
             ], 500);
         }

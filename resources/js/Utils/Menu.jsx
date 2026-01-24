@@ -16,6 +16,7 @@ import {
     IconFolder,
     IconHistory,
     IconLayout2,
+    IconReceipt,
     IconSchool,
     IconShoppingCart,
     IconTable,
@@ -99,7 +100,7 @@ export default function Menu() {
                             title: "Penjualan Sparepart",
                             href: route("part-sales.index"),
                             active: url.includes("/dashboard/part-sales") && !url.includes("/part-sales-orders") ? true : false,
-                            icon: <IconReceiptText size={20} strokeWidth={1.5} />,
+                            icon: <IconReceipt size={20} strokeWidth={1.5} />,
                             permissions: hasAnyPermission(["part-sales-access"]),
                         },
                         {

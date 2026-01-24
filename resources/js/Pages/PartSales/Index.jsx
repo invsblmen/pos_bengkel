@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { router, usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link } from '@inertiajs/react';
-import PaginationLinks from '@/Components/PaginationLinks';
+import Pagination from '@/Components/Dashboard/Pagination';
 
 export default function Index({ sales, filters }) {
     const [search, setSearch] = useState(filters.search || '');
@@ -179,7 +179,7 @@ export default function Index({ sales, filters }) {
                     {/* Pagination */}
                     {sales.data.length > 0 && (
                         <div className="mt-6">
-                            <PaginationLinks links={sales.links} />
+                            <Pagination links={sales.links} />
                         </div>
                     )}
                 </div>

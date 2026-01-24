@@ -12,8 +12,11 @@ return new class extends Migration
         // Tables already have all needed columns from previous migrations
         // Just need to clean up duplicate qty column in part_sale_details
         
-        // Copy qty to quantity if needed
-        DB::statement('UPDATE part_sale_details SET quantity = qty WHERE quantity = 0 AND qty > 0');
+        // Check if quantity column exists, if not, skip the update
+        if (Schema::hasColumn('part_sale_details', 'quantity')) {
+            // Copy qty to quantity if needed
+            DB::statement('UPDATE part_sale_details SET quantity = qty WHERE quantity = 0 AND qty > 0');
+        }
         
         // Drop old qty column if exists
         if (Schema::hasColumn('part_sale_details', 'qty')) {
@@ -25,7 +28,9 @@ return new class extends Migration
         // Drop old total column from part_sales if exists (we use grand_total now)
         if (Schema::hasColumn('part_sales', 'total')) {
             // Copy to grand_total if needed
-            DB::statement('UPDATE part_sales SET grand_total = total WHERE grand_total = 0 AND total > 0');
+            if (Schema::hasColumn('part_sales', 'grand_total')) {
+                DB::statement('UPDATE part_sales SET grand_total = total WHERE grand_total = 0 AND total > 0');
+            }
             
             Schema::table('part_sales', function (Blueprint $table) {
                 $table->dropColumn('total');
