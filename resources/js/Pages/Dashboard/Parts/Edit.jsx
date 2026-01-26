@@ -64,8 +64,8 @@ export default function Edit({ part, suppliers, categories }) {
                             </select>
 
                             <div className="grid grid-cols-3 gap-2">
-                                <Input label="Harga Beli" placeholder="Harga beli" value={data.buy_price} onChange={(e) => setData('buy_price', e.target.value)} errors={errors.buy_price} />
-                                <Input label="Harga Jual" placeholder="Harga jual" value={data.sell_price} onChange={(e) => setData('sell_price', e.target.value)} errors={errors.sell_price} />
+                                <Input label="Harga Beli *" placeholder="Harga beli" type="number" value={data.buy_price} onChange={(e) => setData('buy_price', e.target.value)} errors={errors.buy_price} />
+                                <Input label="Harga Jual *" placeholder="Harga jual" type="number" value={data.sell_price} onChange={(e) => setData('sell_price', e.target.value)} errors={errors.sell_price} />
                                 <Input
                                     label="Stok"
                                     placeholder="Stok"
