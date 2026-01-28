@@ -50,7 +50,7 @@ class PartSaleController extends Controller
 
         $sales = $query->paginate(15)->withQueryString();
 
-        return Inertia::render('PartSales/Index', [
+        return Inertia::render('Dashboard/Parts/Sales/Index', [
             'sales' => $sales,
             'filters' => $request->only(['status', 'payment_status', 'customer_id', 'search']),
         ]);
@@ -70,7 +70,7 @@ class PartSaleController extends Controller
                 ->findOrFail($request->sales_order_id);
         }
 
-        return Inertia::render('PartSales/Create', [
+        return Inertia::render('Dashboard/Parts/Sales/Create', [
             'customers' => $customers,
             'parts' => $parts,
             'salesOrder' => $salesOrder,
@@ -126,22 +126,22 @@ class PartSaleController extends Controller
             // Create sale details and update stock
             foreach ($request->items as $item) {
                 $part = Part::findOrFail($item['part_id']);
-                
+
                 $subtotal = $item['quantity'] * $item['unit_price'];
-                
+
                 // Calculate item discount
                 $discountAmount = 0;
                 $discountType = $item['discount_type'] ?? 'none';
                 $discountValue = $item['discount_value'] ?? 0;
-                
+
                 if ($discountType !== 'none' && $discountValue > 0) {
-                    $discountAmount = $this->discountTaxService->calculateAmount(
+                    $discountAmount = DiscountTaxService::calculateDiscount(
                         $subtotal,
                         $discountType,
                         $discountValue
                     );
                 }
-                
+
                 $finalAmount = $subtotal - $discountAmount;
 
                 // Create detail
@@ -207,7 +207,7 @@ class PartSaleController extends Controller
             'stockMovements.part',
         ]);
 
-        return Inertia::render('PartSales/Show', [
+        return Inertia::render('Dashboard/Parts/Sales/Show', [
             'sale' => $partSale,
         ]);
     }
@@ -223,7 +223,7 @@ class PartSaleController extends Controller
         $customers = Customer::orderBy('name')->get();
         $parts = Part::orderBy('name')->get();
 
-        return Inertia::render('PartSales/Edit', [
+        return Inertia::render('Dashboard/Parts/Sales/Edit', [
             'sale' => $partSale,
             'customers' => $customers,
             'parts' => $parts,
@@ -270,19 +270,19 @@ class PartSaleController extends Controller
             // Create new details
             foreach ($request->items as $item) {
                 $subtotal = $item['quantity'] * $item['unit_price'];
-                
+
                 $discountAmount = 0;
                 $discountType = $item['discount_type'] ?? 'none';
                 $discountValue = $item['discount_value'] ?? 0;
-                
+
                 if ($discountType !== 'none' && $discountValue > 0) {
-                    $discountAmount = $this->discountTaxService->calculateAmount(
+                    $discountAmount = DiscountTaxService::calculateDiscount(
                         $subtotal,
                         $discountType,
                         $discountValue
                     );
                 }
-                
+
                 $finalAmount = $subtotal - $discountAmount;
 
                 PartSaleDetail::create([

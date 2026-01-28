@@ -5,6 +5,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\Transaction;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class CustomerController extends Controller
@@ -17,14 +18,15 @@ class CustomerController extends Controller
     public function index()
     {
         //get customers
-        $customers = Customer::when(request()->search, function ($query) {
-            $search = request()->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%$search%")
-                  ->orWhere('phone', 'like', "%$search%")
-                  ->orWhere('email', 'like', "%$search%");
-            });
-        })->latest()->paginate(5);
+        $customers = Customer::with('vehicles')
+            ->when(request()->search, function ($query) {
+                $search = request()->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%$search%")
+                      ->orWhere('phone', 'like', "%$search%")
+                      ->orWhere('email', 'like', "%$search%");
+                });
+            })->latest()->paginate(5);
 
         //return inertia
         return Inertia::render('Dashboard/Customers/Index', [
@@ -129,7 +131,7 @@ class CustomerController extends Controller
                 ],
             ]);
         } catch (\Exception $e) {
-            \Log::error('Customer storeAjax error: ' . $e->getMessage(), [
+            Log::error('Customer storeAjax error: ' . $e->getMessage(), [
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString()

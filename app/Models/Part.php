@@ -11,13 +11,11 @@ class Part extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'sku', 'part_number', 'barcode', 'name', 'description', 'buy_price', 'sell_price', 'stock', 'supplier_id',
+        'sku', 'part_number', 'barcode', 'name', 'description', 'stock', 'supplier_id',
         'part_category_id', 'unit_measure', 'reorder_level', 'status'
     ];
 
     protected $casts = [
-        'buy_price' => 'integer',
-        'sell_price' => 'integer',
         'stock' => 'integer',
         'reorder_level' => 'integer',
     ];
@@ -40,6 +38,51 @@ class Part extends Model
     public function stockMovements()
     {
         return $this->hasMany(PartStockMovement::class);
+    }
+
+    public function purchases()
+    {
+        return $this->hasMany(PartPurchase::class);
+    }
+
+    /**
+     * Get the current cost price based on FIFO (oldest remaining purchase)
+     */
+    public function getCurrentCostPrice()
+    {
+        $purchase = $this->purchases()
+            ->whereHas('movements', function ($query) {
+                $query->where('remaining_qty', '>', 0);
+            })
+            ->orderBy('created_at', 'asc')
+            ->first();
+
+        return $purchase ? $purchase->unit_cost : 0;
+    }
+
+    /**
+     * Get the selling price for this purchase batch
+     */
+    public function getSellingPrice($purchase = null)
+    {
+        if (!$purchase) {
+            $purchase = $this->purchases()
+                ->where('status', 'received')
+                ->orderBy('created_at', 'asc')
+                ->first();
+        }
+
+        if (!$purchase) {
+            return 0;
+        }
+
+        $costPrice = $purchase->unit_cost;
+
+        if ($purchase->margin_type === 'percent') {
+            return $costPrice + ($costPrice * $purchase->margin_value / 100);
+        } else {
+            return $costPrice + $purchase->margin_value;
+        }
     }
 
     public function scopeActive($query)

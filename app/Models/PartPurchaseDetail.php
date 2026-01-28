@@ -17,6 +17,10 @@ class PartPurchaseDetail extends Model
         'discount_value',
         'discount_amount',
         'final_amount',
+        'margin_type',
+        'margin_value',
+        'promo_discount_type',
+        'promo_discount_value',
     ];
 
     protected $casts = [
@@ -26,6 +30,8 @@ class PartPurchaseDetail extends Model
         'discount_value' => 'float',
         'discount_amount' => 'integer',
         'final_amount' => 'integer',
+        'margin_value' => 'float',
+        'promo_discount_value' => 'float',
     ];
 
     public function partPurchase()
@@ -56,5 +62,37 @@ class PartPurchaseDetail extends Model
         }
 
         return $this;
+    }
+
+    /**
+     * Calculate selling price based on margin
+     *
+     * @return int selling price per unit
+     */
+    public function calculateSellingPrice()
+    {
+        $costPerUnit = $this->unit_price ?? 0;
+
+        if ($this->margin_type === 'percent') {
+            // Percentage margin: selling_price = cost + (cost * margin / 100)
+            return (int) round($costPerUnit + ($costPerUnit * ($this->margin_value ?? 0) / 100));
+        } else {
+            // Fixed margin: selling_price = cost + fixed_amount
+            return (int) round($costPerUnit + ($this->margin_value ?? 0));
+        }
+    }
+
+    /**
+     * Calculate remaining quantity available (for FIFO tracking)
+     *
+     * @return int quantity remaining from this purchase
+     */
+    public function getRemainingQuantity()
+    {
+        $outbound = PartStockMovement::where('part_purchase_detail_id', $this->id)
+            ->where('movement_type', 'outbound')
+            ->sum('quantity');
+
+        return max(0, $this->quantity - ($outbound ?? 0));
     }
 }

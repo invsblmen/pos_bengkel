@@ -8,6 +8,7 @@ use App\Models\PartSale;
 use App\Models\PartSaleDetail;
 use App\Models\PartStockMovement;
 use App\Services\DiscountTaxService;
+use App\Services\FIFOCostingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -17,11 +18,12 @@ use Illuminate\Validation\ValidationException;
 
 class PartSaleController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $sales = PartSale::with(['user'])->orderByDesc('created_at')->paginate(15)->withQueryString();
         return Inertia::render('Dashboard/Parts/Sales/Index', [
             'sales' => $sales,
+            'filters' => $request->only(['search', 'status', 'payment_status']),
         ]);
     }
 
@@ -82,34 +84,37 @@ class PartSaleController extends Controller
                     throw ValidationException::withMessages(['items' => ["Stok tidak mencukupi untuk {$part->name}"]]);
                 }
 
+                // Allocate stock using FIFO
+                $fifoResult = FIFOCostingService::allocateStock($part->id, $qty);
+
+                if (!$fifoResult['success']) {
+                    throw ValidationException::withMessages(['items' => [$fifoResult['message']]]);
+                }
+
+                // Calculate weighted average cost and selling price from FIFO allocations
+                $prices = FIFOCostingService::calculateWeightedPrices($fifoResult['allocations']);
+
                 $detail = $sale->details()->create([
                     'part_id' => $part->id,
-                    'qty' => $qty,
+                    'quantity' => $qty,
                     'unit_price' => $unitPrice,
                     'subtotal' => $subtotal,
                     'discount_type' => $item['discount_type'] ?? 'none',
                     'discount_value' => $item['discount_value'] ?? 0,
+                    'source_purchase_detail_id' => $fifoResult['allocations'][0]['purchase_detail_id'] ?? null,
+                    'cost_price' => $prices['cost_price'],
+                    'selling_price' => $prices['selling_price'],
                 ]);
 
                 // Calculate final amount for item discount
                 $detail->calculateFinalAmount()->save();
 
+                // Create stock movements for FIFO allocations
+                FIFOCostingService::createStockMovements($detail, $fifoResult['allocations']);
+
                 $before = $part->stock;
                 $part->stock = max(0, $part->stock - $qty);
                 $part->save();
-
-                PartStockMovement::create([
-                    'part_id' => $part->id,
-                    'type' => 'sale',
-                    'qty' => $qty,
-                    'before_stock' => $before,
-                    'after_stock' => $part->stock,
-                    'unit_price' => $unitPrice,
-                    'reference_type' => PartSale::class,
-                    'reference_id' => $sale->id,
-                    'notes' => $data['notes'] ?? null,
-                    'created_by' => Auth::id(),
-                ]);
 
                 // Use final_amount (after item discount) for total calculation
                 $total += $detail->final_amount ?? $subtotal;
@@ -120,6 +125,6 @@ class PartSaleController extends Controller
             $sale->recalculateTotals()->save();
         });
 
-        return redirect()->route('parts.sales.index')->with('success', 'Penjualan sparepart berhasil disimpan');
+        return redirect()->route('part-sales.index')->with('success', 'Penjualan sparepart berhasil disimpan');
     }
 }

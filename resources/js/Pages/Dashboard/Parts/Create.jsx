@@ -14,8 +14,6 @@ export default function Create({ suppliers, categories }) {
         barcode: '',
         part_category_id: '',
         supplier_id: '',
-        buy_price: '',
-        sell_price: '',
         stock: 0,
         description: '',
     });
@@ -62,19 +60,15 @@ export default function Create({ suppliers, categories }) {
                                 {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                             </select>
 
-                            <div className="grid grid-cols-3 gap-2">
-                                <Input label="Harga Beli *" placeholder="Harga beli" type="number" value={data.buy_price} onChange={(e) => setData('buy_price', e.target.value)} errors={errors.buy_price} />
-                                <Input label="Harga Jual *" placeholder="Harga jual" type="number" value={data.sell_price} onChange={(e) => setData('sell_price', e.target.value)} errors={errors.sell_price} />
-                                <Input
-                                    label="Stok"
-                                    placeholder="Stok awal: 0"
-                                    value={data.stock}
-                                    disabled={true}
-                                    errors={errors.stock}
-                                />
-                            </div>
+                            <Input
+                                label="Stok"
+                                placeholder="Stok awal: 0"
+                                value={data.stock}
+                                disabled={true}
+                                errors={errors.stock}
+                            />
                             <p className="text-xs text-gray-500 dark:text-gray-400 -mt-2">
-                                <strong>Catatan:</strong> Stok awal otomatis 0. Gunakan menu "Sparepart Masuk" untuk menambah stok.
+                                <strong>Catatan:</strong> Stok awal otomatis 0. Harga beli dan margin diatur per pembelian dari supplier. Gunakan menu "Sparepart Masuk" untuk menambah stok.
                             </p>
 
                             <Textarea label="Deskripsi" placeholder="Deskripsi" value={data.description} onChange={(e) => setData('description', e.target.value)} errors={errors.description} rows={4} />

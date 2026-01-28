@@ -29,6 +29,10 @@ export default function Create({ suppliers, parts }) {
     const [itemPrice, setItemPrice] = useState(0);
     const [itemDiscountType, setItemDiscountType] = useState('none');
     const [itemDiscountValue, setItemDiscountValue] = useState(0);
+    const [itemMarginType, setItemMarginType] = useState('percent');
+    const [itemMarginValue, setItemMarginValue] = useState(0);
+    const [itemPromoDiscountType, setItemPromoDiscountType] = useState('none');
+    const [itemPromoDiscountValue, setItemPromoDiscountValue] = useState(0);
 
     const handleChange = (field, value) => {
         setFormData(prev => ({ ...prev, [field]: value }));
@@ -44,6 +48,10 @@ export default function Create({ suppliers, parts }) {
         setItemPrice(0);
         setItemDiscountType('none');
         setItemDiscountValue(0);
+        setItemMarginType('percent');
+        setItemMarginValue(0);
+        setItemPromoDiscountType('none');
+        setItemPromoDiscountValue(0);
         setShowItemModal(true);
     };
 
@@ -58,6 +66,10 @@ export default function Create({ suppliers, parts }) {
         }
         if (itemPrice < 0) {
             toast.error('Price cannot be negative');
+            return;
+        }
+        if (itemMarginValue < 0) {
+            toast.error('Margin cannot be negative');
             return;
         }
 
@@ -77,6 +89,10 @@ export default function Create({ suppliers, parts }) {
             discount_type: itemDiscountType,
             discount_value: parseFloat(itemDiscountValue) || 0,
             subtotal: parseInt(itemQty) * parseInt(itemPrice),
+            margin_type: itemMarginType,
+            margin_value: parseFloat(itemMarginValue) || 0,
+            promo_discount_type: itemPromoDiscountType,
+            promo_discount_value: parseFloat(itemPromoDiscountValue) || 0,
         };
 
         setFormData(prev => ({
@@ -124,6 +140,14 @@ export default function Create({ suppliers, parts }) {
             return item.discount_value;
         }
         return 0;
+    };
+
+    const calculateSellingPrice = (unitCost, marginType, marginValue) => {
+        if (marginType === 'percent') {
+            return Math.round(unitCost + (unitCost * (marginValue / 100)));
+        } else {
+            return Math.round(unitCost + marginValue);
+        }
     };
 
     const calculateItemTotal = (item) => {
@@ -289,22 +313,24 @@ export default function Create({ suppliers, parts }) {
 
                         {formData.items.length > 0 ? (
                             <div className="overflow-x-auto">
-                                <table className="w-full">
+                                <table className="w-full text-sm">
                                     <thead>
                                         <tr className="border-b border-slate-200">
-                                            <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Part</th>
-                                            <th className="px-4 py-3 text-center text-sm font-semibold text-slate-700">Qty</th>
-                                            <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">Unit Price</th>
-                                            <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">Discount</th>
-                                            <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">Subtotal</th>
-                                            <th className="px-4 py-3 text-center text-sm font-semibold text-slate-700">Action</th>
+                                            <th className="px-4 py-3 text-left font-semibold text-slate-700">Part</th>
+                                            <th className="px-4 py-3 text-center font-semibold text-slate-700">Qty</th>
+                                            <th className="px-4 py-3 text-right font-semibold text-slate-700">Harga</th>
+                                            <th className="px-4 py-3 text-right font-semibold text-slate-700">Margin</th>
+                                            <th className="px-4 py-3 text-right font-semibold text-slate-700">Harga Jual</th>
+                                            <th className="px-4 py-3 text-center font-semibold text-slate-700">Action</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {formData.items.map((item, idx) => (
+                                        {formData.items.map((item, idx) => {
+                                            const sellingPrice = calculateSellingPrice(item.unit_price, item.margin_type, item.margin_value);
+                                            return (
                                             <tr key={idx} className="border-b border-slate-100">
                                                 <td className="px-4 py-3">
-                                                    <div className="text-sm font-medium text-slate-900">{item.part_name}</div>
+                                                    <div className="font-medium text-slate-900">{item.part_name}</div>
                                                     <div className="text-xs text-slate-500">{item.part_sku}</div>
                                                 </td>
                                                 <td className="px-4 py-3 text-center">
@@ -325,18 +351,12 @@ export default function Create({ suppliers, parts }) {
                                                         className="w-32 h-9 px-2 text-right rounded-lg border border-slate-200"
                                                     />
                                                 </td>
-                                                <td className="px-4 py-3 text-right">
-                                                    {item.discount_type !== 'none' ? (
-                                                        <div className="text-xs">
-                                                            <div className="text-red-600">-{formatCurrency(calculateItemDiscount(item))}</div>
-                                                            <div className="text-slate-500">({item.discount_type === 'percent' ? `${item.discount_value}%` : 'fixed'})</div>
-                                                        </div>
-                                                    ) : (
-                                                        <span className="text-xs text-slate-400">-</span>
-                                                    )}
+                                                <td className="px-4 py-3 text-right text-xs">
+                                                    <div className="text-blue-600 font-medium">{item.margin_type === 'percent' ? `${item.margin_value}%` : formatCurrency(item.margin_value)}</div>
+                                                    <div className="text-slate-500">({item.margin_type === 'percent' ? 'persen' : 'tetap'})</div>
                                                 </td>
-                                                <td className="px-4 py-3 text-right font-semibold text-slate-900">
-                                                    {formatCurrency(calculateItemTotal(item))}
+                                                <td className="px-4 py-3 text-right font-semibold text-green-600">
+                                                    {formatCurrency(sellingPrice)}
                                                 </td>
                                                 <td className="px-4 py-3 text-center">
                                                     <button
@@ -348,7 +368,8 @@ export default function Create({ suppliers, parts }) {
                                                     </button>
                                                 </td>
                                             </tr>
-                                        ))}
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                             </div>
@@ -558,6 +579,74 @@ export default function Create({ suppliers, parts }) {
                                                 />
                                             </div>
                                         )}
+                                    </div>
+
+                                    <div className="border-t border-slate-200 pt-4 mt-4">
+                                        <h4 className="text-sm font-semibold text-slate-700 mb-4">Pengaturan Margin &amp; Keuntungan</h4>
+                                        <div className="grid gap-4 md:grid-cols-2">
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-700 mb-2">Tipe Margin</label>
+                                                <select
+                                                    value={itemMarginType}
+                                                    onChange={(e) => setItemMarginType(e.target.value)}
+                                                    className="w-full h-11 px-4 rounded-xl border border-slate-200"
+                                                >
+                                                    <option value="percent">Persen (%)</option>
+                                                    <option value="fixed">Nilai Tetap (Rp)</option>
+                                                </select>
+                                                <p className="text-xs text-slate-500 mt-1">
+                                                    Harga jual = Harga beli + {itemMarginType === 'percent' ? 'persentase' : 'nilai'} margin
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-700 mb-2">
+                                                    Nilai Margin {itemMarginType === 'percent' ? '(%)' : '(Rp)'}
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    value={itemMarginValue}
+                                                    onChange={(e) => setItemMarginValue(e.target.value)}
+                                                    min="0"
+                                                    step={itemMarginType === 'percent' ? '1' : '100'}
+                                                    placeholder="0"
+                                                    className="w-full h-11 px-4 rounded-xl border border-slate-200"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="border-t border-slate-200 pt-4 mt-4">
+                                        <h4 className="text-sm font-semibold text-slate-700 mb-4">Diskon Promosi (Opsional)</h4>
+                                        <div className="grid gap-4 md:grid-cols-2">
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-700 mb-2">Tipe Diskon Promo</label>
+                                                <select
+                                                    value={itemPromoDiscountType}
+                                                    onChange={(e) => setItemPromoDiscountType(e.target.value)}
+                                                    className="w-full h-11 px-4 rounded-xl border border-slate-200"
+                                                >
+                                                    <option value="none">Tidak Ada</option>
+                                                    <option value="percent">Persen (%)</option>
+                                                    <option value="fixed">Nilai Tetap (Rp)</option>
+                                                </select>
+                                            </div>
+                                            {itemPromoDiscountType !== 'none' && (
+                                                <div>
+                                                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                                                        Nilai Diskon Promo {itemPromoDiscountType === 'percent' ? '(%)' : '(Rp)'}
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        value={itemPromoDiscountValue}
+                                                        onChange={(e) => setItemPromoDiscountValue(e.target.value)}
+                                                        min="0"
+                                                        step={itemPromoDiscountType === 'percent' ? '1' : '100'}
+                                                        placeholder="0"
+                                                        className="w-full h-11 px-4 rounded-xl border border-slate-200"
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             )}

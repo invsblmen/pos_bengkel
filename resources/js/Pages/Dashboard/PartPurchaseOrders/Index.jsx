@@ -72,10 +72,9 @@ export default function Index({ orders, suppliers, filters }) {
     return (
         <>
             <Head title="Part Purchase Orders" />
-            <div className="p-6">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
-                    <div>
-                        <h1 className="text-xl font-bold">Part Purchase Orders (PO)</h1>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Part Purchase Orders (PO)</h1>
                         <p className="text-sm text-slate-500">{orders?.total || 0} purchase orders</p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -246,7 +245,6 @@ export default function Index({ orders, suppliers, filters }) {
                         </Link>
                     </div>
                 )}
-            </div>
         </>
     );
 }

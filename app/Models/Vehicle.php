@@ -10,16 +10,14 @@ class Vehicle extends Model
     use HasFactory;
 
     protected $fillable = [
-        'customer_id', 'plate_number', 'brand', 'model', 'year', 'km', 'notes',
+        'customer_id', 'plate_number', 'brand', 'model', 'year', 'notes',
         'engine_type', 'transmission_type', 'color', 'cylinder_volume',
-        'last_service_date', 'next_service_date', 'features',
+        'features',
         'chassis_number', 'engine_number', 'manufacture_year',
         'registration_number', 'registration_date', 'stnk_expiry_date', 'previous_owner'
     ];
 
     protected $casts = [
-        'last_service_date' => 'date',
-        'next_service_date' => 'date',
         'registration_date' => 'date',
         'stnk_expiry_date' => 'date',
         'features' => 'array',

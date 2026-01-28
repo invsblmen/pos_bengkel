@@ -49,8 +49,6 @@ class VehicleController extends Controller
             'engine_type' => 'nullable|string|max:100',
             'transmission_type' => 'nullable|in:manual,automatic,semi-automatic',
             'cylinder_volume' => 'nullable|integer|min:50|max:10000',
-            'last_service_date' => 'nullable|date',
-            'next_service_date' => 'nullable|date|after_or_equal:last_service_date',
             'features' => 'nullable|array',
             'notes' => 'nullable|string',
             // STNK fields
@@ -73,8 +71,6 @@ class VehicleController extends Controller
             'engine_type' => $request->engine_type,
             'transmission_type' => $request->transmission_type,
             'cylinder_volume' => $request->cylinder_volume,
-            'last_service_date' => $request->last_service_date,
-            'next_service_date' => $request->next_service_date,
             'features' => $request->features ? json_encode($request->features) : null,
             'notes' => $request->notes,
             // STNK fields
@@ -153,6 +149,9 @@ class VehicleController extends Controller
             ];
         });
 
+        // Calculate real-time data from service orders
+        $calculatedData = $this->calculateVehicleDataFromOrders($vehicle);
+
         return inertia('Dashboard/Vehicles/Show', [
             'vehicle' => [
                 'id' => $vehicle->id,
@@ -161,12 +160,12 @@ class VehicleController extends Controller
                 'model' => $vehicle->model,
                 'year' => $vehicle->year,
                 'color' => $vehicle->color,
-                'km' => $vehicle->km,
+                'km' => $calculatedData['km'],
                 'engine_type' => $vehicle->engine_type,
                 'transmission_type' => $vehicle->transmission_type,
                 'cylinder_volume' => $vehicle->cylinder_volume,
-                'last_service_date' => optional($vehicle->last_service_date)->toDateString(),
-                'next_service_date' => optional($vehicle->next_service_date)->toDateString(),
+                'last_service_date' => $calculatedData['last_service_date'],
+                'next_service_date' => $calculatedData['next_service_date'],
                 'features' => $vehicle->features,
                 'notes' => $vehicle->notes,
                 'customer' => $vehicle->customer ? [
@@ -193,8 +192,6 @@ class VehicleController extends Controller
             'engine_type' => 'nullable|string|max:100',
             'transmission_type' => 'nullable|in:manual,automatic,semi-automatic',
             'cylinder_volume' => 'nullable|integer|min:50|max:10000',
-            'last_service_date' => 'nullable|date',
-            'next_service_date' => 'nullable|date|after_or_equal:last_service_date',
             'features' => 'nullable|array',
             'notes' => 'nullable|string',
             // STNK fields
@@ -217,8 +214,6 @@ class VehicleController extends Controller
             'engine_type' => $request->engine_type,
             'transmission_type' => $request->transmission_type,
             'cylinder_volume' => $request->cylinder_volume,
-            'last_service_date' => $request->last_service_date,
-            'next_service_date' => $request->next_service_date,
             'features' => $request->features ? json_encode($request->features) : null,
             'notes' => $request->notes,
             // STNK fields
@@ -245,6 +240,10 @@ class VehicleController extends Controller
     public function maintenanceInsights($id)
     {
         $vehicle = Vehicle::findOrFail($id);
+
+        // Get real-time vehicle data
+        $calculatedData = $this->calculateVehicleDataFromOrders($vehicle);
+
         $orders = \App\Models\ServiceOrder::with('details.service', 'details.part')
             ->where('vehicle_id', $vehicle->id)
             ->whereNotNull('odometer_km')
@@ -291,18 +290,20 @@ class VehicleController extends Controller
             }
         }
 
-        $lastOrderKm = $orders->max('odometer_km');
-
         return response()->json([
+            'vehicle_km' => $calculatedData['km'],
+            'last_service_date' => $calculatedData['last_service_date'],
+            'next_service_date' => $calculatedData['next_service_date'],
             'last_km' => $lastKm,
-            'vehicle_km' => $vehicle->km,
-            'last_order_km' => $lastOrderKm,
         ]);
     }
 
     public function getWithHistory($id)
     {
         $vehicle = Vehicle::with('customer')->findOrFail($id);
+
+        // Calculate real-time data from service orders
+        $calculatedData = $this->calculateVehicleDataFromOrders($vehicle);
 
         // Get last 10 service orders
         $recentOrders = \App\Models\ServiceOrder::with('mechanic', 'details.service', 'details.part')
@@ -332,9 +333,116 @@ class VehicleController extends Controller
                 'plate_number' => $vehicle->plate_number,
                 'brand' => $vehicle->brand,
                 'model' => $vehicle->model,
-                'km' => $vehicle->km,
+                'km' => $calculatedData['km'],
+                'last_service_date' => $calculatedData['last_service_date'],
+                'next_service_date' => $calculatedData['next_service_date'],
             ],
             'recent_orders' => $recentOrders,
         ]);
+    }
+
+    /**
+     * Calculate vehicle data from service orders (real-time)
+     */
+    private function calculateVehicleDataFromOrders($vehicle)
+    {
+        // Get all completed/paid service orders
+        $orders = \App\Models\ServiceOrder::where('vehicle_id', $vehicle->id)
+            ->whereIn('status', ['completed', 'paid'])
+            ->whereNotNull('odometer_km')
+            ->orderByDesc('created_at')
+            ->get();
+
+        // Calculate km from latest service order
+        $latestKm = $orders->max('odometer_km');
+
+        // Calculate last_service_date from latest completed order
+        $lastServiceOrder = $orders->first();
+        $lastServiceDate = null;
+        if ($lastServiceOrder) {
+            $date = $lastServiceOrder->actual_finish_at ?? $lastServiceOrder->created_at;
+            $lastServiceDate = $date ? $date->toDateString() : null;
+        }
+
+        // Calculate next_service_date from upcoming orders or latest completed order
+        $nextServiceDate = null;
+
+        // First, check for pending/in_progress orders with next_service_date
+        $upcomingOrder = \App\Models\ServiceOrder::where('vehicle_id', $vehicle->id)
+            ->whereIn('status', ['pending', 'in_progress'])
+            ->whereNotNull('next_service_date')
+            ->orderBy('next_service_date', 'asc')
+            ->first();
+
+        if ($upcomingOrder && $upcomingOrder->next_service_date) {
+            $nextServiceDate = $upcomingOrder->next_service_date->toDateString();
+        } elseif ($lastServiceOrder && $lastServiceOrder->next_service_date) {
+            // If no upcoming, get from latest completed order
+            $nextServiceDate = $lastServiceOrder->next_service_date->toDateString();
+        }
+
+        return [
+            'km' => $latestKm,
+            'last_service_date' => $lastServiceDate,
+            'next_service_date' => $nextServiceDate,
+        ];
+    }
+
+    public function getServiceHistory($id)
+    {
+        try {
+            $vehicle = Vehicle::findOrFail($id);
+
+            // Get service orders with details
+            $serviceOrders = \App\Models\ServiceOrder::with([
+                'mechanic',
+                'details.service',
+                'details.part'
+            ])
+                ->where('vehicle_id', $vehicle->id)
+                ->orderByDesc('created_at')
+                ->limit(20)
+                ->get()
+                ->map(function ($order) {
+                    return [
+                        'id' => $order->id,
+                        'order_number' => $order->order_number,
+                        'status' => $order->status,
+                        'created_at' => $order->created_at,
+                        'odometer_km' => $order->odometer_km,
+                        'total' => $order->total,
+                        'notes' => $order->notes,
+                        'mechanic' => $order->mechanic ? [
+                            'id' => $order->mechanic->id,
+                            'name' => $order->mechanic->name
+                        ] : null,
+                        'details' => $order->details->map(function ($detail) {
+                            return [
+                                'id' => $detail->id,
+                                'service' => $detail->service ? [
+                                    'id' => $detail->service->id,
+                                    'name' => $detail->service->name
+                                ] : null,
+                                'part' => $detail->part ? [
+                                    'id' => $detail->part->id,
+                                    'name' => $detail->part->name
+                                ] : null,
+                                'quantity' => $detail->qty ?? 1,
+                                'price' => $detail->final_amount ?? $detail->amount ?? 0,
+                            ];
+                        }),
+                    ];
+                });
+
+            return response()->json([
+                'service_orders' => $serviceOrders,
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error fetching service history: ' . $e->getMessage());
+            return response()->json([
+                'service_orders' => [],
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }

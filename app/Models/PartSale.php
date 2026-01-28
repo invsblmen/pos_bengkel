@@ -64,6 +64,11 @@ class PartSale extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
     public function stockMovements()
     {
         return $this->morphMany(PartStockMovement::class, 'reference');
@@ -80,7 +85,7 @@ class PartSale extends Model
         $this->subtotal = $subtotal;
 
         // Apply transaction-level discount
-        $this->discount_amount = DiscountTaxService::calculateDiscountAmount(
+        $this->discount_amount = DiscountTaxService::calculateDiscount(
             $subtotal,
             $this->discount_type ?? 'none',
             $this->discount_value ?? 0
@@ -89,7 +94,7 @@ class PartSale extends Model
         $amountAfterDiscount = $subtotal - $this->discount_amount;
 
         // Apply transaction-level tax
-        $this->tax_amount = DiscountTaxService::calculateTaxAmount(
+        $this->tax_amount = DiscountTaxService::calculateTax(
             $amountAfterDiscount,
             $this->tax_type ?? 'none',
             $this->tax_value ?? 0

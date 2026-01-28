@@ -1,53 +1,67 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Head, router } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
-import axios from 'axios';
+import Pagination from '@/Components/Dashboard/Pagination';
+import Button from '@/Components/Dashboard/Button';
+import Search from '@/Components/Dashboard/Search';
+import {
+    IconDatabaseOff,
+    IconCirclePlus,
+    IconLayoutGrid,
+    IconList,
+    IconPencilCog,
+    IconTrash,
+    IconPhone,
+    IconIdBadge
+} from '@tabler/icons-react';
 import toast from 'react-hot-toast';
-import Pagination from "@/Components/Dashboard/Pagination";
-import { IconDatabaseOff, IconFilter, IconSearch, IconX, IconCirclePlus } from '@tabler/icons-react';
-import { Link } from '@inertiajs/react';
 
-const defaultFilters = { q: '' };
+function MechanicCard({ mechanic, onQuickEdit }) {
+    return (
+        <div className="group bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden hover:shadow-lg hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-200">
+            <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <span className="h-10 w-10 rounded-full bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 flex items-center justify-center font-bold">
+                            {mechanic.name?.charAt(0) || 'M'}
+                        </span>
+                        <div>
+                            <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{mechanic.name}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">{mechanic.employee_number || 'No. Pegawai belum ada'}</p>
+                        </div>
+                    </div>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                        <IconIdBadge size={14} /> Mekanik
+                    </span>
+                </div>
+            </div>
+            <div className="p-4 space-y-3">
+                <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+                    <IconPhone size={16} />
+                    <span>{mechanic.phone || '-'}</span>
+                </div>
+                <p className="text-sm text-slate-600 dark:text-slate-400 min-h-[40px]">{mechanic.notes || 'Belum ada catatan'}</p>
+                <div className="flex gap-2 pt-2">
+                    <button onClick={() => onQuickEdit(mechanic)} className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 rounded-lg bg-warning-100 text-warning-700 hover:bg-warning-200 dark:bg-warning-900/50 dark:text-warning-300 text-sm font-medium transition-colors">
+                        <IconPencilCog size={16} /> Edit Cepat
+                    </button>
+                    <Button type="delete" icon={<IconTrash size={16} />} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-danger-100 text-danger-700 hover:bg-danger-200 dark:bg-danger-900/50 dark:text-danger-300 text-sm font-medium" url={route('mechanics.destroy', mechanic.id)} label="Hapus" />
+                </div>
+            </div>
+        </div>
+    );
+}
 
 export default function Index({ mechanics, filters }) {
-
-
     // edit modal state
     const [editModalOpen, setEditModalOpen] = useState(false);
     const [editId, setEditId] = useState(null);
     const [editForm, setEditForm] = useState({ name: '', phone: '', employee_number: '', notes: '' });
     const [editing, setEditing] = useState(false);
 
-    // filter state
-    const [filterData, setFilterData] = useState({
-        ...defaultFilters,
-        ...(typeof filters !== 'undefined' ? filters : {}),
-    });
-    const [showFilters, setShowFilters] = useState(false);
-
-    useEffect(() => {
-        setFilterData({
-            ...defaultFilters,
-            ...(typeof filters !== 'undefined' ? filters : {}),
-        });
-    }, [filters]);
-
-    const handleChange = (field, value) => {
-        setFilterData((prev) => ({ ...prev, [field]: value }));
-    };
-
-    const applyFilters = (event) => {
-        event.preventDefault();
-        router.get(route('mechanics.index'), filterData, { preserveScroll: true, preserveState: true });
-        setShowFilters(false);
-    };
-
-    const resetFilters = () => {
-        setFilterData(defaultFilters);
-        router.get(route('mechanics.index'), defaultFilters, { preserveScroll: true, preserveState: true, replace: true });
-    };
-
-
+    const [viewMode, setViewMode] = useState('grid');
+    const initialSearch = filters?.q || '';
+    const totalMechanics = mechanics?.total || 0;
 
     const openEdit = (m) => {
         setEditId(m.id);
@@ -55,11 +69,12 @@ export default function Index({ mechanics, filters }) {
         setEditModalOpen(true);
     };
 
-    const submitEdit = async () => {
+    const submitEdit = () => {
         if (!editForm.name) return toast.error('Nama mekanik diperlukan');
         setEditing(true);
 
         router.patch(route('mechanics.update', editId), editForm, {
+            preserveScroll: true,
             onSuccess: () => {
                 toast.success('Mekanik diperbarui');
                 setEditModalOpen(false);
@@ -72,103 +87,97 @@ export default function Index({ mechanics, filters }) {
         });
     };
 
-    const remove = async (id) => {
-        if (!confirm('Hapus mekanik ini?')) return;
-
-        router.delete(route('mechanics.destroy', id), {
-            onSuccess: () => {
-                toast.success('Mekanik dihapus');
-            },
-            onError: () => {
-                toast.error('Gagal menghapus mekanik');
-            },
-        });
-    };
-
     return (
         <>
             <Head title="Mekanik" />
 
-            <div className="p-6">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
-                    <div>
-                        <h1 className="text-xl font-bold">Mekanik</h1>
-                        <p className="text-sm text-slate-500">{mechanics?.total || 0} mekanik</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <button onClick={() => setShowFilters(!showFilters)} className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-colors ${showFilters || (filterData.q ? true : false) ? "bg-primary-50 border-primary-200 text-primary-700" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"}`}>
-                            <IconFilter size={18} />
-                            <span>Filter</span>
-                            {filterData.q && <span className="w-2 h-2 rounded-full bg-primary-500"></span>}
-                        </button>
-                        <Link href={route('mechanics.create')} className="px-4 py-2 rounded-xl bg-primary-500 text-white inline-flex items-center gap-2"><IconCirclePlus size={16} /> <span>Tambah Mekanik</span></Link>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Mekanik</h1>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">{totalMechanics} mekanik terdaftar</p>
+                </div>
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <div className="flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-1">
+                            <button
+                                onClick={() => setViewMode('grid')}
+                                className={`p-2 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-primary-500 text-white' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                                title="Grid View"
+                            >
+                                <IconLayoutGrid size={18} />
+                            </button>
+                            <button
+                                onClick={() => setViewMode('list')}
+                                className={`p-2 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-primary-500 text-white' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                                title="List View"
+                            >
+                                <IconList size={18} />
+                            </button>
+                        </div>
+                        <div className="w-full sm:w-64">
+                            <Search route={route('mechanics.index')} placeholder="Cari mekanik..." initialValue={initialSearch} />
+                        </div>
+                        <Button type="link" href={route('mechanics.create')} icon={<IconCirclePlus size={18} />} label="Tambah Mekanik" />
                     </div>
                 </div>
 
-                {/* Filters Panel */}
-                {showFilters && (
-                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 mb-4 animate-slide-up">
-                        <form onSubmit={applyFilters}>
-                            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Nama / Kontak</label>
-                                    <input type="text" placeholder="Cari berdasarkan nama, phone, employee number..." value={filterData.q} onChange={(e) => handleChange('q', e.target.value)} className="w-full h-11 px-4 rounded-xl border" />
-                                </div>
-                                <div className="flex items-end gap-2">
-                                    <button type="submit" className="flex-1 h-11 inline-flex items-center justify-center gap-2 rounded-xl bg-primary-500 hover:bg-primary-600 text-white font-medium transition-colors"><IconSearch size={18} /><span>Cari</span></button>
-                                    {filterData.q && <button type="button" onClick={resetFilters} className="h-11 px-4 inline-flex items-center justify-center gap-2 rounded-xl border"> <IconX size={18} /> </button>}
+                {mechanics.data && mechanics.data.length > 0 ? (
+                    <>
+                        {viewMode === 'grid' ? (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                {mechanics.data.map((m) => (
+                                    <MechanicCard key={m.id} mechanic={m} onQuickEdit={openEdit} />
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                                <div className="overflow-x-auto">
+                                    <table className="w-full">
+                                        <thead>
+                                            <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
+                                                <th className="px-4 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">No</th>
+                                                <th className="px-4 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Nama</th>
+                                                <th className="px-4 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Kontak</th>
+                                                <th className="px-4 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">No. Pegawai</th>
+                                                <th className="px-4 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Catatan</th>
+                                                <th className="px-4 py-4 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Aksi</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                            {mechanics.data.map((m, idx) => (
+                                                <tr key={m.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                                    <td className="px-4 py-4 text-sm text-slate-600 dark:text-slate-400">{idx + 1 + ((mechanics.current_page || 1) - 1) * (mechanics.per_page || mechanics.data.length)}</td>
+                                                    <td className="px-4 py-4 text-sm font-semibold text-slate-900 dark:text-white">{m.name}</td>
+                                                    <td className="px-4 py-4 text-sm text-slate-600 dark:text-slate-400">{m.phone || '-'}</td>
+                                                    <td className="px-4 py-4 text-sm text-slate-600 dark:text-slate-400">{m.employee_number || '-'}</td>
+                                                    <td className="px-4 py-4 text-sm text-slate-600 dark:text-slate-400">{m.notes || '-'}</td>
+                                                    <td className="px-4 py-4 text-right">
+                                                        <div className="flex items-center justify-end gap-2">
+                                                            <button onClick={() => openEdit(m)} className="inline-flex items-center justify-center px-3 py-1.5 rounded-lg text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 dark:bg-primary-900/30 dark:text-primary-200 dark:hover:bg-primary-900/50 transition-colors">
+                                                                <IconPencilCog size={14} className="mr-1" /> Edit
+                                                            </button>
+                                                            <Button type="delete" icon={<IconTrash size={14} />} className="inline-flex items-center justify-center px-3 py-1.5 rounded-lg text-xs font-medium text-danger-700 bg-danger-50 hover:bg-danger-100 dark:bg-danger-900/30 dark:text-danger-300 dark:hover:bg-danger-900/50" url={route('mechanics.destroy', m.id)} label="Hapus" />
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
-                        </form>
-                    </div>
-                )}
-
-                {/* Mechanics List */}
-                {mechanics.data && mechanics.data.length > 0 ? (
-                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-                        <div className="overflow-x-auto">
-                            <table className="w-full">
-                                <thead>
-                                    <tr className="border-b border-slate-100 dark:border-slate-800">
-                                        <th className="px-4 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">No</th>
-                                        <th className="px-4 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Nama</th>
-                                        <th className="px-4 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Kontak</th>
-                                        <th className="px-4 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">No. Pegawai</th>
-                                        <th className="px-4 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Catatan</th>
-                                        <th className="px-4 py-4 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Aksi</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                    {mechanics.data.map((m, idx) => (
-                                        <tr key={m.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                                            <td className="px-4 py-4 text-sm text-slate-600 dark:text-slate-400">{idx + 1 + ((mechanics.current_page || 1) - 1) * (mechanics.per_page || mechanics.data.length)}</td>
-                                            <td className="px-4 py-4 text-sm font-semibold text-slate-900 dark:text-white">{m.name}</td>
-                                            <td className="px-4 py-4 text-sm text-slate-600 dark:text-slate-400">{m.phone || '-'}</td>
-                                            <td className="px-4 py-4 text-sm text-slate-600 dark:text-slate-400">{m.employee_number || '-'}</td>
-                                            <td className="px-4 py-4 text-sm text-slate-600 dark:text-slate-400">{m.notes || '-'}</td>
-                                            <td className="px-4 py-4 text-right">
-                                                <button onClick={() => openEdit(m)} className="inline-flex items-center justify-center px-3 py-1 rounded-md text-sm text-primary-600">Edit</button>
-                                                <button onClick={() => remove(m.id)} className="inline-flex items-center justify-center px-3 py-1 rounded-md text-sm text-danger-500">Hapus</button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                        )}
+                    </>
                 ) : (
                     <div className="flex flex-col items-center justify-center py-16 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
                         <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
                             <IconDatabaseOff size={32} className="text-slate-400" strokeWidth={1.5} />
                         </div>
                         <h3 className="text-lg font-medium text-slate-800 dark:text-slate-200 mb-1">Belum Ada Mekanik</h3>
-                        <p className="text-sm text-slate-500 dark:text-slate-400">Mekanik akan muncul di sini setelah dibuat.</p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Mekanik akan muncul di sini setelah dibuat.</p>
+                        <Button type="link" href={route('mechanics.create')} icon={<IconCirclePlus size={18} />} label="Tambah Mekanik Pertama" />
                     </div>
                 )}
 
-                {/* Pagination */}
-                {mechanics.last_page !== 1 && <Pagination links={mechanics.links} /> }
-            </div>
+                {mechanics.last_page > 1 && <Pagination links={mechanics.links} />}
 
 
 

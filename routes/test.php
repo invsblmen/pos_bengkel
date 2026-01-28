@@ -1,13 +1,14 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Auth;
 
 Route::get('/test-permissions', function () {
-    if (!auth()->check()) {
+    if (!Auth::check()) {
         return 'User not authenticated';
     }
 
-    $user = auth()->user();
+    $user = Auth::user();
     $permissions = $user->getAllPermissions()->pluck('name');
 
     return [

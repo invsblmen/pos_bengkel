@@ -124,10 +124,9 @@ export default function Index({ movements, parts, types, filters }) {
     return (
         <>
             <Head title="History Transaksi Sparepart" />
-            <div className="p-6">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
-                    <div>
-                        <h1 className="text-xl font-bold">History Transaksi Sparepart</h1>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white">History Transaksi Sparepart</h1>
                         <p className="text-sm text-slate-500">{movements?.total || 0} mutasi & transaksi stok</p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -340,7 +339,6 @@ export default function Index({ movements, parts, types, filters }) {
                         <p className="text-sm text-slate-500">Stock movements will appear here when transactions occur</p>
                     </div>
                 )}
-            </div>
         </>
     );
 }

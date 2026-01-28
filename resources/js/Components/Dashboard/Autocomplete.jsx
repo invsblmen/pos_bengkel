@@ -14,6 +14,8 @@ export default function Autocomplete({
     errors,
     required = false,
     disabled = false,
+    getOptionDisabled = null,
+    renderOption = null,
 }) {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -85,6 +87,10 @@ export default function Autocomplete({
     };
 
     const handleSelect = (option) => {
+        // Check if option is disabled
+        if (getOptionDisabled && getOptionDisabled(option)) {
+            return;
+        }
         onChange(option.id);
         setIsOpen(false);
         setSearchTerm('');
@@ -115,7 +121,7 @@ export default function Autocomplete({
                 <input
                     ref={inputRef}
                     type="text"
-                    value={isOpen ? searchTerm : displayText}
+                    value={isOpen ? searchTerm : (displayText || '')}
                     onChange={(e) => {
                         setSearchTerm(e.target.value);
                         if (!isOpen) setIsOpen(true);
@@ -157,25 +163,34 @@ export default function Autocomplete({
                 <div className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-xl border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
                     {filteredOptions.length > 0 ? (
                         <div className="py-1">
-                            {filteredOptions.map((option, index) => (
-                                <button
-                                    key={option.id}
-                                    type="button"
-                                    onClick={() => handleSelect(option)}
-                                    className={`w-full px-4 py-2 text-left text-sm transition ${
-                                        index === highlightedIndex
-                                            ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'
-                                            : value === option.id
-                                            ? 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white'
-                                            : 'text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700'
-                                    }`}
-                                >
-                                    {typeof displayField === 'function'
-                                        ? displayField(option)
-                                        : option[displayField]
-                                    }
-                                </button>
-                            ))}
+                            {filteredOptions.map((option, index) => {
+                                const isDisabled = getOptionDisabled ? getOptionDisabled(option) : false;
+                                return (
+                                    <button
+                                        key={option.id}
+                                        type="button"
+                                        onClick={() => handleSelect(option)}
+                                        disabled={isDisabled}
+                                        className={`w-full px-4 py-2 text-left text-sm transition ${
+                                            isDisabled
+                                                ? 'cursor-not-allowed opacity-60 bg-gray-50 dark:bg-gray-900'
+                                                : index === highlightedIndex
+                                                ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'
+                                                : value === option.id
+                                                ? 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white'
+                                                : 'text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700'
+                                        }`}
+                                    >
+                                        {renderOption ? (
+                                            renderOption(option, isDisabled)
+                                        ) : (
+                                            typeof displayField === 'function'
+                                                ? displayField(option)
+                                                : option[displayField]
+                                        )}
+                                    </button>
+                                );
+                            })}
                         </div>
                     ) : (
                         <div className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">

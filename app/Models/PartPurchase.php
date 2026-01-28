@@ -17,7 +17,8 @@ class PartPurchase extends Model
         'total_amount',
         'notes',
         'discount_type', 'discount_value', 'discount_amount',
-        'tax_type', 'tax_value', 'tax_amount', 'grand_total'
+        'tax_type', 'tax_value', 'tax_amount', 'grand_total',
+        'unit_cost', 'margin_type', 'margin_value', 'promo_discount_type', 'promo_discount_value'
     ];
 
     protected $casts = [
@@ -28,6 +29,9 @@ class PartPurchase extends Model
         'discount_amount' => 'integer',
         'tax_amount' => 'integer',
         'grand_total' => 'integer',
+        'unit_cost' => 'integer',
+        'margin_value' => 'decimal:2',
+        'promo_discount_value' => 'decimal:2',
     ];
 
     public function supplier()
@@ -43,6 +47,33 @@ class PartPurchase extends Model
     public function stockMovements()
     {
         return $this->morphMany(PartStockMovement::class, 'reference');
+    }
+
+    /**
+     * Calculate selling price based on margin type and value
+     */
+    public function calculateSellingPrice()
+    {
+        if ($this->margin_type === 'percent') {
+            return $this->unit_cost + ($this->unit_cost * $this->margin_value / 100);
+        } else {
+            return $this->unit_cost + $this->margin_value;
+        }
+    }
+
+    /**
+     * Get remaining quantity from stock movements
+     */
+    public function getRemainingQuantity()
+    {
+        return $this->details->sum(function($detail) {
+            $used = PartStockMovement::where('reference_id', $this->id)
+                ->where('reference_type', 'App\\Models\\PartPurchase')
+                ->where('type', 'out')
+                ->sum('quantity');
+
+            return $detail->quantity - $used;
+        });
     }
 
     /**

@@ -139,6 +139,21 @@ export default function Edit({ order, customers, mechanics, services, parts, veh
         }
     };
 
+    const handleVehicleChange = (vehicleId) => {
+        setData('vehicle_id', vehicleId);
+
+        if (!vehicleId) return;
+
+        // Auto-fill customer dari vehicle jika belum dipilih
+        const vehicle = vehicles.find(v => v.id === parseInt(vehicleId));
+        if (vehicle && vehicle.customer_id && !data.customer_id) {
+            setData('customer_id', vehicle.customer_id);
+            setSelectedCustomer(vehicle.customer_id);
+            handleCustomerChange(vehicle.customer_id);
+            toast.success('Pelanggan otomatis dipilih dari data kendaraan');
+        }
+    };
+
     const handleVehicleCreated = (newVehicle) => {
         router.reload({
             only: ['vehicles'],
@@ -363,7 +378,7 @@ export default function Edit({ order, customers, mechanics, services, parts, veh
                                 <Autocomplete
                                     label="Kendaraan"
                                     value={data.vehicle_id}
-                                    onChange={(value) => setData('vehicle_id', value)}
+                                    onChange={handleVehicleChange}
                                     options={data.customer_id && customerVehicles.length > 0 ? customerVehicles : vehicles}
                                     displayField={(vehicle) => `${vehicle.brand} ${vehicle.model} - ${vehicle.plate_number}`}
                                     searchFields={['plate_number', 'brand', 'model']}
@@ -1021,7 +1036,7 @@ export default function Edit({ order, customers, mechanics, services, parts, veh
                         <div>
                             <p className="text-sm text-gray-600 dark:text-gray-400">Total Biaya</p>
                             <p className="text-3xl font-bold text-gray-900 dark:text-white">
-                                {formatCurrency(calculateTotal())}
+                                {formatCurrency(grandTotal)}
                             </p>
                         </div>
 
@@ -1050,6 +1065,8 @@ export default function Edit({ order, customers, mechanics, services, parts, veh
                 isOpen={showVehicleModal}
                 onClose={() => setShowVehicleModal(false)}
                 initialPlateNumber={vehicleSearchTerm}
+                initialCustomerId={data.customer_id}
+                customers={customers}
                 onSuccess={handleVehicleCreated}
             />
 

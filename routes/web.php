@@ -9,6 +9,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Reports\ProfitReportController;
+use App\Http\Controllers\Reports\PartSalesProfitReportController;
 use App\Http\Controllers\Reports\SalesReportController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\UserController;
@@ -25,6 +26,9 @@ use App\Http\Controllers\Apps\PartSaleController;
 use App\Http\Controllers\Apps\PartSalesOrderController;
 use App\Http\Controllers\Apps\PartPurchaseOrderController;
 use App\Http\Controllers\Apps\PartStockHistoryController;
+
+// Include authentication routes
+require __DIR__.'/auth.php';
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -102,6 +106,9 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
     Route::get('/vehicles/{vehicle}/with-history', [VehicleController::class, 'getWithHistory'])
         ->middleware('permission:vehicles-access')
         ->name('vehicles.with-history');
+    Route::get('/vehicles/{vehicle}/service-history', [VehicleController::class, 'getServiceHistory'])
+        ->middleware('permission:vehicles-access')
+        ->name('vehicles.service-history');
 
     // Recommendations
     Route::get('/vehicles/{vehicle}/recommendations', [\App\Http\Controllers\Apps\RecommendationController::class, 'getVehicleRecommendations'])
@@ -242,6 +249,7 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
     // service orders
     Route::get('/service-orders', [\App\Http\Controllers\Apps\ServiceOrderController::class, 'index'])->middleware('permission:service-orders-access')->name('service-orders.index');
     Route::get('/service-orders/create', [\App\Http\Controllers\Apps\ServiceOrderController::class, 'create'])->middleware('permission:service-orders-create')->name('service-orders.create');
+    Route::get('/service-orders/{id}/print', [\App\Http\Controllers\Apps\ServiceOrderController::class, 'print'])->middleware('permission:service-orders-access')->name('service-orders.print');
     Route::get('/service-orders/{id}', [\App\Http\Controllers\Apps\ServiceOrderController::class, 'show'])->middleware('permission:service-orders-access')->name('service-orders.show');
     Route::get('/service-orders/{id}/edit', [\App\Http\Controllers\Apps\ServiceOrderController::class, 'edit'])->middleware('permission:service-orders-update')->name('service-orders.edit');
     Route::post('/service-orders', [\App\Http\Controllers\Apps\ServiceOrderController::class, 'store'])->middleware('permission:service-orders-create')->name('service-orders.store');
@@ -266,6 +274,8 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
     //reports
     Route::get('/reports/sales', [SalesReportController::class, 'index'])->middleware('permission:reports-access')->name('reports.sales.index');
     Route::get('/reports/profits', [ProfitReportController::class, 'index'])->middleware('permission:profits-access')->name('reports.profits.index');
+    Route::get('/reports/part-sales-profit', [PartSalesProfitReportController::class, 'index'])->middleware('permission:reports-access')->name('reports.part-sales-profit.index');
+    Route::get('/reports/part-sales-profit/by-supplier', [PartSalesProfitReportController::class, 'bySupplier'])->middleware('permission:reports-access')->name('reports.part-sales-profit.by-supplier');
 
     // Service Reports
     Route::get('/reports/service-revenue', [\App\Http\Controllers\Apps\ServiceReportController::class, 'revenue'])->middleware('permission:reports-access')->name('reports.service-revenue.index');
@@ -278,5 +288,3 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
-
-require __DIR__ . '/auth.php';

@@ -21,8 +21,6 @@ export default function Edit({ vehicle, customers }) {
         engine_type: vehicle.engine_type || '',
         transmission_type: vehicle.transmission_type || '',
         cylinder_volume: vehicle.cylinder_volume || '',
-        last_service_date: vehicle.last_service_date || '',
-        next_service_date: vehicle.next_service_date || '',
         notes: vehicle.notes || '',
         // STNK fields
         chassis_number: vehicle.chassis_number || '',
@@ -258,40 +256,18 @@ export default function Edit({ vehicle, customers }) {
                     {/* Service History */}
                     <div className="rounded-lg bg-white p-6 shadow dark:bg-gray-800">
                         <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
-                            Riwayat Service
+                            Jadwal Service
                         </h3>
-                        <div className="grid gap-6 md:grid-cols-2">
-                            {/* Last Service Date */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Tanggal Service Terakhir
-                                </label>
-                                <input
-                                    type="date"
-                                    value={data.last_service_date}
-                                    onChange={(e) => setData('last_service_date', e.target.value)}
-                                    className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                                />
-                                {errors.last_service_date && (
-                                    <p className="mt-1 text-sm text-red-500">{errors.last_service_date}</p>
-                                )}
-                            </div>
-
-                            {/* Next Service Date */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Tanggal Service Berikutnya
-                                </label>
-                                <input
-                                    type="date"
-                                    value={data.next_service_date}
-                                    onChange={(e) => setData('next_service_date', e.target.value)}
-                                    className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                                />
-                                {errors.next_service_date && (
-                                    <p className="mt-1 text-sm text-red-500">{errors.next_service_date}</p>
-                                )}
-                            </div>
+                        <div className="rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
+                            <p className="text-sm text-blue-800 dark:text-blue-200">
+                                ℹ️ <strong>Kilometer Terakhir, Tanggal Service Terakhir, dan Tanggal Service Berikutnya</strong> akan otomatis diperbarui dari riwayat service order terbaru.
+                            </p>
+                            <p className="mt-2 text-xs text-blue-700 dark:text-blue-300">
+                                Data ini dihitung real-time berdasarkan:
+                                <br />• Kilometer dari odometer service order terakhir
+                                <br />• Tanggal dari service order yang sudah selesai
+                                <br />• Jadwal service berikutnya dari service order aktif
+                            </p>
                         </div>
                     </div>
 

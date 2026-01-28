@@ -95,6 +95,12 @@ class PartPurchaseController extends Controller
             'items.*.unit_price' => 'required|integer|min:0',
             'items.*.discount_type' => 'nullable|in:none,percent,fixed',
             'items.*.discount_value' => 'nullable|numeric|min:0',
+            // Margin fields for profit calculation (per supplier per part)
+            'items.*.margin_type' => 'required|in:percent,fixed',
+            'items.*.margin_value' => 'required|numeric|min:0',
+            // Promo discount
+            'items.*.promo_discount_type' => 'nullable|in:none,percent,fixed',
+            'items.*.promo_discount_value' => 'nullable|numeric|min:0',
             'discount_type' => 'nullable|in:none,percent,fixed',
             'discount_value' => 'nullable|numeric|min:0',
             'tax_type' => 'nullable|in:none,percent,fixed',
@@ -137,6 +143,12 @@ class PartPurchaseController extends Controller
                 'discount_value' => $validated['discount_value'] ?? 0,
                 'tax_type' => $validated['tax_type'] ?? 'none',
                 'tax_value' => $validated['tax_value'] ?? 0,
+                // Store first item's unit cost as reference (will use FIFO)
+                'unit_cost' => $itemsWithDiscount[0]['unit_price'] ?? 0,
+                'margin_type' => $itemsWithDiscount[0]['margin_type'] ?? 'percent',
+                'margin_value' => $itemsWithDiscount[0]['margin_value'] ?? 0,
+                'promo_discount_type' => $itemsWithDiscount[0]['promo_discount_type'] ?? 'none',
+                'promo_discount_value' => $itemsWithDiscount[0]['promo_discount_value'] ?? 0,
             ]);
 
             // Create purchase details
@@ -149,6 +161,10 @@ class PartPurchaseController extends Controller
                     'subtotal' => $item['subtotal'],
                     'discount_type' => $item['discount_type'] ?? 'none',
                     'discount_value' => $item['discount_value'] ?? 0,
+                    'margin_type' => $item['margin_type'] ?? 'percent',
+                    'margin_value' => $item['margin_value'] ?? 0,
+                    'promo_discount_type' => $item['promo_discount_type'] ?? 'none',
+                    'promo_discount_value' => $item['promo_discount_value'] ?? 0,
                 ]);
 
                 // Calculate and save final amount

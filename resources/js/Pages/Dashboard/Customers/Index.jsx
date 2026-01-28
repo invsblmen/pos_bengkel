@@ -13,6 +13,7 @@ import {
     IconPhone,
     IconMapPin,
     IconMail,
+    IconCar,
 } from "@tabler/icons-react";
 import Search from "@/Components/Dashboard/Search";
 import Table from "@/Components/Dashboard/Table";
@@ -60,6 +61,32 @@ function CustomerCard({ customer }) {
                     </div>
                 )}
             </div>
+
+            {/* Vehicles List */}
+            {customer.vehicles && customer.vehicles.length > 0 && (
+                <div className="mb-4 p-3 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center gap-2 mb-2">
+                        <IconCar size={16} className="text-primary-600 dark:text-primary-400" />
+                        <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                            Kendaraan ({customer.vehicles.length})
+                        </span>
+                    </div>
+                    <div className="space-y-1">
+                        {customer.vehicles.slice(0, 3).map((vehicle) => (
+                            <div key={vehicle.id} className="text-xs text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                                <span className="font-medium text-slate-700 dark:text-slate-300">{vehicle.plate_number}</span>
+                                <span className="text-slate-500 dark:text-slate-500">•</span>
+                                <span>{vehicle.brand} {vehicle.model}</span>
+                            </div>
+                        ))}
+                        {customer.vehicles.length > 3 && (
+                            <div className="text-xs text-primary-600 dark:text-primary-400 font-medium">
+                                +{customer.vehicles.length - 3} lainnya
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
 
             {/* Actions */}
             <div className="flex gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
@@ -172,6 +199,7 @@ export default function Index({ customers }) {
                                     <Table.Th>Pelanggan</Table.Th>
                                     <Table.Th>No. Telepon</Table.Th>
                                     <Table.Th>Email</Table.Th>
+                                    <Table.Th>Kendaraan</Table.Th>
                                     <Table.Th>Alamat</Table.Th>
                                     <Table.Th></Table.Th>
                                 </tr>
@@ -208,6 +236,30 @@ export default function Index({ customers }) {
                                             <span className="text-sm text-slate-600 dark:text-slate-400 line-clamp-1">
                                                 {customer.email || "-"}
                                             </span>
+                                        </Table.Td>
+                                        <Table.Td>
+                                            {customer.vehicles && customer.vehicles.length > 0 ? (
+                                                <div className="space-y-0.5">
+                                                    {customer.vehicles.slice(0, 2).map((vehicle) => (
+                                                        <div key={vehicle.id} className="flex items-center gap-1.5 text-xs">
+                                                            <IconCar size={14} className="text-primary-500 dark:text-primary-400 flex-shrink-0" />
+                                                            <span className="font-medium text-slate-700 dark:text-slate-300">
+                                                                {vehicle.plate_number}
+                                                            </span>
+                                                            <span className="text-slate-500 dark:text-slate-500">
+                                                                {vehicle.brand}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                    {customer.vehicles.length > 2 && (
+                                                        <div className="text-xs text-primary-600 dark:text-primary-400 font-medium">
+                                                            +{customer.vehicles.length - 2} lainnya
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <span className="text-xs text-slate-400 dark:text-slate-500">-</span>
+                                            )}
                                         </Table.Td>
                                         <Table.Td>
                                             <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-1">

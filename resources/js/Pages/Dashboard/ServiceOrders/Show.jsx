@@ -11,7 +11,8 @@ import {
     IconClock,
     IconFileText,
     IconCircleCheck,
-    IconCurrencyDollar
+    IconCurrencyDollar,
+    IconPrinter
 } from '@tabler/icons-react';
 import { toDisplayDateTime } from '@/Utils/datetime';
 
@@ -55,6 +56,13 @@ export default function Show({ order }) {
                         </p>
                     </div>
                     <div className="flex gap-3">
+                        <Link
+                            href={route('service-orders.print', order.id)}
+                            className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm ring-1 ring-gray-200 transition hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:ring-gray-700 dark:hover:bg-gray-700"
+                        >
+                            <IconPrinter size={18} />
+                            Cetak Nota
+                        </Link>
                         <Link
                             href={route('service-orders.index')}
                             className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm ring-1 ring-gray-200 transition hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:ring-gray-700 dark:hover:bg-gray-700"

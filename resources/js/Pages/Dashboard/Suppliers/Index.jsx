@@ -92,12 +92,11 @@ export default function Index({ suppliers, filters }) {
     return (
         <>
             <Head title="Supplier" />
-            <div className="p-6">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
-                    <div>
-                        <h1 className="text-xl font-bold">Supplier</h1>
-                        <p className="text-sm text-slate-500">{suppliers?.total || 0} supplier</p>
-                    </div>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Supplier</h1>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">{suppliers?.total || 0} supplier</p>
+                </div>
                     <div className="flex items-center gap-2">
                         <button onClick={() => setShowFilters(!showFilters)} className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-colors ${showFilters || (filterData.q ? true : false) ? "bg-primary-50 border-primary-200 text-primary-700" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"}`}>
                             <IconFilter size={18} />
@@ -168,7 +167,7 @@ export default function Index({ suppliers, filters }) {
                 )}
 
                 {suppliers.last_page !== 1 && <Pagination links={suppliers.links} />}
-            </div>
+
 
 
 

@@ -71,13 +71,18 @@ class ServiceOrderController extends Controller
 
     public function create()
     {
+        // Get active service orders (pending and in_progress) to prevent double booking
+        $activeServiceOrders = ServiceOrder::whereIn('status', ['pending', 'in_progress'])
+            ->get(['id', 'vehicle_id', 'status', 'order_number']);
+
         return inertia('Dashboard/ServiceOrders/Create', [
-            'customers' => \App\Models\Customer::all(),
-            'vehicles' => \App\Models\Vehicle::all(),
+            'customers' => \App\Models\Customer::with('vehicles')->get(),
+            'vehicles' => \App\Models\Vehicle::with('customer')->get(),
             'mechanics' => \App\Models\Mechanic::all(),
             'services' => \App\Models\Service::all(),
             'parts' => \App\Models\Part::with('category')->get(),
             'tags' => \App\Models\Tag::all(),
+            'activeServiceOrders' => $activeServiceOrders,
         ]);
     }
 
@@ -88,8 +93,8 @@ class ServiceOrderController extends Controller
 
         return inertia('Dashboard/ServiceOrders/Edit', [
             'order' => $order,
-            'customers' => \App\Models\Customer::all(),
-            'vehicles' => \App\Models\Vehicle::all(),
+            'customers' => \App\Models\Customer::with('vehicles')->get(),
+            'vehicles' => \App\Models\Vehicle::with('customer')->get(),
             'mechanics' => \App\Models\Mechanic::all(),
             'services' => \App\Models\Service::all(),
             'parts' => \App\Models\Part::with('category')->get(),
@@ -103,6 +108,16 @@ class ServiceOrderController extends Controller
             ->findOrFail($id);
 
         return inertia('Dashboard/ServiceOrders/Show', [
+            'order' => $order,
+        ]);
+    }
+
+    public function print($id)
+    {
+        $order = ServiceOrder::with('customer', 'vehicle', 'mechanic', 'details.service', 'details.part')
+            ->findOrFail($id);
+
+        return inertia('Dashboard/ServiceOrders/Print', [
             'order' => $order,
         ]);
     }
@@ -170,15 +185,13 @@ class ServiceOrderController extends Controller
 
         // Validate odometer progression against previous records
         if ($order->vehicle_id && $order->odometer_km !== null) {
-            $vehicle = \App\Models\Vehicle::find($order->vehicle_id);
             $prevOrderKm = ServiceOrder::where('vehicle_id', $order->vehicle_id)
                 ->whereNotNull('odometer_km')
                 ->where('id', '!=', $order->id)
                 ->max('odometer_km');
-            $prevKm = max((int)($vehicle->km ?? 0), (int)($prevOrderKm ?? 0));
-            if ($order->odometer_km < $prevKm) {
+            if ($prevOrderKm && $order->odometer_km < $prevOrderKm) {
                 $order->delete();
-                return back()->withErrors(['odometer_km' => 'Odometer tidak boleh kurang dari km sebelumnya (' . number_format($prevKm, 0, ',', '.') . ' km).'])->withInput();
+                return back()->withErrors(['odometer_km' => 'Odometer tidak boleh kurang dari km sebelumnya (' . number_format($prevOrderKm, 0, ',', '.') . ' km).'])->withInput();
             }
         }
 
@@ -247,14 +260,12 @@ class ServiceOrderController extends Controller
 
         // Validate odometer progression
         if ($order->vehicle_id && $order->odometer_km !== null) {
-            $vehicle = \App\Models\Vehicle::find($order->vehicle_id);
             $prevOrderKm = ServiceOrder::where('vehicle_id', $order->vehicle_id)
                 ->whereNotNull('odometer_km')
                 ->where('id', '!=', $order->id)
                 ->max('odometer_km');
-            $prevKm = max((int)($vehicle->km ?? 0), (int)($prevOrderKm ?? 0));
-            if ($order->odometer_km < $prevKm) {
-                return back()->withErrors(['odometer_km' => 'Odometer tidak boleh kurang dari km sebelumnya (' . number_format($prevKm, 0, ',', '.') . ' km).'])->withInput();
+            if ($prevOrderKm && $order->odometer_km < $prevOrderKm) {
+                return back()->withErrors(['odometer_km' => 'Odometer tidak boleh kurang dari km sebelumnya (' . number_format($prevOrderKm, 0, ',', '.') . ' km).'])->withInput();
             }
         }
 
@@ -284,14 +295,12 @@ class ServiceOrderController extends Controller
             if (!is_null($request->odometer_km)) {
                 // Validate progression vs previous
                 if ($order->vehicle_id) {
-                    $vehicle = \App\Models\Vehicle::find($order->vehicle_id);
                     $prevOrderKm = ServiceOrder::where('vehicle_id', $order->vehicle_id)
                         ->whereNotNull('odometer_km')
                         ->where('id', '!=', $order->id)
                         ->max('odometer_km');
-                    $prevKm = max((int)($vehicle->km ?? 0), (int)($prevOrderKm ?? 0));
-                    if ((int)$request->odometer_km < $prevKm) {
-                        return back()->withErrors(['odometer_km' => 'Odometer tidak boleh kurang dari km sebelumnya (' . number_format($prevKm, 0, ',', '.') . ' km).'])->withInput();
+                    if ($prevOrderKm && (int)$request->odometer_km < $prevOrderKm) {
+                        return back()->withErrors(['odometer_km' => 'Odometer tidak boleh kurang dari km sebelumnya (' . number_format($prevOrderKm, 0, ',', '.') . ' km).'])->withInput();
                     }
                 }
                 $order->odometer_km = $request->odometer_km;
@@ -303,15 +312,6 @@ class ServiceOrderController extends Controller
         // When status changes to completed, deduct parts from inventory
         if ($oldStatus !== 'completed' && $request->status === 'completed') {
             $this->deductPartsFromInventory($order);
-            // Sync vehicle km with odometer if higher
-            if ($order->vehicle_id && $order->odometer_km !== null) {
-                $vehicle = \App\Models\Vehicle::find($order->vehicle_id);
-                if ($vehicle && (is_null($vehicle->km) || $order->odometer_km > (int)$vehicle->km)) {
-                    $vehicle->km = $order->odometer_km;
-                    $vehicle->last_service_date = now()->toDateString();
-                    $vehicle->save();
-                }
-            }
         }
 
         $order->save();
@@ -461,4 +461,5 @@ class ServiceOrderController extends Controller
             }
         }
     }
+
 }
