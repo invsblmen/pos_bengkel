@@ -47,9 +47,18 @@ class SupplierController extends Controller
 
         $supplier = Supplier::create($data);
 
-        return redirect()->back()->with([
+        return redirect()->route('suppliers.index')->with([
             'success' => 'Supplier created successfully.',
             'flash' => ['supplier' => $supplier]
+        ]);
+    }
+
+    public function edit($id)
+    {
+        $supplier = Supplier::findOrFail($id);
+
+        return inertia('Dashboard/Suppliers/Edit', [
+            'supplier' => $supplier,
         ]);
     }
 
@@ -67,7 +76,7 @@ class SupplierController extends Controller
 
         $supplier->update($data);
 
-        return redirect()->back()->with([
+        return redirect()->route('suppliers.index')->with([
             'success' => 'Supplier updated successfully.',
             'flash' => ['supplier' => $supplier]
         ]);

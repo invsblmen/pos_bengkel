@@ -99,9 +99,16 @@ export default function QuickCreateVehicleModal({ isOpen, onClose, initialPlateN
                             type="text"
                             name="plate_number"
                             value={data.plate_number}
-                            onChange={(e) => setData('plate_number', e.target.value.toUpperCase())}
-                            placeholder="Contoh: B 1234 ABC"
+                            onChange={(e) => {
+                                // Only allow letters and numbers (no spaces)
+                                const sanitized = e.target.value
+                                    .replace(/[^A-Za-z0-9]/g, '')
+                                    .toUpperCase();
+                                setData('plate_number', sanitized);
+                            }}
+                            placeholder="Contoh: B1234ABC"
                             autoFocus
+                            maxLength={20}
                             className={`w-full h-11 px-4 rounded-xl border ${
                                 errors.plate_number
                                     ? 'border-danger-500 focus:ring-danger-500/20'
@@ -113,6 +120,9 @@ export default function QuickCreateVehicleModal({ isOpen, onClose, initialPlateN
                                 {errors.plate_number}
                             </p>
                         )}
+                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                            Hanya huruf dan angka (tanpa spasi)
+                        </p>
                     </div>
 
                     {/* Brand & Model Row */}

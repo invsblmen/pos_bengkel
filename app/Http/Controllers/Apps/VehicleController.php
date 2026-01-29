@@ -11,6 +11,9 @@ class VehicleController extends Controller
 {
     public function index()
     {
+        $sortBy = request('sort_by', 'created_at');
+        $sortDirection = request('sort_direction', 'desc');
+
         $vehicles = Vehicle::with('customer')
             ->when(request('search'), function ($query) {
                 $query->where('plate_number', 'like', '%' . request('search') . '%')
@@ -20,11 +23,51 @@ class VehicleController extends Controller
                         $q->where('name', 'like', '%' . request('search') . '%');
                     });
             })
-            ->orderByDesc('created_at')
+            ->when(request('brand'), function ($query) {
+                $query->where('brand', request('brand'));
+            })
+            ->when(request('year'), function ($query) {
+                $query->where('year', request('year'));
+            })
+            ->when(request('transmission'), function ($query) {
+                $query->where('transmission_type', request('transmission'));
+            })
+            ->orderBy($sortBy, $sortDirection)
             ->paginate(15);
+
+        // Add service dates from latest service orders
+        $vehicles->getCollection()->transform(function ($vehicle) {
+            $calculatedData = $this->calculateVehicleDataFromOrders($vehicle);
+            $vehicle->last_service_date = $calculatedData['last_service_date'];
+            $vehicle->next_service_date = $calculatedData['next_service_date'];
+            return $vehicle;
+        });
+
+        // Filter by service status if needed
+        if (request('service_status')) {
+            $filtered = $vehicles->getCollection()->filter(function ($vehicle) {
+                if (request('service_status') === 'serviced') {
+                    return !empty($vehicle->last_service_date);
+                } elseif (request('service_status') === 'never') {
+                    return empty($vehicle->last_service_date);
+                }
+                return true;
+            });
+
+            $vehicles->setCollection($filtered->values());
+        }
 
         return inertia('Dashboard/Vehicles/Index', [
             'vehicles' => $vehicles,
+            'filters' => [
+                'search' => request('search'),
+                'brand' => request('brand'),
+                'year' => request('year'),
+                'transmission' => request('transmission'),
+                'service_status' => request('service_status'),
+                'sort_by' => $sortBy,
+                'sort_direction' => $sortDirection,
+            ],
         ]);
     }
 
@@ -41,7 +84,7 @@ class VehicleController extends Controller
     {
         $request->validate([
             'customer_id' => 'required|exists:customers,id',
-            'plate_number' => 'required|string|max:20|unique:vehicles,plate_number',
+            'plate_number' => 'required|string|max:20|unique:vehicles,plate_number|regex:/^[A-Z0-9]{1,20}$/i',
             'brand' => 'required|string|max:100',
             'model' => 'required|string|max:100',
             'year' => 'nullable|integer|min:1900|max:' . (date('Y') + 1),
@@ -59,11 +102,16 @@ class VehicleController extends Controller
             'registration_date' => 'nullable|date',
             'stnk_expiry_date' => 'nullable|date',
             'previous_owner' => 'nullable|string|max:255',
+        ], [
+            'plate_number.regex' => 'Nomor plat hanya boleh berisi huruf dan angka (tanpa spasi).',
         ]);
+
+        // Normalize plate number: remove all spaces and convert to uppercase
+        $platNumber = preg_replace('/\s+/', '', strtoupper($request->plate_number));
 
         $vehicle = Vehicle::create([
             'customer_id' => $request->customer_id,
-            'plate_number' => strtoupper($request->plate_number),
+            'plate_number' => $platNumber,
             'brand' => $request->brand,
             'model' => $request->model,
             'year' => $request->year,
@@ -184,7 +232,7 @@ class VehicleController extends Controller
 
         $request->validate([
             'customer_id' => 'required|exists:customers,id',
-            'plate_number' => 'required|string|max:20|unique:vehicles,plate_number,' . $id,
+            'plate_number' => 'required|string|max:20|unique:vehicles,plate_number,' . $id . '|regex:/^[A-Z0-9]{1,20}$/i',
             'brand' => 'required|string|max:100',
             'model' => 'required|string|max:100',
             'year' => 'nullable|integer|min:1900|max:' . (date('Y') + 1),
@@ -202,11 +250,16 @@ class VehicleController extends Controller
             'registration_date' => 'nullable|date',
             'stnk_expiry_date' => 'nullable|date',
             'previous_owner' => 'nullable|string|max:255',
+        ], [
+            'plate_number.regex' => 'Nomor plat hanya boleh berisi huruf dan angka (tanpa spasi).',
         ]);
+
+        // Normalize plate number: remove all spaces and convert to uppercase
+        $platNumber = preg_replace('/\s+/', '', strtoupper($request->plate_number));
 
         $vehicle->update([
             'customer_id' => $request->customer_id,
-            'plate_number' => strtoupper($request->plate_number),
+            'plate_number' => $platNumber,
             'brand' => $request->brand,
             'model' => $request->model,
             'year' => $request->year,

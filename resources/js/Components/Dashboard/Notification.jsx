@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Menu, Transition } from '@headlessui/react'
-import { IconBell, IconDots, IconCircleCheck, IconPackage, IconCashBanknote, IconPhoto, IconCircleCheckFilled, IconMessage } from '@tabler/icons-react'
+import { Link, usePage } from '@inertiajs/react'
+import { IconBell, IconDots, IconCircleCheck, IconPackage, IconCircleCheckFilled, IconAlertCircle } from '@tabler/icons-react'
 export default function Notification() {
-
-    const data = [
-    ]
+    const { lowStockAlerts } = usePage().props;
+    const alerts = lowStockAlerts?.items || [];
+    const unreadCount = lowStockAlerts?.count || 0;
 
     // define state isMobile
     const [isMobile, setIsMobile] = useState(false);
@@ -48,9 +49,11 @@ export default function Notification() {
             {isMobile === false ?
                 <Menu className='relative z-50' as="div">
                     <Menu.Button className='flex items-center rounded-md group p-2'>
-                        <div className='absolute text-[8px] font-semibold border border-rose-500/40 bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 top-0 -right-2 rounded-md px-1.5 py-0.5 group-hover:scale-125 duration-300 ease-in'>
-                            {data.length}
-                        </div>
+                        {unreadCount > 0 && (
+                            <div className='absolute text-[8px] font-semibold border border-rose-500/40 bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 top-0 -right-2 rounded-md px-1.5 py-0.5 group-hover:scale-125 duration-300 ease-in'>
+                                {unreadCount}
+                            </div>
+                        )}
                         <IconBell strokeWidth={1.5} size={18} className='text-gray-700 dark:text-gray-400' />
                     </Menu.Button>
                     <Transition
@@ -69,21 +72,30 @@ export default function Notification() {
                             <div className='p-4'>
                                 <div className='flex flex-col gap-2 items-start h-60 overflow-y-auto'>
                                     {/* If data is empty */}
-                                    {data.length === 0 && <div className='text-sm text-gray-500 dark:text-gray-400'>Tidak ada notifikasi</div>}
-                                    {data.map((data, i) => (
-                                        <div className='flex items-center justify-between w-full p-4 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-900 ' key={i}>
+                                    {alerts.length === 0 && <div className='text-sm text-gray-500 dark:text-gray-400'>Tidak ada notifikasi</div>}
+                                    {alerts.map((alert) => (
+                                        <div className='flex items-center justify-between w-full p-4 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-900' key={alert.id}>
                                             <div className='flex items-center gap-4'>
-                                                {data.icon}
+                                                <IconAlertCircle size={20} className='text-rose-500' />
                                                 <div>
-                                                    <div className='font-semibold text-sm text-gray-700 dark:text-gray-200 '>
-                                                        {data.user} <sup className='text-xs font-mono text-gray-400 ml-1'>{data.time}</sup>
+                                                    <div className='font-semibold text-sm text-gray-700 dark:text-gray-200'>
+                                                        Stok Minim <sup className='text-xs font-mono text-gray-400 ml-1'>{alert.created_at}</sup>
                                                     </div>
-                                                    <div className='text-gray-500 text-sm'>{data.title}</div>
+                                                    <div className='text-gray-500 text-sm'>
+                                                        {alert.part?.name || 'Part'} ({alert.current_stock}/{alert.minimal_stock})
+                                                    </div>
                                                 </div>
                                             </div>
-                                            {data.is_read == 1 ? <IconCircleCheckFilled size={20} strokeWidth={1.5} className='text-gray-500 dark:text-gray-400' /> : <IconCircleCheck size={20} strokeWidth={1.5} className='text-gray-500 dark:Ltext-gray-400' />}
+                                            {alert.is_read ? (
+                                                <IconCircleCheckFilled size={20} strokeWidth={1.5} className='text-gray-500 dark:text-gray-400' />
+                                            ) : (
+                                                <IconCircleCheck size={20} strokeWidth={1.5} className='text-gray-500 dark:text-gray-400' />
+                                            )}
                                         </div>
                                     ))}
+                                </div>
+                                <div className='mt-3 text-right'>
+                                    <Link className='text-sm font-medium text-primary-600 hover:text-primary-700' href={route('parts.low-stock')}>Lihat semua</Link>
                                 </div>
                             </div>
                         </Menu.Items>
@@ -92,9 +104,11 @@ export default function Notification() {
                 :
                 <div ref={notificationRef}>
                     <button className='flex items-center rounded-md group p-2 relative' onClick={() => setIsOpen(!isOpen)}>
-                        <div className='absolute text-[8px] font-semibold border border-rose-500/40 bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 top-0 -right-2 rounded-md px-1.5 py-0.5 group-hover:scale-125 duration-300 ease-in'>
-                            {data.length}
-                        </div>
+                        {unreadCount > 0 && (
+                            <div className='absolute text-[8px] font-semibold border border-rose-500/40 bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 top-0 -right-2 rounded-md px-1.5 py-0.5 group-hover:scale-125 duration-300 ease-in'>
+                                {unreadCount}
+                            </div>
+                        )}
                         <IconBell strokeWidth={1.5} size={18} className='text-gray-500 dark:text-gray-400' />
                     </button>
                     <div className={`${isOpen ? 'translate-x-0 opacity-100' : 'translate-x-full'} fixed top-0 right-0 z-50 w-[300px] h-full transition-all duration-300 transform border-l bg-white dark:bg-gray-950 dark:border-gray-900`}>
@@ -104,21 +118,28 @@ export default function Notification() {
                         </div>
                         <div className='p-4'>
                             <div className='flex flex-col gap-2 items-start overflow-y-auto h-screen'>
-
-                                {data.map((data, i) => (
-                                    <div className='flex items-center justify-between w-full p-4 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-900 ' key={i}>
+                                {alerts.length === 0 && <div className='text-sm text-gray-500 dark:text-gray-400'>Tidak ada notifikasi</div>}
+                                {alerts.map((alert) => (
+                                    <div className='flex items-center justify-between w-full p-4 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-900' key={alert.id}>
                                         <div className='flex items-center gap-4'>
-                                            {data.icon}
+                                            <IconAlertCircle size={18} className='text-rose-500' />
                                             <div className='w-full'>
                                                 <div className='font-semibold text-sm line-clamp-1 text-gray-700 dark:text-gray-200'>
-                                                    {data.user} <sup className='text-xs font-mono text-gray-400 ml-1'>{data.time}</sup>
+                                                    Stok Minim <sup className='text-xs font-mono text-gray-400 ml-1'>{alert.created_at}</sup>
                                                 </div>
-                                                <div className='text-gray-500 text-sm line-clamp-1 max-w-[155px]'>{data.title}</div>
+                                                <div className='text-gray-500 text-sm line-clamp-1 max-w-[155px]'>
+                                                    {alert.part?.name || 'Part'} ({alert.current_stock}/{alert.minimal_stock})
+                                                </div>
                                             </div>
                                         </div>
-                                        {data.is_read == 1 ? <IconCircleCheckFilled size={20} strokeWidth={1.5} className='text-gray-500 dark:text-gray-400' /> : <IconCircleCheck size={20} strokeWidth={1.5} className='text-gray-500 dark:text-gray-400' />}
+                                        {alert.is_read ? (
+                                            <IconCircleCheckFilled size={20} strokeWidth={1.5} className='text-gray-500 dark:text-gray-400' />
+                                        ) : (
+                                            <IconCircleCheck size={20} strokeWidth={1.5} className='text-gray-500 dark:text-gray-400' />
+                                        )}
                                     </div>
                                 ))}
+                                <Link className='text-sm font-medium text-primary-600 hover:text-primary-700' href={route('parts.low-stock')}>Lihat semua</Link>
                             </div>
                         </div>
                     </div>

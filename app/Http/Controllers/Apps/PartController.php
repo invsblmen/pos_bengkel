@@ -13,23 +13,70 @@ class PartController extends Controller
     public function index(Request $request)
     {
         $q = $request->query('q', '');
+        $categoryId = $request->query('category_id', '');
+        $supplierId = $request->query('supplier_id', '');
+        $stockStatus = $request->query('stock_status', '');
+        $sortBy = $request->query('sort_by', 'name');
+        $sortDirection = $request->query('sort_direction', 'asc');
+        $perPage = $request->query('per_page', 10);
 
-        $query = Part::with(['supplier', 'category'])->orderBy('name');
+        $query = Part::with(['supplier', 'category']);
+
+        // Search
         if ($q) {
             $query->where(function ($sub) use ($q) {
                 $sub->where('name', 'like', "%{$q}%")
-                    ->orWhere('sku', 'like', "%{$q}%")
                     ->orWhere('part_number', 'like', "%{$q}%")
                     ->orWhere('barcode', 'like', "%{$q}%")
+                    ->orWhere('rack_location', 'like', "%{$q}%")
                     ->orWhere('description', 'like', "%{$q}%");
             });
         }
 
-        $parts = $query->paginate(15)->withQueryString();
+        // Category filter
+        if ($categoryId) {
+            $query->where('part_category_id', $categoryId);
+        }
+
+        // Supplier filter
+        if ($supplierId) {
+            $query->where('supplier_id', $supplierId);
+        }
+
+        // Stock status filter
+        if ($stockStatus === 'low') {
+            $query->whereColumn('stock', '<=', 'minimal_stock')
+                  ->where('minimal_stock', '>', 0);
+        } elseif ($stockStatus === 'out') {
+            $query->where('stock', 0);
+        } elseif ($stockStatus === 'normal') {
+            $query->where(function ($sub) {
+                $sub->whereColumn('stock', '>', 'minimal_stock')
+                    ->orWhere('minimal_stock', 0);
+            })->where('stock', '>', 0);
+        }
+
+        // Sorting
+        $allowedSorts = ['name', 'part_number', 'stock', 'buy_price', 'sell_price', 'rack_location'];
+        if (in_array($sortBy, $allowedSorts)) {
+            $query->orderBy($sortBy, $sortDirection);
+        } else {
+            $query->orderBy('name', 'asc');
+        }
+
+        $parts = $query->paginate((int)$perPage)->withQueryString();
 
         return Inertia::render('Dashboard/Parts/Index', [
             'parts' => $parts,
-            'filters' => ['q' => $q],
+            'filters' => [
+                'q' => $q,
+                'category_id' => $categoryId,
+                'supplier_id' => $supplierId,
+                'stock_status' => $stockStatus,
+                'sort_by' => $sortBy,
+                'sort_direction' => $sortDirection,
+                'per_page' => (int)$perPage,
+            ],
             'suppliers' => Supplier::orderBy('name')->get(),
             'categories' => \App\Models\PartCategory::orderBy('name')->get(),
         ]);
@@ -57,12 +104,13 @@ class PartController extends Controller
     {
         $data = $request->validate([
             'name' => 'required|string|max:255',
-            'sku' => 'nullable|string|max:50|unique:parts,sku',
             'part_number' => 'nullable|string|max:100|unique:parts,part_number',
             'barcode' => 'nullable|string|max:150|unique:parts,barcode',
             'part_category_id' => 'nullable|exists:part_categories,id',
             'supplier_id' => 'nullable|exists:suppliers,id',
             'stock' => 'nullable|integer|min:0',
+                        'minimal_stock' => 'nullable|integer|min:0',
+                        'rack_location' => 'nullable|string|max:50',
             'description' => 'nullable|string',
         ]);
 
@@ -85,9 +133,10 @@ class PartController extends Controller
 
         $data = $request->validate([
             'name' => 'required|string|max:255',
-            'sku' => "nullable|string|max:50|unique:parts,sku,{$id}",
             'part_number' => "nullable|string|max:100|unique:parts,part_number,{$id}",
             'barcode' => "nullable|string|max:150|unique:parts,barcode,{$id}",
+                        'minimal_stock' => 'nullable|integer|min:0',
+                        'rack_location' => 'nullable|string|max:50',
             'part_category_id' => 'nullable|exists:part_categories,id',
             'supplier_id' => 'nullable|exists:suppliers,id',
             'stock' => 'nullable|integer|min:0',

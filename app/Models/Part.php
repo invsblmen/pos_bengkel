@@ -10,14 +10,32 @@ class Part extends Model
 {
     use HasFactory, SoftDeletes;
 
+    protected static function booted()
+    {
+        static::saved(function (self $part) {
+            if ($part->minimal_stock > 0 && $part->stock <= $part->minimal_stock) {
+                LowStockAlert::updateOrCreate(
+                    ['part_id' => $part->id],
+                    [
+                        'current_stock' => $part->stock,
+                        'minimal_stock' => $part->minimal_stock,
+                    ]
+                );
+            } else {
+                LowStockAlert::where('part_id', $part->id)->delete();
+            }
+        });
+    }
+
     protected $fillable = [
-        'sku', 'part_number', 'barcode', 'name', 'description', 'stock', 'supplier_id',
-        'part_category_id', 'unit_measure', 'reorder_level', 'status'
+        'part_number', 'barcode', 'name', 'description', 'stock', 'minimal_stock', 'rack_location',
+        'supplier_id', 'part_category_id', 'unit_measure', 'reorder_level', 'status'
     ];
 
     protected $casts = [
         'stock' => 'integer',
         'reorder_level' => 'integer',
+        'minimal_stock' => 'integer',
     ];
 
     public function category()
@@ -43,6 +61,11 @@ class Part extends Model
     public function purchases()
     {
         return $this->hasMany(PartPurchase::class);
+    }
+
+    public function lowStockAlert()
+    {
+        return $this->hasOne(LowStockAlert::class);
     }
 
     /**
@@ -92,6 +115,31 @@ class Part extends Model
 
     public function scopeLowStock($query)
     {
-        return $query->whereRaw('stock <= reorder_level');
+        return $query->whereRaw('stock <= minimal_stock')
+            ->where('minimal_stock', '>', 0);
+    }
+    /**
+     * Check if part stock is below minimal stock
+     */
+    public function isLowStock(): bool
+    {
+        if ($this->minimal_stock <= 0) {
+            return false;
+        }
+        return $this->stock <= $this->minimal_stock;
+    }
+
+    /**
+     * Get accessor for stock status
+     */
+    public function getStockStatusAttribute(): string
+    {
+        if ($this->minimal_stock > 0 && $this->stock <= $this->minimal_stock) {
+            return 'low';
+        }
+        if ($this->stock == 0) {
+            return 'out';
+        }
+        return 'normal';
     }
 }
