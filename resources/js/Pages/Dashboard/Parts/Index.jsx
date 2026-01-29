@@ -330,11 +330,10 @@ export default function Index({ parts, filters, categories, suppliers }) {
                         </button>
                         <button
                             onClick={() => setShowFilters(!showFilters)}
-                            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${
-                                hasActiveFilters || showFilters
-                                    ? 'bg-primary-500 text-white hover:bg-primary-600 shadow-lg shadow-primary-500/30'
-                                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
-                            }`}
+                            className={hasActiveFilters || showFilters
+                                ? 'inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all bg-primary-500 text-white hover:bg-primary-600 shadow-lg shadow-primary-500/30'
+                                : 'inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
+                            }
                         >
                             <IconFilter size={18} />
                             {hasActiveFilters && (
@@ -380,7 +379,7 @@ export default function Index({ parts, filters, categories, suppliers }) {
                             <div className="grid gap-6 md:grid-cols-3">
                                 {/* Category Filter */}
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-2">
+                                    <label className="flex text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 items-center gap-2">
                                         <IconCategory size={16} />
                                         Kategori
                                     </label>
@@ -398,7 +397,7 @@ export default function Index({ parts, filters, categories, suppliers }) {
 
                                 {/* Supplier Filter */}
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-2">
+                                    <label className="flex text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 items-center gap-2">
                                         <IconTruck size={16} />
                                         Supplier
                                     </label>
@@ -416,7 +415,7 @@ export default function Index({ parts, filters, categories, suppliers }) {
 
                                 {/* Stock Status Filter */}
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-2">
+                                    <label className="flex text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 items-center gap-2">
                                         <IconPackage size={16} />
                                         Status Stok
                                     </label>

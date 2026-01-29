@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Vehicle;
 use App\Models\Customer;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class VehicleController extends Controller
 {
@@ -491,7 +492,7 @@ class VehicleController extends Controller
                 'service_orders' => $serviceOrders,
             ]);
         } catch (\Exception $e) {
-            \Log::error('Error fetching service history: ' . $e->getMessage());
+            Log::error('Error fetching service history: ' . $e->getMessage());
             return response()->json([
                 'service_orders' => [],
                 'error' => $e->getMessage()

@@ -232,8 +232,7 @@ export default function Edit({ part, suppliers, categories }) {
 
                     <div className="space-y-6">
                         {/* Live Preview Card */}
-                        <div>
-                            <div className={`rounded-2xl p-6 text-white shadow-lg ${
+                        <div className={`rounded-2xl p-6 text-white shadow-lg ${
                             previewData.hasChanges
                                 ? 'bg-gradient-to-br from-amber-500 to-orange-500'
                                 : 'bg-gradient-to-br from-primary-500 to-primary-600'
