@@ -24,6 +24,8 @@ class DatabaseSeeder extends Seeder
             SampleDataSeeder::class,
             WorkshopSeeder::class,
             SupplierSeeder::class,
+            ServiceCategorySeeder::class,
+            PartCategorySeeder::class,
             PartSeeder::class,
         ]);
     }

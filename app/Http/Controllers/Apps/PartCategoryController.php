@@ -38,7 +38,6 @@ class PartCategoryController extends Controller
             'name' => 'required|string|unique:part_categories,name',
             'description' => 'nullable|string',
             'icon' => 'nullable|string',
-            'sort_order' => 'nullable|integer|min:0',
         ]);
 
         PartCategory::create($data);
@@ -59,7 +58,6 @@ class PartCategoryController extends Controller
             'name' => 'required|string|unique:part_categories,name,' . $partCategory->id,
             'description' => 'nullable|string',
             'icon' => 'nullable|string',
-            'sort_order' => 'nullable|integer|min:0',
         ]);
 
         $partCategory->update($data);

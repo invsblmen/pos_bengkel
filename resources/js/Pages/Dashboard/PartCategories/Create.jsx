@@ -1,17 +1,39 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Head, useForm, Link } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
-import IconPicker from '@/Components/Dashboard/IconPicker';
-import { IconArrowLeft, IconDeviceFloppy } from '@tabler/icons-react';
+import {
+    IconArrowLeft, IconDeviceFloppy, IconBox, IconTruck, IconWrench,
+    IconBolt, IconCylinder, IconGauge, IconFilter, IconChain, IconRing,
+    IconShield, IconSpark, IconAlertTriangle, IconSettings
+} from '@tabler/icons-react';
 import toast from 'react-hot-toast';
+
+const AVAILABLE_ICONS = [
+    { name: 'Box', icon: IconBox },
+    { name: 'Truck', icon: IconTruck },
+    { name: 'Wrench', icon: IconWrench },
+    { name: 'Bolt', icon: IconBolt },
+    { name: 'Cylinder', icon: IconCylinder },
+    { name: 'Gauge', icon: IconGauge },
+    { name: 'Filter', icon: IconFilter },
+    { name: 'Chain', icon: IconChain },
+    { name: 'Ring', icon: IconRing },
+    { name: 'Shield', icon: IconShield },
+    { name: 'Spark', icon: IconSpark },
+    { name: 'Alert', icon: IconAlertTriangle },
+    { name: 'Settings', icon: IconSettings },
+];
 
 function Create({ auth }) {
     const { data, setData, post, processing, errors } = useForm({
         name: '',
         description: '',
-        icon: '',
-        sort_order: 0,
+        icon: 'Box',
     });
+    const [showIconPicker, setShowIconPicker] = useState(false);
+    const selectedIconDef = AVAILABLE_ICONS.find(i => i.name === data.icon);
+    const SelectedIcon = selectedIconDef?.icon || IconBox;
+
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -33,28 +55,35 @@ function Create({ auth }) {
             <div className="p-6">
                 <div className="max-w-3xl mx-auto">
                     {/* Header */}
-                    <div className="mb-6">
+                    <div className="mb-8">
                         <Link
                             href={route('part-categories.index')}
-                            className="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-4 transition-colors"
+                            className="inline-flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white mb-4 transition-colors"
                         >
-                            <IconArrowLeft size={20} />
+                            <IconArrowLeft size={18} />
                             <span>Kembali ke Daftar</span>
                         </Link>
-                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                            Tambah Kategori Sparepart
-                        </h1>
-                        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                            Buat kategori baru untuk mengorganisir sparepart
-                        </p>
+                        <div className="flex items-center gap-3">
+                            <div className="p-3 bg-primary-100 dark:bg-primary-900/30 rounded-xl">
+                                <SelectedIcon size={28} className="text-primary-600 dark:text-primary-400" />
+                            </div>
+                            <div>
+                                <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
+                                    Tambah Kategori Sparepart
+                                </h1>
+                                <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                                    Buat kategori baru untuk mengorganisir sparepart
+                                </p>
+                            </div>
+                        </div>
                     </div>
 
                     {/* Form */}
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6">
                         <form onSubmit={handleSubmit} className="space-y-6">
-                            {/* Name */}
+                            {/* Nama Kategori */}
                             <div>
-                                <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                <label htmlFor="name" className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
                                     Nama Kategori <span className="text-red-500">*</span>
                                 </label>
                                 <input
@@ -62,92 +91,114 @@ function Create({ auth }) {
                                     id="name"
                                     value={data.name}
                                     onChange={(e) => setData('name', e.target.value)}
-                                    className={`w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-primary-500 transition-colors ${
+                                    className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all ${
                                         errors.name
-                                            ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
-                                            : 'border-gray-200 dark:border-gray-700 focus:border-transparent'
-                                    } bg-white dark:bg-gray-900 text-gray-900 dark:text-white`}
+                                            ? 'border-red-500 focus:ring-red-200'
+                                            : 'border-slate-200 dark:border-slate-700'
+                                    } bg-white dark:bg-slate-900 text-slate-900 dark:text-white`}
                                     placeholder="Contoh: Mesin & Komponen"
                                     required
                                 />
                                 {errors.name && (
-                                    <p className="mt-1 text-sm text-red-500">{errors.name}</p>
+                                    <p className="mt-2 text-sm text-red-500 flex items-center gap-1">
+                                        <IconAlertTriangle size={16} />
+                                        {errors.name}
+                                    </p>
                                 )}
                             </div>
 
-                            {/* Description */}
+                            {/* Deskripsi */}
                             <div>
-                                <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                    Deskripsi
+                                <label htmlFor="description" className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                                    Deskripsi <span className="text-slate-400 font-normal">(Opsional)</span>
                                 </label>
                                 <textarea
                                     id="description"
                                     value={data.description}
                                     onChange={(e) => setData('description', e.target.value)}
                                     rows={4}
-                                    className={`w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-primary-500 transition-colors ${
+                                    className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all ${
                                         errors.description
-                                            ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
-                                            : 'border-gray-200 dark:border-gray-700 focus:border-transparent'
-                                    } bg-white dark:bg-gray-900 text-gray-900 dark:text-white`}
-                                    placeholder="Deskripsi singkat tentang kategori ini"
+                                            ? 'border-red-500 focus:ring-red-200'
+                                            : 'border-slate-200 dark:border-slate-700'
+                                    } bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400`}
+                                    placeholder="Deskripsi singkat tentang kategori ini..."
                                 />
                                 {errors.description && (
-                                    <p className="mt-1 text-sm text-red-500">{errors.description}</p>
+                                    <p className="mt-2 text-sm text-red-500">{errors.description}</p>
                                 )}
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {/* Icon */}
-                                <div>
-                                    <label htmlFor="icon" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                        Icon (Opsional)
-                                    </label>
-                                    <input
-                                        type="text"
-                                        id="icon"
-                                        value={data.icon}
-                                        onChange={(e) => setData('icon', e.target.value)}
-                                        className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                                        placeholder="📦 atau box"
-                                    />
-                                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                        Gunakan emoji atau nama icon
-                                    </p>
-                                </div>
+                            {/* Icon Picker */}
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
+                                    Pilih Icon <span className="text-slate-400 font-normal">(Opsional)</span>
+                                </label>
 
-                                {/* Sort Order */}
-                                <div>
-                                    <label htmlFor="sort_order" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                        Urutan Tampilan
-                                    </label>
-                                    <input
-                                        type="number"
-                                        id="sort_order"
-                                        value={data.sort_order}
-                                        onChange={(e) => setData('sort_order', parseInt(e.target.value) || 0)}
-                                        className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                                        min="0"
-                                    />
-                                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                        Urutan lebih kecil tampil lebih dulu
-                                    </p>
+                                <div className="relative">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowIconPicker(!showIconPicker)}
+                                        className="w-full px-4 py-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white flex items-center justify-between hover:border-primary-500 dark:hover:border-primary-500 transition-colors"
+                                    >
+                                        <span className="flex items-center gap-3">
+                                            <SelectedIcon size={20} className="text-primary-600 dark:text-primary-400" />
+                                            <span>{data.icon}</span>
+                                        </span>
+                                        <svg className={`w-5 h-5 transition-transform ${showIconPicker ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                                        </svg>
+                                    </button>
+
+                                    {/* Icon Grid */}
+                                    {showIconPicker && (
+                                        <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg p-4 z-50">
+                                            <div className="grid grid-cols-4 gap-2">
+                                                {AVAILABLE_ICONS.map((item) => {
+                                                    const IconComponent = item.icon;
+                                                    const isSelected = data.icon === item.name;
+                                                    return (
+                                                        <button
+                                                            key={item.name}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setData('icon', item.name);
+                                                                setShowIconPicker(false);
+                                                            }}
+                                                            className={`p-3 rounded-lg flex flex-col items-center gap-1 transition-all ${
+                                                                isSelected
+                                                                    ? 'bg-primary-100 dark:bg-primary-900/30 border-2 border-primary-500'
+                                                                    : 'bg-slate-100 dark:bg-slate-800 border-2 border-transparent hover:border-primary-300'
+                                                            }`}
+                                                            title={item.name}
+                                                        >
+                                                            <IconComponent size={24} className={isSelected ? 'text-primary-600 dark:text-primary-400' : 'text-slate-600 dark:text-slate-400'} />
+                                                            <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">{item.name}</span>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
+                                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                                    Klik untuk memilih icon dari koleksi yang tersedia
+                                </p>
                             </div>
 
                             {/* Buttons */}
-                            <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                            <div className="flex gap-3 pt-6 border-t border-slate-200 dark:border-slate-700">
                                 <button
                                     type="submit"
                                     disabled={processing}
-                                    className="inline-flex items-center gap-2 px-6 py-2.5 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="inline-flex items-center gap-2 px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary-500/30"
                                 >
                                     <IconDeviceFloppy size={20} />
-                                    {processing ? 'Menyimpan...' : 'Simpan'}
+                                    {processing ? 'Menyimpan...' : 'Simpan Kategori'}
                                 </button>
                                 <Link
                                     href={route('part-categories.index')}
-                                    className="px-6 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-white font-medium rounded-xl transition-colors"
+                                    className="px-6 py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-white font-semibold rounded-xl transition-colors"
                                 >
                                     Batal
                                 </Link>

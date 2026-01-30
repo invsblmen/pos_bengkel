@@ -318,6 +318,7 @@ export default function Create({ suppliers, categories }) {
                                 </div>
                             </div>
                         </div>
+                    </div>
 
                         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6">
                             <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2 mb-3">
