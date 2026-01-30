@@ -104,6 +104,13 @@ export default function Menu() {
                     permissions: hasAnyPermission(["parts-access"]),
                 },
                 {
+                    title: "Stok Minimal",
+                    href: route("parts.low-stock"),
+                    active: url.includes("/dashboard/parts/low-stock"),
+                    icon: <IconAlertCircle size={20} strokeWidth={1.5} />,
+                    permissions: hasAnyPermission(["parts-access"]),
+                },
+                {
                     title: "Kategori Sparepart",
                     href: route("part-categories.index"),
                     active: url === "/dashboard/part-categories" || url.startsWith("/dashboard/part-categories"),

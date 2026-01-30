@@ -118,7 +118,7 @@ export default function VehicleSelect({
                             {selected ? (
                                 <>
                                     <p className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">
-                                        {selected.plate_number}
+                                        {selected.formatted_plate_number || selected.plate_number}
                                     </p>
                                     <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
                                         {selected.brand} {selected.model}
@@ -229,7 +229,7 @@ export default function VehicleSelect({
                                                                         ? "text-slate-400 dark:text-slate-500"
                                                                         : "text-slate-800 dark:text-slate-200"
                                                                 }`}>
-                                                                    {vehicle.plate_number}
+                                                                    {vehicle.formatted_plate_number || vehicle.plate_number}
                                                                 </p>
                                                                 <p className={`text-xs truncate ${
                                                                     isDisabled

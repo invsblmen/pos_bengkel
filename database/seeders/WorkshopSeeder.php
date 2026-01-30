@@ -14,21 +14,21 @@ class WorkshopSeeder extends Seeder
     public function run()
     {
         // Mechanics
-        Mechanic::create(['name' => 'Budi', 'phone' => '0811111111', 'employee_number' => 'M-001']);
-        Mechanic::create(['name' => 'Andi', 'phone' => '0822222222', 'employee_number' => 'M-002']);
+        Mechanic::firstOrCreate(['employee_number' => 'M-001'], ['name' => 'Budi', 'phone' => '0811111111']);
+        Mechanic::firstOrCreate(['employee_number' => 'M-002'], ['name' => 'Andi', 'phone' => '0822222222']);
 
         // Services
-        Service::create(['code' => 'SVC-OLI', 'title' => 'Ganti Oli', 'description' => 'Ganti oli mesin', 'est_time_minutes' => 30, 'price' => 50000]);
-        Service::create(['code' => 'SVC-TUNE', 'title' => 'Tune-Up', 'description' => 'Tune-up mesin', 'est_time_minutes' => 60, 'price' => 100000]);
+        Service::firstOrCreate(['code' => 'SVC-OLI'], ['title' => 'Ganti Oli', 'description' => 'Ganti oli mesin', 'est_time_minutes' => 30, 'price' => 50000]);
+        Service::firstOrCreate(['code' => 'SVC-TUNE'], ['title' => 'Tune-Up', 'description' => 'Tune-up mesin', 'est_time_minutes' => 60, 'price' => 100000]);
 
         // Parts
-        Part::create(['sku' => 'PRT-OLI-1L', 'name' => 'Oli 1L', 'buy_price' => 20000, 'sell_price' => 35000, 'stock' => 50]);
-        Part::create(['sku' => 'PRT-KAMPAS', 'name' => 'Kampas Rem', 'buy_price' => 30000, 'sell_price' => 55000, 'stock' => 20]);
+        Part::firstOrCreate(['part_number' => 'OIL-0001'], ['name' => 'Oli 1L', 'stock' => 50, 'minimal_stock' => 15, 'rack_location' => 'B1']);
+        Part::firstOrCreate(['part_number' => 'BRK-0006'], ['name' => 'Kampas Rem', 'stock' => 20, 'minimal_stock' => 6, 'rack_location' => 'F5']);
 
         // Vehicles - sample for existing customers if any
         $customer = Customer::first();
         if ($customer) {
-            Vehicle::create(['customer_id' => $customer->id, 'plate_number' => 'B 1234 AB', 'brand' => 'Yamaha', 'model' => 'Vixion', 'year' => 2019, 'km' => 12000]);
+            Vehicle::firstOrCreate(['plate_number' => 'B 1234 AB'], ['customer_id' => $customer->id, 'brand' => 'Yamaha', 'model' => 'Vixion', 'year' => 2019]);
         }
     }
 }

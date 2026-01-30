@@ -26,6 +26,7 @@ use App\Http\Controllers\Apps\PartSaleController;
 use App\Http\Controllers\Apps\PartSalesOrderController;
 use App\Http\Controllers\Apps\PartPurchaseOrderController;
 use App\Http\Controllers\Apps\PartStockHistoryController;
+use App\Http\Controllers\Apps\LowStockAlertController;
 
 // Include authentication routes
 require __DIR__.'/auth.php';
@@ -152,6 +153,7 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
 
     // parts management
     Route::get('/parts', [\App\Http\Controllers\Apps\PartController::class, 'index'])->middleware('permission:parts-access')->name('parts.index');
+    Route::get('/parts/low-stock', [LowStockAlertController::class, 'index'])->middleware('permission:parts-access')->name('parts.low-stock');
     Route::get('/parts/create', [\App\Http\Controllers\Apps\PartController::class, 'create'])->middleware('permission:parts-create')->name('parts.create');
     Route::get('/parts/{id}/edit', [\App\Http\Controllers\Apps\PartController::class, 'edit'])->middleware('permission:parts-update')->name('parts.edit');
     Route::post('/parts', [\App\Http\Controllers\Apps\PartController::class, 'store'])->middleware('permission:parts-create')->name('parts.store');
@@ -205,6 +207,7 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
 
     // suppliers create route
     Route::get('/suppliers/create', [\App\Http\Controllers\Apps\SupplierController::class, 'create'])->middleware('permission:suppliers-create')->name('suppliers.create');
+    Route::get('/suppliers/{id}/edit', [\App\Http\Controllers\Apps\SupplierController::class, 'edit'])->middleware('permission:suppliers-update')->name('suppliers.edit');
 
     // mechanics create route
     Route::get('/mechanics/create', [\App\Http\Controllers\Apps\MechanicController::class, 'create'])->middleware('permission:mechanics-create')->name('mechanics.create');

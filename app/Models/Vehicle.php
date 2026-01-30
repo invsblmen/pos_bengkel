@@ -23,6 +23,8 @@ class Vehicle extends Model
         'features' => 'array',
     ];
 
+    protected $appends = ['formatted_plate_number'];
+
     public function customer()
     {
         return $this->belongsTo(Customer::class);
@@ -40,6 +42,23 @@ class Vehicle extends Model
 
     public function getDisplayAttribute()
     {
-        return "{$this->plate_number} - {$this->brand} {$this->model}";
+        return "{$this->getFormattedPlateNumberAttribute()} - {$this->brand} {$this->model}";
+    }
+
+    /**
+     * Format plate number with spaces for better readability
+     * Example: "AB1234CD" becomes "AB 1234 CD"
+     */
+    public function getFormattedPlateNumberAttribute()
+    {
+        $plate = preg_replace('/\s+/', '', $this->plate_number); // Remove all spaces
+
+        // Pattern: 2 letters, 1-4 numbers, 1-3 letters
+        if (preg_match('/^([A-Z]{1,2})(\d{1,4})([A-Z]{1,3})$/', $plate, $matches)) {
+            return trim($matches[1] . ' ' . $matches[2] . ' ' . $matches[3]);
+        }
+
+        // Fallback: return as-is if doesn't match pattern
+        return $plate;
     }
 }

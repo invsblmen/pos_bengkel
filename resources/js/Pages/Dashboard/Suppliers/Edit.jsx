@@ -11,26 +11,26 @@ import {
     IconMapPin
 } from '@tabler/icons-react';
 
-export default function Create() {
-    const { data, setData, post, processing, errors } = useForm({
-        name: '',
-        phone: '',
-        email: '',
-        address: '',
-        contact_person: '',
+export default function Edit({ supplier }) {
+    const { data, setData, patch, processing, errors } = useForm({
+        name: supplier.name || '',
+        phone: supplier.phone || '',
+        email: supplier.email || '',
+        address: supplier.address || '',
+        contact_person: supplier.contact_person || '',
     });
 
     const submit = (e) => {
         e.preventDefault();
-        post(route('suppliers.store'), {
-            onSuccess: () => toast.success('Supplier berhasil dibuat'),
-            onError: () => toast.error('Gagal membuat supplier'),
+        patch(route('suppliers.update', supplier.id), {
+            onSuccess: () => toast.success('Supplier berhasil diperbarui'),
+            onError: () => toast.error('Gagal memperbarui supplier'),
         });
     };
 
     return (
         <>
-            <Head title="Tambah Supplier" />
+            <Head title="Edit Supplier" />
 
             <div className="space-y-6">
                 {/* Header with Gradient */}
@@ -43,10 +43,10 @@ export default function Create() {
                             </div>
                             <div>
                                 <h1 className="text-3xl font-bold text-white">
-                                    Tambah Supplier Baru
+                                    Edit Supplier
                                 </h1>
                                 <p className="mt-1 text-sm text-white/80">
-                                    Lengkapi data supplier dan kontak person
+                                    {supplier.name}
                                 </p>
                             </div>
                         </div>
@@ -215,7 +215,7 @@ export default function Create() {
                             className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary-600 to-primary-700 px-6 py-3.5 font-semibold text-white shadow-lg shadow-primary-500/30 transition hover:shadow-xl hover:shadow-primary-500/40 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <IconDeviceFloppy size={20} />
-                            {processing ? 'Menyimpan...' : 'Simpan Supplier'}
+                            {processing ? 'Menyimpan...' : 'Simpan Perubahan'}
                         </button>
                         <Link
                             href={route('suppliers.index')}
@@ -230,4 +230,4 @@ export default function Create() {
     );
 }
 
-Create.layout = (page) => <DashboardLayout children={page} />;
+Edit.layout = (page) => <DashboardLayout children={page} />;

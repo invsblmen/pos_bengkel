@@ -71,7 +71,7 @@ export default function VehicleHistoryModal({ show, onClose, vehicle, serviceHis
                                 Riwayat Service Kendaraan
                             </h2>
                             <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-                                {vehicle.plate_number} - {vehicle.brand} {vehicle.model} ({vehicle.year})
+                                {vehicle.formatted_plate_number || vehicle.plate_number} - {vehicle.brand} {vehicle.model} ({vehicle.year})
                             </p>
                         </div>
                         <button
