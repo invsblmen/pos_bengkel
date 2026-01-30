@@ -2,24 +2,24 @@ import React, { useState } from 'react';
 import { Head, useForm, Link } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import {
-    IconArrowLeft, IconDeviceFloppy, IconBox, IconTruck, IconWrench,
-    IconBolt, IconCylinder, IconGauge, IconFilter, IconChain, IconRing,
-    IconShield, IconSpark, IconAlertTriangle, IconSettings
+    IconArrowLeft, IconDeviceFloppy, IconBox, IconTruck, IconTool,
+    IconBolt, IconCylinder, IconGauge, IconFilter, IconLink, IconCircle,
+    IconShield, IconSparkles, IconAlertTriangle, IconSettings
 } from '@tabler/icons-react';
 import toast from 'react-hot-toast';
 
 const AVAILABLE_ICONS = [
     { name: 'Box', icon: IconBox },
     { name: 'Truck', icon: IconTruck },
-    { name: 'Wrench', icon: IconWrench },
+    { name: 'Tool', icon: IconTool },
     { name: 'Bolt', icon: IconBolt },
     { name: 'Cylinder', icon: IconCylinder },
     { name: 'Gauge', icon: IconGauge },
     { name: 'Filter', icon: IconFilter },
-    { name: 'Chain', icon: IconChain },
-    { name: 'Ring', icon: IconRing },
+    { name: 'Link', icon: IconLink },
+    { name: 'Circle', icon: IconCircle },
     { name: 'Shield', icon: IconShield },
-    { name: 'Spark', icon: IconSpark },
+    { name: 'Sparkles', icon: IconSparkles },
     { name: 'Alert', icon: IconAlertTriangle },
     { name: 'Settings', icon: IconSettings },
 ];

@@ -6,24 +6,24 @@ import Search from '@/Components/Dashboard/Search';
 import Pagination from '@/Components/Dashboard/Pagination';
 import {
     IconCirclePlus, IconPencilCog, IconTrash, IconDatabaseOff,
-    IconLayoutGrid, IconList, IconPackage, IconBox, IconTruck, IconWrench,
-    IconBolt, IconCylinder, IconGauge, IconFilter, IconChain, IconRing,
-    IconShield, IconSpark, IconAlertTriangle, IconSettings
+    IconLayoutGrid, IconList, IconPackage, IconBox, IconTruck, IconTool,
+    IconBolt, IconCylinder, IconGauge, IconFilter, IconLink, IconCircle,
+    IconShield, IconSparkles, IconAlertTriangle, IconSettings
 } from '@tabler/icons-react';
 
 // Icon mapping
 const ICON_MAP = {
     'Box': IconBox,
     'Truck': IconTruck,
-    'Wrench': IconWrench,
+    'Tool': IconTool,
     'Bolt': IconBolt,
     'Cylinder': IconCylinder,
     'Gauge': IconGauge,
     'Filter': IconFilter,
-    'Chain': IconChain,
-    'Ring': IconRing,
+    'Link': IconLink,
+    'Circle': IconCircle,
     'Shield': IconShield,
-    'Spark': IconSpark,
+    'Sparkles': IconSparkles,
     'Alert': IconAlertTriangle,
     'Settings': IconSettings,
 };
