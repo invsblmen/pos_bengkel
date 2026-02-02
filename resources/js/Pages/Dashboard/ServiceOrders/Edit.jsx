@@ -683,12 +683,12 @@ export default function Edit({ order, customers, mechanics, services, parts, veh
                                                                 onChange={(partId) => handlePartChange(itemIndex, partIndex, 'part_id', partId)}
                                                                 options={parts}
                                                                 displayField={(p) => {
-                                                                    const code = p.sku || p.part_number || 'Tanpa Kode';
+                                                                    const code = p.part_number || 'Tanpa Kode';
                                                                     const category = p.category?.name ? ` • ${p.category.name}` : '';
                                                                     const barcode = p.barcode ? ` • ${p.barcode}` : '';
                                                                     return `${p.name} (${code})${category}${barcode} — ${formatCurrency(p.sell_price)}`;
                                                                 }}
-                                                                searchFields={['name', 'sku', 'part_number', 'barcode']}
+                                                                searchFields={['name', 'part_number', 'barcode']}
                                                                 placeholder="Cari sparepart..."
                                                                 onCreateNew={(searchTerm) => {
                                                                     setPartSearchTerm(searchTerm);

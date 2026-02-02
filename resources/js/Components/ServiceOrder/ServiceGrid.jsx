@@ -273,7 +273,7 @@ export default function ServiceGrid({
                                                         onChange={(partId) => handlePartChange(index, 'part_id', partId)}
                                                         options={parts}
                                                         displayField={(p) => `${p.name} - ${formatCurrency(p.sell_price)}`}
-                                                        searchFields={['name', 'sku']}
+                                                        searchFields={['name', 'part_number']}
                                                         placeholder="Pilih part..."
                                                         onCreateNew={() => onQuickCreatePart(index)}
                                                         createLabel="Tambah Part"

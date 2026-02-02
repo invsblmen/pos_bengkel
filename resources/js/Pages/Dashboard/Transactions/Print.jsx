@@ -274,9 +274,9 @@ export default function Print({ transaction }) {
                                                         <p className="font-medium text-slate-900 dark:text-white">
                                                             {item.part?.name || item.service?.title || item.product?.title}
                                                         </p>
-                                                        {item.part?.sku && (
+                                                        {item.part?.part_number && (
                                                             <p className="text-xs text-slate-500 dark:text-slate-400">
-                                                                {item.part.sku}
+                                                                Kode: {item.part.part_number}
                                                             </p>
                                                         )}
                                                         {item.service?.title && (

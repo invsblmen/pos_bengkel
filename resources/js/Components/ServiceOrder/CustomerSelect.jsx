@@ -53,14 +53,14 @@ export default function CustomerSelect({
     }, [isOpen]);
 
     const handleSelect = (customer) => {
-        onSelect(customer.id);
+        onSelect(customer);
         setIsOpen(false);
         setSearch("");
     };
 
     const handleAddCustomerSuccess = (newCustomer) => {
         setShowAddModal(false);
-        onSelect(newCustomer.id);
+        onSelect(newCustomer);  // Pass the customer object, not just the ID
         onCustomerAdded?.(newCustomer);
     };
 

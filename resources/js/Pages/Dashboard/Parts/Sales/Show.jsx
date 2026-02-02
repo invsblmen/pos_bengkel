@@ -87,7 +87,7 @@ export default function Show({ sale }) {
                                                             {detail.part?.name || 'N/A'}
                                                         </p>
                                                         <p className="text-xs text-gray-500 dark:text-gray-400">
-                                                            {detail.part?.sku || 'N/A'}
+                                                            {detail.part?.part_number || 'N/A'}
                                                         </p>
                                                     </div>
                                                 </td>

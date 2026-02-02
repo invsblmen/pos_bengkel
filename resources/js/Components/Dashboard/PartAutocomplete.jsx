@@ -29,7 +29,7 @@ export default function PartAutocomplete({ parts, value, onChange, placeholder =
 
     const filteredParts = parts?.filter(part =>
         part.name.toLowerCase().includes(query.toLowerCase()) ||
-        (part.sku && part.sku.toLowerCase().includes(query.toLowerCase()))
+        (part.part_number && part.part_number.toLowerCase().includes(query.toLowerCase()))
     ) || [];
 
     const handleSelect = (part) => {
@@ -92,7 +92,7 @@ export default function PartAutocomplete({ parts, value, onChange, placeholder =
                         >
                             <div className="font-medium text-slate-800">{part.name}</div>
                             <div className="text-xs text-slate-500 flex gap-3 mt-0.5">
-                                {part.sku && <span>SKU: {part.sku}</span>}
+                                {part.part_number && <span>Kode: {part.part_number}</span>}
                                 <span>Stock: {part.stock}</span>
                             </div>
                         </button>

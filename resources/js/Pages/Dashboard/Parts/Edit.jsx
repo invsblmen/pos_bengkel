@@ -1,16 +1,23 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import { Head, useForm, Link } from '@inertiajs/react';
 import Input from '@/Components/Dashboard/Input';
 import Textarea from '@/Components/Dashboard/TextArea';
+import AddPartCategoryModal from '@/Components/Dashboard/AddPartCategoryModal';
+import AddSupplierModal from '@/Components/Dashboard/AddSupplierModal';
 import toast from 'react-hot-toast';
 import {
     IconBox, IconDeviceFloppy, IconArrowLeft, IconAlertCircle, IconCheck,
     IconMapPin, IconTruck, IconCategory, IconBarcode, IconSparkles,
-    IconPackage, IconExclamationCircle, IconTrendingUp, IconTrendingDown
+    IconPackage, IconExclamationCircle, IconTrendingUp, IconTrendingDown, IconPlus
 } from '@tabler/icons-react';
 
-export default function Edit({ part, suppliers, categories }) {
+export default function Edit({ part, suppliers: initialSuppliers, categories: initialCategories }) {
+    const [categories, setCategories] = useState(initialCategories || []);
+    const [suppliers, setSuppliers] = useState(initialSuppliers || []);
+    const [showCategoryModal, setShowCategoryModal] = useState(false);
+    const [showSupplierModal, setShowSupplierModal] = useState(false);
+
     const { data, setData, patch, processing, errors } = useForm({
         name: part.name || '',
         part_number: part.part_number || '',
@@ -75,6 +82,20 @@ export default function Edit({ part, suppliers, categories }) {
         });
     };
 
+    // Handle successful category creation
+    const handleCategoryAdded = (newCategory) => {
+        setCategories([...categories, newCategory]);
+        setData('part_category_id', newCategory.id);
+        toast.success(`Kategori "${newCategory.name}" berhasil ditambahkan dan dipilih!`);
+    };
+
+    // Handle successful supplier creation
+    const handleSupplierAdded = (newSupplier) => {
+        setSuppliers([...suppliers, newSupplier]);
+        setData('supplier_id', newSupplier.id);
+        toast.success(`Supplier "${newSupplier.name}" berhasil ditambahkan dan dipilih!`);
+    };
+
     return (
         <>
             <Head title={`Edit Part - ${part.name}`} />
@@ -132,9 +153,20 @@ export default function Edit({ part, suppliers, categories }) {
                             </div>
                             <div className="grid gap-4 md:grid-cols-2">
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                        Kategori Part
-                                    </label>
+                                    <div className="flex items-center justify-between mb-2">
+                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                                            Kategori Part
+                                        </label>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowCategoryModal(true)}
+                                            className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 hover:bg-primary-200 dark:hover:bg-primary-900/50 transition-colors"
+                                            title="Tambah kategori baru"
+                                        >
+                                            <IconPlus size={14} />
+                                            <span>Baru</span>
+                                        </button>
+                                    </div>
                                     <select
                                         value={data.part_category_id}
                                         onChange={(e) => setData('part_category_id', e.target.value)}
@@ -145,9 +177,20 @@ export default function Edit({ part, suppliers, categories }) {
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                        Supplier
-                                    </label>
+                                    <div className="flex items-center justify-between mb-2">
+                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                                            Supplier
+                                        </label>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowSupplierModal(true)}
+                                            className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors"
+                                            title="Tambah supplier baru"
+                                        >
+                                            <IconPlus size={14} />
+                                            <span>Baru</span>
+                                        </button>
+                                    </div>
                                     <select
                                         value={data.supplier_id}
                                         onChange={(e) => setData('supplier_id', e.target.value)}
@@ -383,6 +426,18 @@ export default function Edit({ part, suppliers, categories }) {
                     <Link href={route('parts.index')} className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-200 px-6 py-3.5 font-semibold text-slate-700 transition hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">Batal</Link>
                 </div>
             </form>
+
+            {/* Modals */}
+            <AddPartCategoryModal
+                isOpen={showCategoryModal}
+                onClose={() => setShowCategoryModal(false)}
+                onSuccess={handleCategoryAdded}
+            />
+            <AddSupplierModal
+                isOpen={showSupplierModal}
+                onClose={() => setShowSupplierModal(false)}
+                onSuccess={handleSupplierAdded}
+            />
         </>
     );
 }

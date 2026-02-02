@@ -76,4 +76,37 @@ class PartCategoryController extends Controller
 
         return back()->with('success', 'Part category deleted successfully');
     }
+
+    /**
+     * AJAX endpoint for quick category creation
+     */
+    public function storeAjax(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:part_categories,name',
+            'description' => 'nullable|string',
+            'icon' => 'nullable|string',
+        ]);
+
+        try {
+            $category = PartCategory::create($validated);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Kategori part berhasil ditambahkan',
+                'category' => [
+                    'id' => $category->id,
+                    'name' => $category->name,
+                    'description' => $category->description,
+                    'icon' => $category->icon,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menambahkan kategori part',
+                'errors' => ['name' => ['Terjadi kesalahan saat menyimpan kategori']]
+            ], 422);
+        }
+    }
 }

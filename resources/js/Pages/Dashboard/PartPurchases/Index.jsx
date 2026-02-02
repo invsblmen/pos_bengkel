@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Head, router, Link } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import Pagination from '@/Components/Dashboard/Pagination';
-import { IconFilter, IconSearch, IconX, IconCirclePlus, IconEye, IconDatabaseOff } from '@tabler/icons-react';
+import { IconFilter, IconSearch, IconX, IconCirclePlus, IconEye, IconDatabaseOff, IconEdit, IconReceipt, IconTruck, IconCalendar, IconPackage, IconLayoutGrid, IconList } from '@tabler/icons-react';
 import { toDisplayDate } from '@/Utils/datetime';
 
 const defaultFilters = { q: '', supplier_id: '', status: '', date_from: '', date_to: '' };
@@ -27,6 +27,7 @@ export default function Index({ purchases, suppliers, filters }) {
         ...(typeof filters !== 'undefined' ? filters : {}),
     });
     const [showFilters, setShowFilters] = useState(false);
+    const [viewMode, setViewMode] = useState('card'); // 'card' or 'table'
 
     useEffect(() => {
         setFilterData({
@@ -78,6 +79,32 @@ export default function Index({ purchases, suppliers, filters }) {
                         <p className="text-sm text-slate-500">{purchases?.total || 0} purchases</p>
                     </div>
                     <div className="flex items-center gap-2">
+                        {/* View Toggle */}
+                        <div className="inline-flex items-center bg-white border border-slate-200 rounded-xl p-1">
+                            <button
+                                onClick={() => setViewMode('card')}
+                                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                                    viewMode === 'card'
+                                        ? 'bg-primary-500 text-white'
+                                        : 'text-slate-600 hover:text-slate-900'
+                                }`}
+                            >
+                                <IconLayoutGrid size={16} />
+                                <span className="hidden sm:inline">Card</span>
+                            </button>
+                            <button
+                                onClick={() => setViewMode('table')}
+                                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                                    viewMode === 'table'
+                                        ? 'bg-primary-500 text-white'
+                                        : 'text-slate-600 hover:text-slate-900'
+                                }`}
+                            >
+                                <IconList size={16} />
+                                <span className="hidden sm:inline">List</span>
+                            </button>
+                        </div>
+
                         <button
                             onClick={() => setShowFilters(!showFilters)}
                             className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-colors ${
@@ -186,64 +213,181 @@ export default function Index({ purchases, suppliers, filters }) {
                 {/* Purchase List */}
                 {purchases.data && purchases.data.length > 0 ? (
                     <>
-                        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-                            <div className="overflow-x-auto">
-                                <table className="w-full">
-                                    <thead>
-                                        <tr className="border-b border-slate-100 dark:border-slate-800">
-                                            <th className="px-4 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">No</th>
-                                            <th className="px-4 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Purchase Number</th>
-                                            <th className="px-4 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Supplier</th>
-                                            <th className="px-4 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Date</th>
-                                            <th className="px-4 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Items</th>
-                                            <th className="px-4 py-4 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Amount</th>
-                                            <th className="px-4 py-4 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Status</th>
-                                            <th className="px-4 py-4 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Action</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                        {purchases.data.map((p, idx) => (
-                                            <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                                                <td className="px-4 py-4 text-sm text-slate-600 dark:text-slate-400">
-                                                    {idx + 1 + ((purchases.current_page || 1) - 1) * (purchases.per_page || purchases.data.length)}
-                                                </td>
-                                                <td className="px-4 py-4">
-                                                    <div className="text-sm font-semibold text-slate-900 dark:text-white">{p.purchase_number}</div>
-                                                    {p.notes && <div className="text-xs text-slate-400 mt-1">{p.notes}</div>}
-                                                </td>
-                                                <td className="px-4 py-4 text-sm text-slate-600 dark:text-slate-400">
+                        {/* Card View */}
+                        {viewMode === 'card' && (
+                            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                {purchases.data.map((p, idx) => (
+                                <div key={p.id} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 hover:shadow-lg hover:border-primary-300 dark:hover:border-primary-700 transition-all duration-200 overflow-hidden">
+                                    {/* Card Header */}
+                                    <div className="bg-gradient-to-r from-primary-500 to-primary-600 px-4 py-3">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
+                                                    <IconReceipt size={18} className="text-white" />
+                                                </div>
+                                                <div>
+                                                    <div className="text-xs font-medium text-white/80">Purchase #{idx + 1 + ((purchases.current_page || 1) - 1) * (purchases.per_page || purchases.data.length)}</div>
+                                                    <div className="text-sm font-bold text-white">{p.purchase_number}</div>
+                                                </div>
+                                            </div>
+                                            <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium border ${statusColors[p.status] || 'bg-gray-100 text-gray-700 border-gray-200'}`}>
+                                                {statusLabels[p.status] || p.status}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* Card Body */}
+                                    <div className="p-4 space-y-3">
+                                        {/* Supplier */}
+                                        <div className="flex items-start gap-3">
+                                            <div className="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center flex-shrink-0">
+                                                <IconTruck size={18} className="text-blue-600 dark:text-blue-400" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="text-xs text-slate-500 dark:text-slate-400">Supplier</div>
+                                                <div className="text-sm font-semibold text-slate-900 dark:text-white truncate">
                                                     {p.supplier?.name || '-'}
-                                                </td>
-                                                <td className="px-4 py-4 text-sm text-slate-600 dark:text-slate-400">
-                                                    {formatDate(p.purchase_date)}
-                                                </td>
-                                                <td className="px-4 py-4 text-sm text-slate-600 dark:text-slate-400">
-                                                    {p.details?.length || 0} items
-                                                </td>
-                                                <td className="px-4 py-4 text-sm text-right font-semibold text-slate-900 dark:text-white">
-                                                    {formatCurrency(p.total_amount)}
-                                                </td>
-                                                <td className="px-4 py-4 text-center">
-                                                    <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium border ${statusColors[p.status] || 'bg-gray-100 text-gray-700 border-gray-200'}`}>
-                                                        {statusLabels[p.status] || p.status}
-                                                    </span>
-                                                </td>
-                                                <td className="px-4 py-4 text-center">
-                                                    <Link
-                                                        href={route('part-purchases.show', p.id)}
-                                                        className="inline-flex items-center justify-center gap-1 px-3 py-1 rounded-md text-sm text-primary-600 hover:bg-primary-50 transition-colors"
-                                                    >
-                                                        <IconEye size={16} />
-                                                        <span>View</span>
-                                                    </Link>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Date & Items */}
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="flex items-start gap-2">
+                                                <IconCalendar size={16} className="text-slate-400 mt-0.5 flex-shrink-0" />
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="text-xs text-slate-500 dark:text-slate-400">Date</div>
+                                                    <div className="text-sm font-medium text-slate-900 dark:text-white">
+                                                        {formatDate(p.purchase_date)}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-start gap-2">
+                                                <IconPackage size={16} className="text-slate-400 mt-0.5 flex-shrink-0" />
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="text-xs text-slate-500 dark:text-slate-400">Items</div>
+                                                    <div className="text-sm font-medium text-slate-900 dark:text-white">
+                                                        {p.details?.length || 0} items
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Notes */}
+                                        {p.notes && (
+                                            <div className="text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 rounded-lg p-2 line-clamp-2">
+                                                {p.notes}
+                                            </div>
+                                        )}
+
+                                        {/* Total Amount */}
+                                        <div className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-lg p-3 border border-emerald-100 dark:border-emerald-800">
+                                            <div className="text-xs text-emerald-700 dark:text-emerald-400 font-medium mb-1">Total Amount</div>
+                                            <div className="text-xl font-bold text-emerald-900 dark:text-emerald-100">
+                                                {formatCurrency(p.total_amount)}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Card Footer */}
+                                    <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 flex gap-2">
+                                        <Link
+                                            href={route('part-purchases.show', p.id)}
+                                            className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-primary-50 hover:text-primary-700 hover:border-primary-300 dark:hover:bg-primary-900/30 dark:hover:text-primary-400 dark:hover:border-primary-700 transition-colors"
+                                        >
+                                            <IconEye size={16} />
+                                            <span>Detail</span>
+                                        </Link>
+                                        {(p.status === 'pending' || p.status === 'ordered') && (
+                                            <Link
+                                                href={route('part-purchases.edit', p.id)}
+                                                className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 transition-colors"
+                                            >
+                                                <IconEdit size={16} />
+                                                <span>Edit</span>
+                                            </Link>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
                             </div>
+                        )}
+
+                        {/* Table View */}
+                        {viewMode === 'table' && (
+                            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                                <div className="overflow-x-auto">
+                                    <table className="w-full">
+                                        <thead>
+                                            <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
+                                                <th className="px-4 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">No</th>
+                                                <th className="px-4 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Purchase Number</th>
+                                                <th className="px-4 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Supplier</th>
+                                                <th className="px-4 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Date</th>
+                                                <th className="px-4 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Items</th>
+                                                <th className="px-4 py-4 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Amount</th>
+                                                <th className="px-4 py-4 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Status</th>
+                                                <th className="px-4 py-4 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                            {purchases.data.map((p, idx) => (
+                                                <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                                    <td className="px-4 py-4 text-sm text-slate-600 dark:text-slate-400">
+                                                        {idx + 1 + ((purchases.current_page || 1) - 1) * (purchases.per_page || purchases.data.length)}
+                                                    </td>
+                                                    <td className="px-4 py-4">
+                                                        <div className="text-sm font-semibold text-slate-900 dark:text-white">{p.purchase_number}</div>
+                                                        {p.notes && <div className="text-xs text-slate-400 mt-1 line-clamp-1">{p.notes}</div>}
+                                                    </td>
+                                                    <td className="px-4 py-4 text-sm text-slate-600 dark:text-slate-400">
+                                                        {p.supplier?.name || '-'}
+                                                    </td>
+                                                    <td className="px-4 py-4 text-sm text-slate-600 dark:text-slate-400">
+                                                        {formatDate(p.purchase_date)}
+                                                    </td>
+                                                    <td className="px-4 py-4 text-sm text-slate-600 dark:text-slate-400">
+                                                        {p.details?.length || 0} items
+                                                    </td>
+                                                    <td className="px-4 py-4 text-sm text-right font-semibold text-slate-900 dark:text-white">
+                                                        {formatCurrency(p.total_amount)}
+                                                    </td>
+                                                    <td className="px-4 py-4 text-center">
+                                                        <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium border ${statusColors[p.status] || 'bg-gray-100 text-gray-700 border-gray-200'}`}>
+                                                            {statusLabels[p.status] || p.status}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-4">
+                                                        <div className="flex items-center justify-center gap-2">
+                                                            <Link
+                                                                href={route('part-purchases.show', p.id)}
+                                                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/30 transition-colors"
+                                                            >
+                                                                <IconEye size={16} />
+                                                                <span>View</span>
+                                                            </Link>
+                                                            {(p.status === 'pending' || p.status === 'ordered') && (
+                                                                <Link
+                                                                    href={route('part-purchases.edit', p.id)}
+                                                                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-colors"
+                                                                >
+                                                                    <IconEdit size={16} />
+                                                                    <span>Edit</span>
+                                                                </Link>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="mt-6">
+                            <Pagination links={purchases.links} />
                         </div>
-                        <Pagination links={purchases.links} />
                     </>
                 ) : (
                     <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-12 text-center">

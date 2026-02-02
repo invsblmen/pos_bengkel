@@ -75,10 +75,12 @@ class PartPurchaseController extends Controller
             ->where('status', 'active')
             ->orderBy('name')
             ->get();
+        $categories = \App\Models\PartCategory::orderBy('name')->get();
 
         return inertia('Dashboard/PartPurchases/Create', [
             'suppliers' => $suppliers,
             'parts' => $parts,
+            'categories' => $categories,
         ]);
     }
 
@@ -197,6 +199,175 @@ class PartPurchaseController extends Controller
         ]);
     }
 
+    public function edit($id)
+    {
+        $purchase = PartPurchase::with(['supplier', 'details.part.category'])
+            ->findOrFail($id);
+
+        // Only allow editing pending or ordered purchases
+        if (!in_array($purchase->status, ['pending', 'ordered'])) {
+            return redirect()->route('part-purchases.show', $id)
+                ->with('error', 'Cannot edit purchase with status: ' . $purchase->status);
+        }
+
+        $suppliers = Supplier::orderBy('name')->get();
+        $parts = Part::with('category')
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->get();
+        $categories = \App\Models\PartCategory::orderBy('name')->get();
+
+        return inertia('Dashboard/PartPurchases/Edit', [
+            'purchase' => $purchase,
+            'suppliers' => $suppliers,
+            'parts' => $parts,
+            'categories' => $categories,
+        ]);
+    }
+
+    public function update(Request $request, $id)
+    {
+        $purchase = PartPurchase::findOrFail($id);
+
+        // Only allow updating pending or ordered purchases
+        if (!in_array($purchase->status, ['pending', 'ordered'])) {
+            return back()->withErrors(['error' => 'Cannot update purchase with status: ' . $purchase->status]);
+        }
+
+        $validated = $request->validate([
+            'supplier_id' => 'required|exists:suppliers,id',
+            'purchase_date' => 'required|date',
+            'expected_delivery_date' => 'nullable|date',
+            'notes' => 'nullable|string',
+            'items' => 'required|array|min:1',
+            'items.*.part_id' => 'required|exists:parts,id',
+            'items.*.quantity' => 'required|integer|min:1',
+            'items.*.unit_price' => 'required|integer|min:0',
+            'items.*.discount_type' => 'nullable|in:none,percent,fixed',
+            'items.*.discount_value' => 'nullable|numeric|min:0',
+            'items.*.margin_type' => 'nullable|in:none,percent,fixed',
+            'items.*.margin_value' => 'nullable|numeric|min:0',
+            'items.*.promo_discount_type' => 'nullable|in:none,percent,fixed',
+            'items.*.promo_discount_value' => 'nullable|numeric|min:0',
+            'discount_type' => 'nullable|in:none,percent,fixed',
+            'discount_value' => 'nullable|numeric|min:0',
+            'tax_type' => 'nullable|in:none,percent,fixed',
+            'tax_value' => 'nullable|numeric|min:0',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            // Calculate totals
+            $itemsTotal = 0;
+            foreach ($validated['items'] as $item) {
+                $itemSubtotal = $item['quantity'] * $item['unit_price'];
+                $itemDiscount = DiscountTaxService::calculateAmountWithDiscountValue(
+                    $itemSubtotal,
+                    $item['discount_type'] ?? 'none',
+                    $item['discount_value'] ?? 0
+                );
+                $itemsTotal += ($itemSubtotal - $itemDiscount);
+            }
+
+            $globalDiscountAmount = DiscountTaxService::calculateAmountWithDiscountValue(
+                $itemsTotal,
+                $validated['discount_type'] ?? 'none',
+                $validated['discount_value'] ?? 0
+            );
+
+            $afterDiscount = $itemsTotal - $globalDiscountAmount;
+
+            $taxAmount = DiscountTaxService::calculateAmountWithDiscountValue(
+                $afterDiscount,
+                $validated['tax_type'] ?? 'none',
+                $validated['tax_value'] ?? 0
+            );
+
+            $grandTotal = $afterDiscount + $taxAmount;
+
+            // Update purchase
+            $purchase->update([
+                'supplier_id' => $validated['supplier_id'],
+                'purchase_date' => $validated['purchase_date'],
+                'expected_delivery_date' => $validated['expected_delivery_date'],
+                'notes' => $validated['notes'],
+                'total_amount' => $itemsTotal,
+                'discount_type' => $validated['discount_type'] ?? 'none',
+                'discount_value' => $validated['discount_value'] ?? 0,
+                'discount_amount' => $globalDiscountAmount,
+                'tax_type' => $validated['tax_type'] ?? 'none',
+                'tax_value' => $validated['tax_value'] ?? 0,
+                'tax_amount' => $taxAmount,
+                'grand_total' => $grandTotal,
+                'updated_by' => Auth::id(),
+            ]);
+
+            // Delete old details and create new ones
+            $purchase->details()->delete();
+
+            foreach ($validated['items'] as $itemData) {
+                $itemSubtotal = $itemData['quantity'] * $itemData['unit_price'];
+                $itemDiscountAmount = DiscountTaxService::calculateAmountWithDiscountValue(
+                    $itemSubtotal,
+                    $itemData['discount_type'] ?? 'none',
+                    $itemData['discount_value'] ?? 0
+                );
+                $itemFinalAmount = $itemSubtotal - $itemDiscountAmount;
+
+                // Calculate selling price based on buy price + margin
+                $priceAfterDiscount = DiscountTaxService::calculateAmountWithDiscount(
+                    $itemData['unit_price'],
+                    $itemData['discount_type'] ?? 'none',
+                    $itemData['discount_value'] ?? 0
+                );
+
+                $marginAmount = DiscountTaxService::calculateAmountWithDiscountValue(
+                    $priceAfterDiscount,
+                    $itemData['margin_type'] ?? 'none',
+                    $itemData['margin_value'] ?? 0
+                );
+                $normalUnitPrice = $priceAfterDiscount + $marginAmount;
+
+                $promoDiscountAmount = DiscountTaxService::calculateAmountWithDiscountValue(
+                    $normalUnitPrice,
+                    $itemData['promo_discount_type'] ?? 'none',
+                    $itemData['promo_discount_value'] ?? 0
+                );
+                $sellingPrice = $normalUnitPrice - $promoDiscountAmount;
+
+                PartPurchaseDetail::create([
+                    'part_purchase_id' => $purchase->id,
+                    'part_id' => $itemData['part_id'],
+                    'quantity' => $itemData['quantity'],
+                    'unit_price' => $itemData['unit_price'],
+                    'subtotal' => $itemSubtotal,
+                    'discount_type' => $itemData['discount_type'] ?? 'none',
+                    'discount_value' => $itemData['discount_value'] ?? 0,
+                    'discount_amount' => $itemDiscountAmount,
+                    'final_amount' => $itemFinalAmount,
+                    'margin_type' => $itemData['margin_type'] ?? 'none',
+                    'margin_value' => $itemData['margin_value'] ?? 0,
+                    'margin_amount' => $marginAmount,
+                    'normal_unit_price' => $normalUnitPrice,
+                    'promo_discount_type' => $itemData['promo_discount_type'] ?? 'none',
+                    'promo_discount_value' => $itemData['promo_discount_value'] ?? 0,
+                    'promo_discount_amount' => $promoDiscountAmount,
+                    'selling_price' => $sellingPrice,
+                    'created_by' => Auth::id(),
+                ]);
+            }
+
+            DB::commit();
+
+            return redirect()->route('part-purchases.show', $purchase->id)
+                ->with('success', 'Purchase updated successfully');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->withErrors(['error' => 'Failed to update purchase: ' . $e->getMessage()])
+                ->withInput();
+        }
+    }
+
     public function updateStatus(Request $request, $id)
     {
         $validated = $request->validate([
@@ -218,15 +389,23 @@ class PartPurchaseController extends Controller
             }
             $purchase->save();
 
-            // If status changed to 'received', update stock
+            // If status changed to 'received', update stock and buy_price
             if ($newStatus === 'received' && $oldStatus !== 'received') {
                 foreach ($purchase->details as $detail) {
                     $part = $detail->part;
                     $beforeStock = $part->stock;
                     $afterStock = $beforeStock + $detail->quantity;
 
-                    // Update part stock
+                    // Calculate buy price after discount
+                    $priceAfterDiscount = DiscountTaxService::calculateAmountWithDiscount(
+                        $detail->unit_price,
+                        $detail->discount_type ?? 'none',
+                        $detail->discount_value ?? 0
+                    );
+
+                    // Update part stock and buy_price
                     $part->stock = $afterStock;
+                    $part->buy_price = $priceAfterDiscount;
                     $part->save();
 
                     // Create stock movement
@@ -236,7 +415,7 @@ class PartPurchaseController extends Controller
                         'qty' => $detail->quantity,
                         'before_stock' => $beforeStock,
                         'after_stock' => $afterStock,
-                        'unit_price' => $detail->unit_price,
+                        'unit_price' => $priceAfterDiscount,
                         'supplier_id' => $purchase->supplier_id,
                         'reference_type' => 'App\Models\PartPurchase',
                         'reference_id' => $purchase->id,

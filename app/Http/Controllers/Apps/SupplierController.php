@@ -89,4 +89,41 @@ class SupplierController extends Controller
 
         return redirect()->back()->with('success', 'Supplier deleted successfully.');
     }
+
+    /**
+     * AJAX endpoint for quick supplier creation
+     */
+    public function storeAjax(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'contact_person' => 'nullable|string|max:255',
+            'phone' => 'nullable|string|max:50',
+            'email' => 'nullable|email|max:255',
+            'address' => 'nullable|string',
+        ]);
+
+        try {
+            $supplier = Supplier::create($validated);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Supplier berhasil ditambahkan',
+                'supplier' => [
+                    'id' => $supplier->id,
+                    'name' => $supplier->name,
+                    'contact_person' => $supplier->contact_person,
+                    'phone' => $supplier->phone,
+                    'email' => $supplier->email,
+                    'address' => $supplier->address,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menambahkan supplier',
+                'errors' => ['name' => ['Terjadi kesalahan saat menyimpan supplier']]
+            ], 422);
+        }
+    }
 }

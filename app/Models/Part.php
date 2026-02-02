@@ -28,7 +28,7 @@ class Part extends Model
     }
 
     protected $fillable = [
-        'part_number', 'barcode', 'name', 'description', 'stock', 'minimal_stock', 'rack_location',
+        'part_number', 'barcode', 'name', 'description', 'buy_price', 'sell_price', 'stock', 'minimal_stock', 'rack_location',
         'supplier_id', 'part_category_id', 'unit_measure', 'reorder_level', 'status'
     ];
 

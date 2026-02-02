@@ -45,7 +45,7 @@ export default function Create({ type, parts, suppliers }) {
                         <div className="space-y-4">
                             <Select label="Sparepart" value={data.part_id} onChange={(e) => setData('part_id', e.target.value)} errors={errors.part_id}>
                                 <option value="">Pilih sparepart</option>
-                                {parts.map(p => <option key={p.id} value={p.id}>{p.name} ({p.sku || '-'})</option>)}
+                                {parts.map(p => <option key={p.id} value={p.id}>{p.name} ({p.part_number || '-'})</option>)}
                             </Select>
                             <Input label="Jumlah" type="number" value={data.qty} onChange={(e) => setData('qty', e.target.value)} errors={errors.qty} />
                             {type === 'in' && (

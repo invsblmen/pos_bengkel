@@ -15,11 +15,11 @@ const getPartStock = (part) => {
     return part.stock ?? part.qty ?? 0;
 };
 
-export default function ServiceGrid({ 
-    services, 
-    parts, 
+export default function ServiceGrid({
+    services,
+    parts,
     onAddServiceWithParts,
-    onQuickCreatePart 
+    onQuickCreatePart
 }) {
     const [selectedService, setSelectedService] = useState(null);
     const [serviceParts, setServiceParts] = useState([]);
@@ -91,7 +91,7 @@ export default function ServiceGrid({
                         searchFields={['title', 'description']}
                         placeholder="Cari layanan..."
                     />
-                    
+
                     {selectedService && (
                         <div className="mt-3 p-3 rounded-lg bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800">
                             <div className="flex items-start gap-3">
@@ -147,7 +147,7 @@ export default function ServiceGrid({
                                                 onChange={(partId) => handlePartChange(index, 'part_id', partId)}
                                                 options={parts}
                                                 displayField={(p) => `${p.name} - ${formatCurrency(p.sell_price)}`}
-                                                searchFields={['name', 'sku']}
+                                                searchFields={['name', 'part_number']}
                                                 placeholder="Pilih part..."
                                                 onCreateNew={() => onQuickCreatePart(index)}
                                                 createLabel="Tambah Part"

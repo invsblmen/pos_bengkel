@@ -1,5 +1,5 @@
-import React from 'react';
-import { useForm } from '@inertiajs/react';
+import React, { useState } from 'react';
+import { router } from '@inertiajs/react';
 import { IconX, IconDeviceFloppy } from '@tabler/icons-react';
 import toast from 'react-hot-toast';
 
@@ -7,39 +7,62 @@ export default function QuickCreatePartModal({
     isOpen,
     onClose,
     initialName = '',
-    onSuccess
+    categories = [],
+    onSuccess,
+    onPartCreated  // New callback to refetch parts
 }) {
-    const { data, setData, post, processing, errors, reset } = useForm({
+    const [data, setData] = useState({
         name: initialName,
-        sku: '',
         part_number: '',
         barcode: '',
         sell_price: '',
         part_category_id: '',
+        rack_location: '',
     });
+    const [processing, setProcessing] = useState(false);
+    const [errors, setErrors] = useState({});
 
     React.useEffect(() => {
         if (isOpen && initialName) {
-            setData('name', initialName);
+            setData(prev => ({ ...prev, name: initialName }));
         }
     }, [isOpen, initialName]);
 
+    const reset = () => {
+        setData({
+            name: initialName,
+            part_number: '',
+            barcode: '',
+            sell_price: '',
+            part_category_id: '',
+            rack_location: '',
+        });
+        setErrors({});
+    };
+
     const handleSubmit = (e) => {
         e.preventDefault();
+        setProcessing(true);
 
-        post(route('parts.store'), {
+        router.post(route('parts.store'), data, {
             preserveScroll: true,
-            onSuccess: (response) => {
+            onSuccess: (page) => {
                 toast.success('Sparepart berhasil ditambahkan!');
                 reset();
-                onClose();
-                if (onSuccess && response.props?.flash?.part) {
-                    onSuccess(response.props.flash.part);
+
+                // Trigger refetch of parts list in parent component
+                // Parent will close the modal after refetch completes
+                if (onPartCreated) {
+                    onPartCreated();
                 }
+
+                setProcessing(false);
             },
             onError: (errors) => {
                 toast.error('Gagal menambahkan sparepart!');
-                console.error(errors);
+                setErrors(errors);
+                setProcessing(false);
+                console.error('Errors:', errors);
             },
         });
     };
@@ -74,7 +97,7 @@ export default function QuickCreatePartModal({
                             <input
                                 type="text"
                                 value={data.name}
-                                onChange={(e) => setData('name', e.target.value)}
+                                onChange={(e) => setData(prev => ({ ...prev, name: e.target.value }))}
                                 placeholder="Contoh: Oli Mesin"
                                 className={`block w-full rounded-xl border ${
                                     errors.name ? 'border-red-300' : 'border-gray-300'
@@ -96,7 +119,7 @@ export default function QuickCreatePartModal({
                             <input
                                 type="text"
                                 value={data.barcode}
-                                onChange={(e) => setData('barcode', e.target.value)}
+                                onChange={(e) => setData(prev => ({ ...prev, barcode: e.target.value }))}
                                 placeholder="SCAN-001"
                                 className={`block w-full rounded-xl border ${
                                     errors.barcode ? 'border-red-300' : 'border-gray-300'
@@ -109,36 +132,15 @@ export default function QuickCreatePartModal({
                             )}
                         </div>
 
-                        {/* SKU */}
-                        <div>
-                            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                SKU
-                            </label>
-                            <input
-                                type="text"
-                                value={data.sku}
-                                onChange={(e) => setData('sku', e.target.value.toUpperCase())}
-                                placeholder="SKU-001"
-                                className={`block w-full rounded-xl border ${
-                                    errors.sku ? 'border-red-300' : 'border-gray-300'
-                                } bg-white px-4 py-2.5 text-gray-900 shadow-sm transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100`}
-                            />
-                            {errors.sku && (
-                                <p className="mt-1 text-xs text-red-600 dark:text-red-400">
-                                    {errors.sku}
-                                </p>
-                            )}
-                        </div>
-
                         {/* Part Number */}
                         <div>
                             <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                Part Number
+                                Kode Part
                             </label>
                             <input
                                 type="text"
                                 value={data.part_number}
-                                onChange={(e) => setData('part_number', e.target.value)}
+                                onChange={(e) => setData(prev => ({ ...prev, part_number: e.target.value }))}
                                 placeholder="PN-001"
                                 className={`block w-full rounded-xl border ${
                                     errors.part_number ? 'border-red-300' : 'border-gray-300'
@@ -147,6 +149,57 @@ export default function QuickCreatePartModal({
                             {errors.part_number && (
                                 <p className="mt-1 text-xs text-red-600 dark:text-red-400">
                                     {errors.part_number}
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Category */}
+                        <div>
+                            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Kategori Sparepart
+                            </label>
+                            <select
+                                value={data.part_category_id}
+                                onChange={(e) => setData(prev => ({ ...prev, part_category_id: e.target.value }))}
+                                className={`block w-full rounded-xl border ${
+                                    errors.part_category_id ? 'border-red-300' : 'border-gray-300'
+                                } bg-white px-4 py-2.5 text-gray-900 shadow-sm transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 appearance-none cursor-pointer`}
+                            >
+                                <option value="">Pilih Kategori</option>
+                                {Array.isArray(categories) && categories.length > 0 ? (
+                                    categories.map((cat) => (
+                                        <option key={cat.id} value={cat.id}>
+                                            {cat.name}
+                                        </option>
+                                    ))
+                                ) : (
+                                    <option disabled>Tidak ada kategori</option>
+                                )}
+                            </select>
+                            {errors.part_category_id && (
+                                <p className="mt-1 text-xs text-red-600 dark:text-red-400">
+                                    {errors.part_category_id}
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Rack Location */}
+                        <div>
+                            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Lokasi Rak
+                            </label>
+                            <input
+                                type="text"
+                                value={data.rack_location}
+                                onChange={(e) => setData(prev => ({ ...prev, rack_location: e.target.value }))}
+                                placeholder="A-1-2 / Rak 1"
+                                className={`block w-full rounded-xl border ${
+                                    errors.rack_location ? 'border-red-300' : 'border-gray-300'
+                                } bg-white px-4 py-2.5 text-gray-900 shadow-sm transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100`}
+                            />
+                            {errors.rack_location && (
+                                <p className="mt-1 text-xs text-red-600 dark:text-red-400">
+                                    {errors.rack_location}
                                 </p>
                             )}
                         </div>
@@ -160,7 +213,7 @@ export default function QuickCreatePartModal({
                                 type="number"
                                 min="0"
                                 value={data.sell_price}
-                                onChange={(e) => setData('sell_price', e.target.value)}
+                                onChange={(e) => setData(prev => ({ ...prev, sell_price: e.target.value }))}
                                 placeholder="0"
                                 className={`block w-full rounded-xl border ${
                                     errors.sell_price ? 'border-red-300' : 'border-gray-300'

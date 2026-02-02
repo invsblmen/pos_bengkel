@@ -108,9 +108,11 @@ class PartController extends Controller
             'barcode' => 'nullable|string|max:150|unique:parts,barcode',
             'part_category_id' => 'nullable|exists:part_categories,id',
             'supplier_id' => 'nullable|exists:suppliers,id',
+            'buy_price' => 'nullable|numeric|min:0',
+            'sell_price' => 'nullable|numeric|min:0',
             'stock' => 'nullable|integer|min:0',
-                        'minimal_stock' => 'nullable|integer|min:0',
-                        'rack_location' => 'nullable|string|max:50',
+            'minimal_stock' => 'nullable|integer|min:0',
+            'rack_location' => 'nullable|string|max:50',
             'description' => 'nullable|string',
         ]);
 
@@ -120,8 +122,9 @@ class PartController extends Controller
         }
 
         $part = Part::create($data);
+        $part->load('supplier', 'category');
 
-        return redirect()->back()->with([
+        return back()->with([
             'success' => 'Part created successfully.',
             'flash' => ['part' => $part]
         ]);
@@ -139,6 +142,8 @@ class PartController extends Controller
                         'rack_location' => 'nullable|string|max:50',
             'part_category_id' => 'nullable|exists:part_categories,id',
             'supplier_id' => 'nullable|exists:suppliers,id',
+            'buy_price' => 'nullable|numeric|min:0',
+            'sell_price' => 'nullable|numeric|min:0',
             'stock' => 'nullable|integer|min:0',
             'description' => 'nullable|string',
         ]);

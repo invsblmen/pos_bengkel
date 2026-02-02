@@ -132,6 +132,7 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
         ->middlewareFor(['create', 'store'], 'permission:part-categories-create')
         ->middlewareFor(['edit', 'update'], 'permission:part-categories-edit')
         ->middlewareFor('destroy', 'permission:part-categories-delete');
+    Route::post('part-categories/storeAjax', [PartCategoryController::class, 'storeAjax'])->middleware('permission:part-categories-create')->name('part-categories.storeAjax');
 
     // Services Management
     Route::resource('services', ServiceController::class)
@@ -148,6 +149,7 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
     //suppliers management
     Route::get('/suppliers', [\App\Http\Controllers\Apps\SupplierController::class, 'index'])->middleware('permission:suppliers-access')->name('suppliers.index');
     Route::post('/suppliers', [\App\Http\Controllers\Apps\SupplierController::class, 'store'])->middleware('permission:suppliers-create')->name('suppliers.store');
+    Route::post('/suppliers/storeAjax', [\App\Http\Controllers\Apps\SupplierController::class, 'storeAjax'])->middleware('permission:suppliers-create')->name('suppliers.storeAjax');
     Route::patch('/suppliers/{id}', [\App\Http\Controllers\Apps\SupplierController::class, 'update'])->middleware('permission:suppliers-update')->name('suppliers.update');
     Route::delete('/suppliers/{id}', [\App\Http\Controllers\Apps\SupplierController::class, 'destroy'])->middleware('permission:suppliers-delete')->name('suppliers.destroy');
 
@@ -165,6 +167,8 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
     Route::get('/part-purchases/create', [PartPurchaseController::class, 'create'])->middleware('permission:part-purchases-create')->name('part-purchases.create');
     Route::post('/part-purchases', [PartPurchaseController::class, 'store'])->middleware('permission:part-purchases-create')->name('part-purchases.store');
     Route::get('/part-purchases/{id}', [PartPurchaseController::class, 'show'])->middleware('permission:part-purchases-access')->name('part-purchases.show');
+    Route::get('/part-purchases/{id}/edit', [PartPurchaseController::class, 'edit'])->middleware('permission:part-purchases-update')->name('part-purchases.edit');
+    Route::put('/part-purchases/{id}', [PartPurchaseController::class, 'update'])->middleware('permission:part-purchases-update')->name('part-purchases.update');
     Route::post('/part-purchases/{id}/update-status', [PartPurchaseController::class, 'updateStatus'])->middleware('permission:part-purchases-update')->name('part-purchases.update-status');
 
     // Part Sales Orders

@@ -387,12 +387,16 @@ class PartSeeder extends Seeder
         foreach ($parts as $part) {
             $categoryId = $categoryMap[$part['category']] ?? null;
             $supplierId = $suppliers->random()->id;
+            $buyPrice = $part['buy_price'] ?? random_int(15000, 60000);
+            $sellPrice = $part['sell_price'] ?? ($buyPrice + random_int(5000, 25000));
 
             Part::create([
                 'part_number' => $part['part_number'],
                 'name' => $part['name'],
                 'description' => $part['description'],
                 'part_category_id' => $categoryId,
+                'buy_price' => $buyPrice,
+                'sell_price' => $sellPrice,
                 'stock' => $part['stock'],
                 'minimal_stock' => $part['minimal_stock'],
                 'rack_location' => $part['rack_location'],

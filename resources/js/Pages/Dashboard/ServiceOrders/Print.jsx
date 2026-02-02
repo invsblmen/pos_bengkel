@@ -268,8 +268,8 @@ export default function Print({ order }) {
                                                         {detail.service?.description && (
                                                             <p className="text-xs text-slate-500 dark:text-slate-400">{detail.service.description}</p>
                                                         )}
-                                                        {detail.part?.sku && (
-                                                            <p className="text-xs text-slate-500 dark:text-slate-400">SKU: {detail.part.sku}</p>
+                                                        {detail.part?.part_number && (
+                                                            <p className="text-xs text-slate-500 dark:text-slate-400">Kode: {detail.part.part_number}</p>
                                                         )}
                                                     </td>
                                                     <td className="py-3 text-center text-slate-600 dark:text-slate-400">{qty}</td>

@@ -22,7 +22,10 @@ export default function Create({ parts = [], customers = [] }) {
 
     const filteredParts = useMemo(() => {
         const term = searchPart.toLowerCase();
-        return parts.filter((p) => p.name.toLowerCase().includes(term) || (p.sku || '').toLowerCase().includes(term));
+        return parts.filter((p) =>
+            (p.name || '').toLowerCase().includes(term) ||
+            (p.part_number || '').toLowerCase().includes(term)
+        );
     }, [parts, searchPart]);
 
     const formatCurrency = (value = 0) =>
@@ -87,7 +90,6 @@ export default function Create({ parts = [], customers = [] }) {
             {
                 part_id: selectedPart.id,
                 part_name: selectedPart.name,
-                part_sku: selectedPart.sku,
                 quantity: itemQty,
                 unit_price: itemPrice || fallbackPrice,
             },
@@ -212,7 +214,6 @@ export default function Create({ parts = [], customers = [] }) {
                                             <tr key={index} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                                                 <td className="px-6 py-3">
                                                     <div className="font-medium text-slate-900 dark:text-white">{item.part_name}</div>
-                                                    <div className="text-xs text-slate-500">{item.part_sku}</div>
                                                     {errors[`items.${index}.part_id`] && <p className="text-xs text-red-500 mt-1">{errors[`items.${index}.part_id`]}</p>}
                                                 </td>
                                                 <td className="px-6 py-3 text-center">
@@ -303,7 +304,7 @@ export default function Create({ parts = [], customers = [] }) {
                                     type="text"
                                     value={searchPart}
                                     onChange={(e) => setSearchPart(e.target.value)}
-                                    placeholder="Cari nama atau SKU"
+                                    placeholder="Cari nama atau kode part"
                                     className="w-full h-11 pl-9 pr-3 rounded-xl border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                                 />
                             </div>
@@ -323,7 +324,7 @@ export default function Create({ parts = [], customers = [] }) {
                                             <div className="flex justify-between items-center">
                                                 <div>
                                                     <div className="font-medium text-slate-900 dark:text-white">{part.name}</div>
-                                                    <div className="text-xs text-slate-500">{part.sku}</div>
+                                                    {part.part_number && <div className="text-xs text-slate-500">Kode: {part.part_number}</div>}
                                                 </div>
                                                 <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">{formatCurrency(part.selling_price || part.price || 0)}</div>
                                             </div>
