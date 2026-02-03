@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import Pagination from '@/Components/Dashboard/Pagination';
-import { IconFilter, IconSearch, IconX, IconCirclePlus, IconDatabaseOff } from '@tabler/icons-react';
+import { IconFilter, IconSearch, IconX, IconCirclePlus, IconDatabaseOff, IconLayoutGrid, IconList, IconPencil } from '@tabler/icons-react';
 
-const defaultFilters = { search: '', status: '', payment_status: '' };
+const defaultFilters = { search: '', status: '', payment_status: '', customer_id: '' };
 
 const statusColors = {
     confirmed: 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/40 dark:text-green-100',
@@ -18,12 +18,13 @@ const paymentColors = {
     unpaid: 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-slate-800/60 dark:text-gray-100',
 };
 
-export default function Index({ sales, filters }) {
+export default function Index({ sales, filters, customers = [] }) {
     const [filterData, setFilterData] = useState({
         ...defaultFilters,
         ...(typeof filters !== 'undefined' ? filters : {}),
     });
     const [showFilters, setShowFilters] = useState(false);
+    const [viewMode, setViewMode] = useState('card');
 
     useEffect(() => {
         setFilterData({
@@ -57,7 +58,7 @@ export default function Index({ sales, filters }) {
     const formatCurrency = (value = 0) =>
         new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value);
 
-    const hasActiveFilters = filterData.search || filterData.status || filterData.payment_status;
+    const hasActiveFilters = filterData.search || filterData.status || filterData.payment_status || filterData.customer_id;
 
     return (
         <>
@@ -70,7 +71,35 @@ export default function Index({ sales, filters }) {
                         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Penjualan Sparepart</h1>
                         <p className="text-sm text-slate-500 dark:text-slate-400">{sales?.total || 0} penjualan</p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <div className="inline-flex items-center rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-1">
+                            <button
+                                type="button"
+                                onClick={() => setViewMode('card')}
+                                className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                    viewMode === 'card'
+                                        ? 'bg-primary-600 text-white'
+                                        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                }`}
+                                title="Card view"
+                            >
+                                <IconLayoutGrid size={16} />
+                                <span className="hidden sm:inline">Card</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setViewMode('table')}
+                                className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                    viewMode === 'table'
+                                        ? 'bg-primary-600 text-white'
+                                        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                }`}
+                                title="Table view"
+                            >
+                                <IconList size={16} />
+                                <span className="hidden sm:inline">List</span>
+                            </button>
+                        </div>
                         <button
                             onClick={() => setShowFilters((v) => !v)}
                             className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-colors ${
@@ -108,6 +137,21 @@ export default function Index({ sales, filters }) {
                                             className="w-full h-11 pl-9 pr-3 rounded-xl border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-primary-500"
                                         />
                                     </div>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Pelanggan</label>
+                                    <select
+                                        value={filterData.customer_id}
+                                        onChange={(e) => handleChange('customer_id', e.target.value)}
+                                        className="w-full h-11 px-3 rounded-xl border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-primary-500"
+                                    >
+                                        <option value="">Semua Pelanggan</option>
+                                        {customers.map((customer) => (
+                                            <option key={customer.id} value={customer.id}>
+                                                {customer.name}
+                                            </option>
+                                        ))}
+                                    </select>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Status</label>
@@ -160,59 +204,143 @@ export default function Index({ sales, filters }) {
                 {/* Table */}
                 <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
                     {sales.data.length > 0 ? (
-                        <table className="w-full">
-                            <thead>
-                                <tr className="border-b border-slate-100 dark:border-slate-800">
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Nomor Penjualan</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Pelanggan</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Tanggal</th>
-                                    <th className="px-6 py-4 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total</th>
-                                    <th className="px-6 py-4 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Status</th>
-                                    <th className="px-6 py-4 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Pembayaran</th>
-                                    <th className="px-6 py-4 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        viewMode === 'card' ? (
+                            <div className="grid gap-5 p-5 sm:grid-cols-2 xl:grid-cols-3">
                                 {sales.data.map((sale) => (
-                                    <tr key={sale.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                                        <td className="px-6 py-4 text-sm font-semibold text-primary-600 dark:text-primary-400">
-                                            <Link href={route('part-sales.show', sale.id)}>
-                                                {sale.sale_number}
-                                            </Link>
-                                        </td>
-                                        <td className="px-6 py-4 text-sm text-slate-700 dark:text-slate-300">{sale.customer?.name || '-'}</td>
-                                        <td className="px-6 py-4 text-sm text-slate-700 dark:text-slate-300">
-                                            {sale.sale_date ? new Date(sale.sale_date).toLocaleDateString('id-ID') : '-'}
-                                        </td>
-                                        <td className="px-6 py-4 text-sm text-right font-semibold text-slate-900 dark:text-white">
-                                            {formatCurrency(sale.grand_total)}
-                                        </td>
-                                        <td className="px-6 py-4 text-center">
-                                            <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium border ${
-                                                statusColors[sale.status] || 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-slate-800 dark:text-gray-200'
-                                            }`}>
-                                                {sale.status === 'confirmed' ? 'Dikonfirmasi' : sale.status === 'draft' ? 'Draft' : 'Dibatalkan'}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 text-center">
-                                            <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium border ${
-                                                paymentColors[sale.payment_status] || paymentColors.unpaid
-                                            }`}>
-                                                {sale.payment_status === 'paid' ? 'Lunas' : sale.payment_status === 'partial' ? 'Sebagian' : 'Belum Bayar'}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 text-center">
-                                            <Link
-                                                href={route('part-sales.show', sale.id)}
-                                                className="inline-flex items-center justify-center gap-1 px-3 py-1 rounded-md text-sm text-primary-600 hover:bg-primary-50 dark:text-primary-400"
-                                            >
-                                                Lihat
-                                            </Link>
-                                        </td>
-                                    </tr>
+                                    <div key={sale.id} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition">
+                                        <div className="p-5 border-b border-slate-100 dark:border-slate-800">
+                                            <div className="flex items-center justify-between">
+                                                <Link href={route('part-sales.show', sale.id)} className="text-lg font-bold text-primary-600 dark:text-primary-400">
+                                                    {sale.sale_number}
+                                                </Link>
+                                                <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium border ${
+                                                    statusColors[sale.status] || 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-slate-800 dark:text-gray-200'
+                                                }`}>
+                                                    {sale.status === 'confirmed'
+                                                        ? 'Dikonfirmasi'
+                                                        : sale.status === 'draft'
+                                                            ? 'Draft'
+                                                            : sale.status === 'completed'
+                                                                ? 'Selesai'
+                                                                : 'Dibatalkan'}
+                                                </span>
+                                            </div>
+                                            <div className="mt-3 space-y-1 text-sm text-slate-600 dark:text-slate-300">
+                                                <div className="flex items-center justify-between">
+                                                    <span>Pelanggan</span>
+                                                    <span className="font-medium text-slate-900 dark:text-white">{sale.customer?.name || '-'}</span>
+                                                </div>
+                                                <div className="flex items-center justify-between">
+                                                    <span>Tanggal</span>
+                                                    <span>{sale.sale_date ? new Date(sale.sale_date).toLocaleDateString('id-ID') : '-'}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="p-5 space-y-3">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-sm text-slate-500 dark:text-slate-400">Total</span>
+                                                <span className="text-lg font-bold text-slate-900 dark:text-white">{formatCurrency(sale.grand_total)}</span>
+                                            </div>
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-sm text-slate-500 dark:text-slate-400">Pembayaran</span>
+                                                <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium border ${
+                                                    paymentColors[sale.payment_status] || paymentColors.unpaid
+                                                }`}>
+                                                    {sale.payment_status === 'paid' ? 'Lunas' : sale.payment_status === 'partial' ? 'Sebagian' : 'Belum Bayar'}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-2 pt-2">
+                                                <Link
+                                                    href={route('part-sales.show', sale.id)}
+                                                    className="flex-1 inline-flex items-center justify-center px-3 py-2 rounded-lg bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700"
+                                                >
+                                                    Lihat
+                                                </Link>
+                                                {sale.status === 'draft' && (
+                                                    <Link
+                                                        href={route('part-sales.edit', sale.id)}
+                                                        className="inline-flex items-center justify-center w-10 h-10 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
+                                                        title="Edit"
+                                                    >
+                                                        <IconPencil size={16} />
+                                                    </Link>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
                                 ))}
-                            </tbody>
-                        </table>
+                            </div>
+                        ) : (
+                            <table className="w-full">
+                                <thead>
+                                    <tr className="border-b border-slate-100 dark:border-slate-800">
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Nomor Penjualan</th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Pelanggan</th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Tanggal</th>
+                                        <th className="px-6 py-4 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total</th>
+                                        <th className="px-6 py-4 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Status</th>
+                                        <th className="px-6 py-4 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Pembayaran</th>
+                                        <th className="px-6 py-4 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                    {sales.data.map((sale) => (
+                                        <tr key={sale.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                            <td className="px-6 py-4 text-sm font-semibold text-primary-600 dark:text-primary-400">
+                                                <Link href={route('part-sales.show', sale.id)}>
+                                                    {sale.sale_number}
+                                                </Link>
+                                            </td>
+                                            <td className="px-6 py-4 text-sm text-slate-700 dark:text-slate-300">{sale.customer?.name || '-'}</td>
+                                            <td className="px-6 py-4 text-sm text-slate-700 dark:text-slate-300">
+                                                {sale.sale_date ? new Date(sale.sale_date).toLocaleDateString('id-ID') : '-'}
+                                            </td>
+                                            <td className="px-6 py-4 text-sm text-right font-semibold text-slate-900 dark:text-white">
+                                                {formatCurrency(sale.grand_total)}
+                                            </td>
+                                            <td className="px-6 py-4 text-center">
+                                                <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium border ${
+                                                    statusColors[sale.status] || 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-slate-800 dark:text-gray-200'
+                                                }`}>
+                                                    {sale.status === 'confirmed'
+                                                        ? 'Dikonfirmasi'
+                                                        : sale.status === 'draft'
+                                                            ? 'Draft'
+                                                            : sale.status === 'completed'
+                                                                ? 'Selesai'
+                                                                : 'Dibatalkan'}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 text-center">
+                                                <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium border ${
+                                                    paymentColors[sale.payment_status] || paymentColors.unpaid
+                                                }`}>
+                                                    {sale.payment_status === 'paid' ? 'Lunas' : sale.payment_status === 'partial' ? 'Sebagian' : 'Belum Bayar'}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 text-center">
+                                                <div className="inline-flex items-center gap-2">
+                                                    <Link
+                                                        href={route('part-sales.show', sale.id)}
+                                                        className="inline-flex items-center justify-center gap-1 px-3 py-1 rounded-md text-sm text-primary-600 hover:bg-primary-50 dark:text-primary-400"
+                                                    >
+                                                        Lihat
+                                                    </Link>
+                                                    {sale.status === 'draft' && (
+                                                        <Link
+                                                            href={route('part-sales.edit', sale.id)}
+                                                            className="inline-flex items-center justify-center gap-1 px-3 py-1 rounded-md text-sm text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                                                        >
+                                                            Edit
+                                                        </Link>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )
                     ) : (
                         <div className="p-12 text-center">
                             <IconDatabaseOff size={48} className="mx-auto text-gray-300 dark:text-slate-600 mb-4" />

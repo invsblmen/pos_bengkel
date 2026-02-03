@@ -22,7 +22,7 @@ use App\Http\Controllers\Apps\PartCategoryController;
 use App\Http\Controllers\Apps\ServiceController;
 use App\Http\Controllers\Apps\VehicleController;
 use App\Http\Controllers\Apps\PartPurchaseController;
-use App\Http\Controllers\Apps\PartSaleController;
+use App\Http\Controllers\PartSaleController;
 use App\Http\Controllers\Apps\PartSalesOrderController;
 use App\Http\Controllers\Apps\PartPurchaseOrderController;
 use App\Http\Controllers\Apps\PartStockHistoryController;
@@ -187,6 +187,7 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
     Route::put('/part-sales/{partSale}', [PartSaleController::class, 'update'])->middleware('permission:part-sales-edit')->name('part-sales.update');
     Route::delete('/part-sales/{partSale}', [PartSaleController::class, 'destroy'])->middleware('permission:part-sales-delete')->name('part-sales.destroy');
     Route::post('/part-sales/{partSale}/update-payment', [PartSaleController::class, 'updatePayment'])->middleware('permission:part-sales-edit')->name('part-sales.update-payment');
+    Route::post('/part-sales/{partSale}/update-status', [PartSaleController::class, 'updateStatus'])->middleware('permission:part-sales-edit')->name('part-sales.update-status');
     Route::post('/part-sales/create-from-order', [PartSaleController::class, 'createFromOrder'])->middleware('permission:part-sales-create')->name('part-sales.create-from-order');
 
     // Part Purchase Orders

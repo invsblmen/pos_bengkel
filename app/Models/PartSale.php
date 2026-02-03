@@ -118,7 +118,7 @@ class PartSale extends Model
         return $this;
     }
 
-    public function generateSaleNumber()
+    public static function generateSaleNumber()
     {
         $prefix = 'SAL';
         $date = now()->format('Ymd');

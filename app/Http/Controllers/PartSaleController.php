@@ -12,6 +12,7 @@ use App\Services\DiscountTaxService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class PartSaleController extends Controller
@@ -53,6 +54,7 @@ class PartSaleController extends Controller
         return Inertia::render('Dashboard/Parts/Sales/Index', [
             'sales' => $sales,
             'filters' => $request->only(['status', 'payment_status', 'customer_id', 'search']),
+            'customers' => Customer::orderBy('name')->get(),
         ]);
     }
 
@@ -93,17 +95,22 @@ class PartSaleController extends Controller
             'tax_type' => 'nullable|in:none,percent,fixed',
             'tax_value' => 'nullable|numeric|min:0',
             'paid_amount' => 'nullable|integer|min:0',
+            'status' => 'nullable|in:draft,confirmed,completed,cancelled',
             'notes' => 'nullable|string',
             'part_sales_order_id' => 'nullable|exists:part_sales_orders,id',
         ]);
 
         DB::beginTransaction();
         try {
+            $status = $request->status ?? 'confirmed';
+
             // Check stock availability
-            foreach ($request->items as $item) {
-                $part = Part::findOrFail($item['part_id']);
-                if ($part->stock < $item['quantity']) {
-                    throw new \Exception("Stock {$part->name} tidak mencukupi. Tersedia: {$part->stock}, diminta: {$item['quantity']}");
+            if ($status !== 'draft') {
+                foreach ($request->items as $item) {
+                    $part = Part::findOrFail($item['part_id']);
+                    if ($part->stock < $item['quantity']) {
+                        throw new \Exception("Stock {$part->name} tidak mencukupi. Tersedia: {$part->stock}, diminta: {$item['quantity']}");
+                    }
                 }
             }
 
@@ -119,7 +126,7 @@ class PartSaleController extends Controller
                 'tax_value' => $request->tax_value ?? 0,
                 'paid_amount' => $request->paid_amount ?? 0,
                 'notes' => $request->notes,
-                'status' => 'confirmed',
+                'status' => $status,
                 'created_by' => Auth::id(),
             ]);
 
@@ -155,27 +162,35 @@ class PartSaleController extends Controller
                     'discount_value' => $discountValue,
                     'discount_amount' => $discountAmount,
                     'final_amount' => $finalAmount,
+                    'cost_price' => $part->buy_price ?? 0,
+                    'selling_price' => $item['unit_price'],
                 ]);
 
-                // Reduce stock
-                $part->decrement('stock', $item['quantity']);
+                if ($status !== 'draft') {
+                    $beforeStock = $part->stock;
+                    $afterStock = max(0, $beforeStock - $item['quantity']);
 
-                // Create stock movement
-                PartStockMovement::create([
-                    'part_id' => $part->id,
-                    'reference_type' => PartSale::class,
-                    'reference_id' => $sale->id,
-                    'type' => 'out',
-                    'quantity' => $item['quantity'],
-                    'stock_before' => $part->stock + $item['quantity'],
-                    'stock_after' => $part->stock,
-                    'notes' => "Penjualan #{$sale->sale_number}",
-                    'created_by' => Auth::id(),
-                ]);
+                    // Reduce stock
+                    $part->update(['stock' => $afterStock]);
+
+                    // Create stock movement
+                    PartStockMovement::create([
+                        'part_id' => $part->id,
+                        'reference_type' => PartSale::class,
+                        'reference_id' => $sale->id,
+                        'type' => 'out',
+                        'qty' => $item['quantity'],
+                        'before_stock' => $beforeStock,
+                        'after_stock' => $afterStock,
+                        'unit_price' => $item['unit_price'],
+                        'notes' => "Penjualan #{$sale->sale_number}",
+                        'created_by' => Auth::id(),
+                    ]);
+                }
             }
 
             // Recalculate totals
-            $sale->recalculateTotals();
+            $sale->recalculateTotals()->save();
 
             // If fulfilling a sales order, update SO status
             if ($request->filled('part_sales_order_id')) {
@@ -299,7 +314,7 @@ class PartSaleController extends Controller
             }
 
             // Recalculate totals
-            $partSale->recalculateTotals();
+            $partSale->recalculateTotals()->save();
 
             DB::commit();
 
@@ -358,6 +373,98 @@ class PartSaleController extends Controller
         ]);
 
         return back()->with('success', 'Pembayaran berhasil dicatat');
+    }
+
+    public function updateStatus(Request $request, PartSale $partSale)
+    {
+        $request->validate([
+            'status' => 'required|in:draft,confirmed,completed,cancelled',
+        ]);
+
+        $newStatus = $request->status;
+        $currentStatus = $partSale->status;
+
+        if ($newStatus === $currentStatus) {
+            return back()->with('success', 'Status tidak berubah');
+        }
+
+        if (in_array($currentStatus, ['completed', 'cancelled'], true)) {
+            return back()->withErrors(['error' => 'Status sudah final dan tidak bisa diubah']);
+        }
+
+        DB::beginTransaction();
+        try {
+            $partSale->load('details.part');
+
+            if ($currentStatus === 'draft' && $newStatus !== 'draft') {
+                foreach ($partSale->details as $detail) {
+                    $part = $detail->part;
+
+                    if (!$part) {
+                        throw ValidationException::withMessages(['items' => ['Sparepart tidak ditemukan']]);
+                    }
+
+                    if ($part->stock < $detail->quantity) {
+                        throw ValidationException::withMessages([
+                            'items' => ["Stock {$part->name} tidak mencukupi. Tersedia: {$part->stock}, diminta: {$detail->quantity}"],
+                        ]);
+                    }
+
+                    $beforeStock = $part->stock;
+                    $afterStock = max(0, $beforeStock - $detail->quantity);
+
+                    $part->update(['stock' => $afterStock]);
+
+                    PartStockMovement::create([
+                        'part_id' => $part->id,
+                        'reference_type' => PartSale::class,
+                        'reference_id' => $partSale->id,
+                        'type' => 'out',
+                        'qty' => $detail->quantity,
+                        'before_stock' => $beforeStock,
+                        'after_stock' => $afterStock,
+                        'unit_price' => $detail->unit_price,
+                        'notes' => "Konfirmasi Penjualan #{$partSale->sale_number}",
+                        'created_by' => Auth::id(),
+                    ]);
+                }
+            }
+
+            if ($newStatus === 'cancelled' && $currentStatus !== 'draft') {
+                foreach ($partSale->details as $detail) {
+                    $part = $detail->part;
+                    if (!$part) {
+                        continue;
+                    }
+
+                    $beforeStock = $part->stock;
+                    $afterStock = $beforeStock + $detail->quantity;
+
+                    $part->update(['stock' => $afterStock]);
+
+                    PartStockMovement::create([
+                        'part_id' => $part->id,
+                        'reference_type' => PartSale::class,
+                        'reference_id' => $partSale->id,
+                        'type' => 'in',
+                        'qty' => $detail->quantity,
+                        'before_stock' => $beforeStock,
+                        'after_stock' => $afterStock,
+                        'unit_price' => $detail->unit_price,
+                        'notes' => "Pembatalan Penjualan #{$partSale->sale_number}",
+                        'created_by' => Auth::id(),
+                    ]);
+                }
+            }
+
+            $partSale->update(['status' => $newStatus]);
+
+            DB::commit();
+            return back()->with('success', 'Status penjualan berhasil diperbarui');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->withErrors(['error' => $e->getMessage()]);
+        }
     }
 
     public function createFromOrder(Request $request)
