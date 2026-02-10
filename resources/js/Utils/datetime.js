@@ -71,3 +71,11 @@ export function dateToLocalDateInput(date) {
 export function todayLocalDate() {
   return dateToLocalDateInput(new Date());
 }
+
+// Extract date portion (yyyy-MM-dd) from ISO datetime string
+// Avoids timezone shifts by simply taking first 10 chars
+export function extractDateFromISO(dateString) {
+  if (!dateString) return '';
+  // Extract first 10 chars from ISO format (yyyy-MM-dd)
+  return dateString.substring(0, 10);
+}

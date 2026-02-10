@@ -6,7 +6,7 @@ import QuickCreateVehicleModal from '@/Components/Dashboard/QuickCreateVehicleMo
 import QuickCreateServiceModal from '@/Components/Dashboard/QuickCreateServiceModal';
 import QuickCreatePartModal from '@/Components/Dashboard/QuickCreatePartModal';
 import { IconArrowLeft, IconDeviceFloppy, IconTrash, IconPlus, IconX } from '@tabler/icons-react';
-import { toInputValue } from '@/Utils/datetime';
+import { toInputValue, extractDateFromISO } from '@/Utils/datetime';
 import toast from 'react-hot-toast';
 
 // Use centralized helper to avoid timezone shifts
@@ -32,7 +32,7 @@ export default function Edit({ order, customers, mechanics, services, parts, veh
         notes: order.notes || '',
         maintenance_type: order.maintenance_type || '',
         next_service_km: order.next_service_km || '',
-        next_service_date: order.next_service_date || '',
+        next_service_date: extractDateFromISO(order.next_service_date) || '',
         tags: order.tags?.map(t => t.id) || [],
         items: order.details.map(detail => ({
             id: detail.id,

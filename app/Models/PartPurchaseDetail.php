@@ -19,8 +19,13 @@ class PartPurchaseDetail extends Model
         'final_amount',
         'margin_type',
         'margin_value',
+        'margin_amount',
+        'normal_unit_price',
         'promo_discount_type',
         'promo_discount_value',
+        'promo_discount_amount',
+        'selling_price',
+        'created_by',
     ];
 
     protected $casts = [
@@ -31,7 +36,11 @@ class PartPurchaseDetail extends Model
         'discount_amount' => 'integer',
         'final_amount' => 'integer',
         'margin_value' => 'float',
+        'margin_amount' => 'integer',
+        'normal_unit_price' => 'integer',
         'promo_discount_value' => 'float',
+        'promo_discount_amount' => 'integer',
+        'selling_price' => 'integer',
     ];
 
     public function partPurchase()
@@ -60,6 +69,54 @@ class PartPurchaseDetail extends Model
         } else {
             $this->discount_amount = 0;
         }
+
+        return $this;
+    }
+
+    /**
+     * Calculate all pricing fields comprehensively
+     * This ensures consistency between create and update operations
+     *
+     * @return self
+     */
+    public function calculateAllPrices()
+    {
+        // Step 1: Calculate item subtotal and discount
+        $this->subtotal = $this->quantity * $this->unit_price;
+
+        $itemDiscountAmount = DiscountTaxService::calculateDiscount(
+            $this->subtotal,
+            $this->discount_type ?? 'none',
+            $this->discount_value ?? 0
+        );
+
+        $this->discount_amount = $itemDiscountAmount;
+        $this->final_amount = $this->subtotal - $itemDiscountAmount;
+
+        // Step 2: Calculate cost price after discount
+        $priceAfterDiscount = DiscountTaxService::calculateAmountWithDiscount(
+            $this->unit_price,
+            $this->discount_type ?? 'none',
+            $this->discount_value ?? 0
+        );
+
+        // Step 3: Calculate margin amount and normal unit price
+        $this->margin_amount = DiscountTaxService::calculateDiscount(
+            $priceAfterDiscount,
+            $this->margin_type ?? 'percent',
+            $this->margin_value ?? 0
+        );
+
+        $this->normal_unit_price = $priceAfterDiscount + $this->margin_amount;
+
+        // Step 4: Calculate promo discount amount and final selling price
+        $this->promo_discount_amount = DiscountTaxService::calculateDiscount(
+            $this->normal_unit_price,
+            $this->promo_discount_type ?? 'none',
+            $this->promo_discount_value ?? 0
+        );
+
+        $this->selling_price = $this->normal_unit_price - $this->promo_discount_amount;
 
         return $this;
     }

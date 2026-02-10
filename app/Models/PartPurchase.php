@@ -18,7 +18,8 @@ class PartPurchase extends Model
         'notes',
         'discount_type', 'discount_value', 'discount_amount',
         'tax_type', 'tax_value', 'tax_amount', 'grand_total',
-        'unit_cost', 'margin_type', 'margin_value', 'promo_discount_type', 'promo_discount_value'
+        'unit_cost', 'margin_type', 'margin_value', 'promo_discount_type', 'promo_discount_value',
+        'updated_by'
     ];
 
     protected $casts = [

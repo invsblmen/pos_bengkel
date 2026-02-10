@@ -113,7 +113,7 @@ class PartPurchaseController extends Controller
         try {
             // Calculate total with item discounts
             $totalAmount = 0;
-            $itemsWithDiscount = [];
+            $itemsWithDetails = [];
 
             foreach ($validated['items'] as $item) {
                 $subtotal = $item['quantity'] * $item['unit_price'];
@@ -125,7 +125,7 @@ class PartPurchaseController extends Controller
                     $item['discount_value'] ?? 0
                 );
 
-                $itemsWithDiscount[] = array_merge($item, [
+                $itemsWithDetails[] = array_merge($item, [
                     'subtotal' => $subtotal,
                     'final_amount' => $finalAmount
                 ]);
@@ -146,15 +146,15 @@ class PartPurchaseController extends Controller
                 'tax_type' => $validated['tax_type'] ?? 'none',
                 'tax_value' => $validated['tax_value'] ?? 0,
                 // Store first item's unit cost as reference (will use FIFO)
-                'unit_cost' => $itemsWithDiscount[0]['unit_price'] ?? 0,
-                'margin_type' => $itemsWithDiscount[0]['margin_type'] ?? 'percent',
-                'margin_value' => $itemsWithDiscount[0]['margin_value'] ?? 0,
-                'promo_discount_type' => $itemsWithDiscount[0]['promo_discount_type'] ?? 'none',
-                'promo_discount_value' => $itemsWithDiscount[0]['promo_discount_value'] ?? 0,
+                'unit_cost' => $itemsWithDetails[0]['unit_price'] ?? 0,
+                'margin_type' => $itemsWithDetails[0]['margin_type'] ?? 'percent',
+                'margin_value' => $itemsWithDetails[0]['margin_value'] ?? 0,
+                'promo_discount_type' => $itemsWithDetails[0]['promo_discount_type'] ?? 'none',
+                'promo_discount_value' => $itemsWithDetails[0]['promo_discount_value'] ?? 0,
             ]);
 
-            // Create purchase details
-            foreach ($itemsWithDiscount as $item) {
+            // Create purchase details with comprehensive price calculations
+            foreach ($itemsWithDetails as $item) {
                 $detail = PartPurchaseDetail::create([
                     'part_purchase_id' => $purchase->id,
                     'part_id' => $item['part_id'],
@@ -167,10 +167,11 @@ class PartPurchaseController extends Controller
                     'margin_value' => $item['margin_value'] ?? 0,
                     'promo_discount_type' => $item['promo_discount_type'] ?? 'none',
                     'promo_discount_value' => $item['promo_discount_value'] ?? 0,
+                    'created_by' => Auth::id(),
                 ]);
 
-                // Calculate and save final amount
-                $detail->calculateFinalAmount()->save();
+                // Calculate all pricing fields comprehensively
+                $detail->calculateAllPrices()->save();
             }
 
             // Calculate totals with discount and tax
@@ -245,8 +246,8 @@ class PartPurchaseController extends Controller
             'items.*.unit_price' => 'required|integer|min:0',
             'items.*.discount_type' => 'nullable|in:none,percent,fixed',
             'items.*.discount_value' => 'nullable|numeric|min:0',
-            'items.*.margin_type' => 'nullable|in:none,percent,fixed',
-            'items.*.margin_value' => 'nullable|numeric|min:0',
+            'items.*.margin_type' => 'required|in:percent,fixed',
+            'items.*.margin_value' => 'required|numeric|min:0',
             'items.*.promo_discount_type' => 'nullable|in:none,percent,fixed',
             'items.*.promo_discount_value' => 'nullable|numeric|min:0',
             'discount_type' => 'nullable|in:none,percent,fixed',
@@ -257,105 +258,46 @@ class PartPurchaseController extends Controller
 
         DB::beginTransaction();
         try {
-            // Calculate totals
-            $itemsTotal = 0;
-            foreach ($validated['items'] as $item) {
-                $itemSubtotal = $item['quantity'] * $item['unit_price'];
-                $itemDiscount = DiscountTaxService::calculateAmountWithDiscountValue(
-                    $itemSubtotal,
-                    $item['discount_type'] ?? 'none',
-                    $item['discount_value'] ?? 0
-                );
-                $itemsTotal += ($itemSubtotal - $itemDiscount);
-            }
-
-            $globalDiscountAmount = DiscountTaxService::calculateAmountWithDiscountValue(
-                $itemsTotal,
-                $validated['discount_type'] ?? 'none',
-                $validated['discount_value'] ?? 0
-            );
-
-            $afterDiscount = $itemsTotal - $globalDiscountAmount;
-
-            $taxAmount = DiscountTaxService::calculateAmountWithDiscountValue(
-                $afterDiscount,
-                $validated['tax_type'] ?? 'none',
-                $validated['tax_value'] ?? 0
-            );
-
-            $grandTotal = $afterDiscount + $taxAmount;
-
-            // Update purchase
+            // Update purchase header
             $purchase->update([
                 'supplier_id' => $validated['supplier_id'],
                 'purchase_date' => $validated['purchase_date'],
                 'expected_delivery_date' => $validated['expected_delivery_date'],
                 'notes' => $validated['notes'],
-                'total_amount' => $itemsTotal,
                 'discount_type' => $validated['discount_type'] ?? 'none',
                 'discount_value' => $validated['discount_value'] ?? 0,
-                'discount_amount' => $globalDiscountAmount,
                 'tax_type' => $validated['tax_type'] ?? 'none',
                 'tax_value' => $validated['tax_value'] ?? 0,
-                'tax_amount' => $taxAmount,
-                'grand_total' => $grandTotal,
                 'updated_by' => Auth::id(),
             ]);
 
             // Delete old details and create new ones
             $purchase->details()->delete();
 
+            // Create new details with comprehensive price calculations
             foreach ($validated['items'] as $itemData) {
-                $itemSubtotal = $itemData['quantity'] * $itemData['unit_price'];
-                $itemDiscountAmount = DiscountTaxService::calculateAmountWithDiscountValue(
-                    $itemSubtotal,
-                    $itemData['discount_type'] ?? 'none',
-                    $itemData['discount_value'] ?? 0
-                );
-                $itemFinalAmount = $itemSubtotal - $itemDiscountAmount;
-
-                // Calculate selling price based on buy price + margin
-                $priceAfterDiscount = DiscountTaxService::calculateAmountWithDiscount(
-                    $itemData['unit_price'],
-                    $itemData['discount_type'] ?? 'none',
-                    $itemData['discount_value'] ?? 0
-                );
-
-                $marginAmount = DiscountTaxService::calculateAmountWithDiscountValue(
-                    $priceAfterDiscount,
-                    $itemData['margin_type'] ?? 'none',
-                    $itemData['margin_value'] ?? 0
-                );
-                $normalUnitPrice = $priceAfterDiscount + $marginAmount;
-
-                $promoDiscountAmount = DiscountTaxService::calculateAmountWithDiscountValue(
-                    $normalUnitPrice,
-                    $itemData['promo_discount_type'] ?? 'none',
-                    $itemData['promo_discount_value'] ?? 0
-                );
-                $sellingPrice = $normalUnitPrice - $promoDiscountAmount;
-
-                PartPurchaseDetail::create([
+                $subtotal = $itemData['quantity'] * $itemData['unit_price'];
+                $detail = PartPurchaseDetail::create([
                     'part_purchase_id' => $purchase->id,
                     'part_id' => $itemData['part_id'],
                     'quantity' => $itemData['quantity'],
                     'unit_price' => $itemData['unit_price'],
-                    'subtotal' => $itemSubtotal,
+                    'subtotal' => $subtotal,
                     'discount_type' => $itemData['discount_type'] ?? 'none',
                     'discount_value' => $itemData['discount_value'] ?? 0,
-                    'discount_amount' => $itemDiscountAmount,
-                    'final_amount' => $itemFinalAmount,
-                    'margin_type' => $itemData['margin_type'] ?? 'none',
+                    'margin_type' => $itemData['margin_type'] ?? 'percent',
                     'margin_value' => $itemData['margin_value'] ?? 0,
-                    'margin_amount' => $marginAmount,
-                    'normal_unit_price' => $normalUnitPrice,
                     'promo_discount_type' => $itemData['promo_discount_type'] ?? 'none',
                     'promo_discount_value' => $itemData['promo_discount_value'] ?? 0,
-                    'promo_discount_amount' => $promoDiscountAmount,
-                    'selling_price' => $sellingPrice,
                     'created_by' => Auth::id(),
                 ]);
+
+                // Calculate all pricing fields comprehensively (consistent with store)
+                $detail->calculateAllPrices()->save();
             }
+
+            // Recalculate totals (consistent with store)
+            $purchase->recalculateTotals()->save();
 
             DB::commit();
 

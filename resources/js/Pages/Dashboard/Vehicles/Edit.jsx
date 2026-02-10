@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { extractDateFromISO } from '@/Utils/datetime';
 import { Head, useForm, Link } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import CustomerSelect from '@/Components/ServiceOrder/CustomerSelect';
@@ -32,8 +33,8 @@ export default function Edit({ vehicle, customers }) {
         engine_number: vehicle.engine_number || '',
         manufacture_year: vehicle.manufacture_year || '',
         registration_number: vehicle.registration_number || '',
-        registration_date: vehicle.registration_date || '',
-        stnk_expiry_date: vehicle.stnk_expiry_date || '',
+        registration_date: extractDateFromISO(vehicle.registration_date) || '',
+        stnk_expiry_date: extractDateFromISO(vehicle.stnk_expiry_date) || '',
         previous_owner: vehicle.previous_owner || '',
     });
 

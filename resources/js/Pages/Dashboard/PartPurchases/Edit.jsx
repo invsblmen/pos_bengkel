@@ -3,7 +3,7 @@ import { Head, router } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import toast from 'react-hot-toast';
 import { IconPlus, IconTrash, IconArrowLeft, IconPencil, IconTruck, IconCheck, IconX, IconAlertTriangle } from '@tabler/icons-react';
-import { todayLocalDate } from '@/Utils/datetime';
+import { todayLocalDate, extractDateFromISO } from '@/Utils/datetime';
 import AddSupplierModal from '@/Components/Dashboard/AddSupplierModal';
 import QuickCreatePartModal from '@/Components/Dashboard/QuickCreatePartModal';
 
@@ -17,8 +17,8 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
     // Initialize form with purchase data
     const [formData, setFormData] = useState({
         supplier_id: purchase.supplier_id || '',
-        purchase_date: purchase.purchase_date || todayLocalDate(),
-        expected_delivery_date: purchase.expected_delivery_date || '',
+        purchase_date: extractDateFromISO(purchase.purchase_date) || todayLocalDate(),
+        expected_delivery_date: extractDateFromISO(purchase.expected_delivery_date) || '',
         notes: purchase.notes || '',
         items: purchase.details?.map(detail => ({
             part_id: detail.part_id,
@@ -229,18 +229,29 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
             return;
         }
 
+        console.log('Submitting formData:', formData);
         setSubmitting(true);
 
         router.put(route('part-purchases.update', purchase.id), formData, {
             preserveScroll: true,
             onSuccess: () => {
+                console.log('Update success');
                 toast.success('Purchase updated successfully!');
                 router.visit(route('part-purchases.show', purchase.id));
             },
             onError: (errors) => {
-                toast.error('Failed to update purchase');
+                console.error('Update error:', errors);
+                const firstError = errors?.error || Object.values(errors || {})[0];
+                if (firstError) {
+                    toast.error(firstError);
+                } else {
+                    toast.error('Failed to update purchase');
+                }
                 setErrors(errors);
                 setSubmitting(false);
+            },
+            onFinish: () => {
+                console.log('Update finished');
             },
         });
     };

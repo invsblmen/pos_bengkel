@@ -346,94 +346,167 @@ export default function Create({ parts = [], customers = [] }) {
                             </div>
 
                             {data.items.length > 0 ? (
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-sm">
-                                        <thead>
-                                            <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
-                                                <th className="px-6 py-4 text-left font-bold text-slate-700 dark:text-slate-300">Sparepart</th>
-                                                <th className="px-6 py-4 text-center font-bold text-slate-700 dark:text-slate-300">Jumlah</th>
-                                                <th className="px-6 py-4 text-right font-bold text-slate-700 dark:text-slate-300">Harga</th>
-                                                <th className="px-6 py-4 text-right font-bold text-slate-700 dark:text-slate-300">Diskon</th>
-                                                <th className="px-6 py-4 text-right font-bold text-slate-700 dark:text-slate-300">Total</th>
-                                                <th className="px-6 py-4 text-center font-bold text-slate-700 dark:text-slate-300">Aksi</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                            {data.items.map((item, index) => (
-                                                <tr key={index} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                                                    <td className="px-6 py-4">
-                                                        <div className="font-bold text-slate-900 dark:text-white">{item.part_name}</div>
+                                <div className="space-y-4 p-6">
+                                    <div className="hidden lg:block overflow-x-auto">
+                                        <table className="w-full text-sm">
+                                            <thead>
+                                                <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
+                                                    <th className="px-4 py-3 text-left font-bold text-slate-700 dark:text-slate-300">Sparepart</th>
+                                                    <th className="px-4 py-3 text-center font-bold text-slate-700 dark:text-slate-300">Qty</th>
+                                                    <th className="px-4 py-3 text-right font-bold text-slate-700 dark:text-slate-300">Harga</th>
+                                                    <th className="px-4 py-3 text-right font-bold text-slate-700 dark:text-slate-300">Diskon</th>
+                                                    <th className="px-4 py-3 text-right font-bold text-slate-700 dark:text-slate-300">Total</th>
+                                                    <th className="px-4 py-3 text-center font-bold text-slate-700 dark:text-slate-300">Aksi</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                                {data.items.map((item, index) => (
+                                                    <tr key={index} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                                        <td className="px-4 py-4">
+                                                            <div className="font-semibold text-slate-900 dark:text-white text-sm">{item.part_name}</div>
+                                                            {errors[`items.${index}.part_id`] && <p className="text-xs text-red-500 mt-1">{errors[`items.${index}.part_id`]}</p>}
+                                                        </td>
+                                                        <td className="px-4 py-4 text-center">
+                                                            <input
+                                                                type="number"
+                                                                min="1"
+                                                                value={item.quantity}
+                                                                onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 0)}
+                                                                className="w-16 h-9 px-2 text-center text-sm rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-semibold focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                                            />
+                                                        </td>
+                                                        <td className="px-4 py-4 text-right">
+                                                            <input
+                                                                type="number"
+                                                                min="0"
+                                                                value={item.unit_price}
+                                                                onChange={(e) => updateItem(index, 'unit_price', parseInt(e.target.value) || 0)}
+                                                                className="w-28 h-9 px-2 text-right text-sm rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-semibold focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                                            />
+                                                        </td>
+                                                        <td className="px-4 py-4">
+                                                            <div className="flex items-center justify-end gap-1">
+                                                                <select
+                                                                    value={item.discount_type || 'none'}
+                                                                    onChange={(e) => updateItem(index, 'discount_type', e.target.value)}
+                                                                    className="h-9 px-2 text-xs rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-medium focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                                                >
+                                                                    <option value="none">-</option>
+                                                                    <option value="percent">%</option>
+                                                                    <option value="fixed">Rp</option>
+                                                                </select>
+                                                                <input
+                                                                    type="number"
+                                                                    min="0"
+                                                                    value={item.discount_value || 0}
+                                                                    onChange={(e) => updateItem(index, 'discount_value', parseFloat(e.target.value) || 0)}
+                                                                    className="w-20 h-9 px-2 text-right text-xs rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-semibold focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                                                />
+                                                            </div>
+                                                            <div className="text-xs text-red-600 dark:text-red-400 mt-1 text-right font-medium">
+                                                                -{formatCurrency(calculateItemDiscount(item))}
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-4 py-4 text-right font-bold text-emerald-600 dark:text-emerald-400 text-sm">
+                                                            {formatCurrency(calculateItemTotal(item))}
+                                                        </td>
+                                                        <td className="px-4 py-4 text-center">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => removeItem(index)}
+                                                                className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 transition-all duration-200 hover:scale-110"
+                                                                title="Hapus item"
+                                                            >
+                                                                <IconTrash size={16} />
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    {/* Mobile Card View */}
+                                    <div className="lg:hidden space-y-3">
+                                        {data.items.map((item, index) => (
+                                            <div key={index} className="bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 p-4 space-y-3">
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div className="flex-1">
+                                                        <p className="font-bold text-slate-900 dark:text-white">{item.part_name}</p>
                                                         {errors[`items.${index}.part_id`] && <p className="text-xs text-red-500 mt-1">{errors[`items.${index}.part_id`]}</p>}
-                                                    </td>
-                                                    <td className="px-6 py-4 text-center">
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeItem(index)}
+                                                        className="text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 p-2 rounded-lg transition-all"
+                                                        title="Hapus item"
+                                                    >
+                                                        <IconTrash size={16} />
+                                                    </button>
+                                                </div>
+
+                                                <div className="grid grid-cols-3 gap-2">
+                                                    <div>
+                                                        <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1 block">Qty</label>
                                                         <input
                                                             type="number"
                                                             min="1"
                                                             value={item.quantity}
                                                             onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 0)}
-                                                            className="w-20 h-10 px-3 text-center rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-semibold focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                                            className="w-full h-9 px-2 text-center text-sm rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-semibold focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                                                         />
-                                                    </td>
-                                                    <td className="px-6 py-4 text-right">
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1 block">Harga</label>
                                                         <input
                                                             type="number"
                                                             min="0"
                                                             value={item.unit_price}
                                                             onChange={(e) => updateItem(index, 'unit_price', parseInt(e.target.value) || 0)}
-                                                            className="w-32 h-10 px-3 text-right rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-semibold focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                                            className="w-full h-9 px-2 text-right text-xs rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-semibold focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                                                         />
-                                                    </td>
-                                                    <td className="px-6 py-4">
-                                                        <div className="flex items-center justify-end gap-2">
-                                                            <select
-                                                                value={item.discount_type || 'none'}
-                                                                onChange={(e) => updateItem(index, 'discount_type', e.target.value)}
-                                                                className="h-10 px-3 rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-medium focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                                                            >
-                                                                <option value="none">-</option>
-                                                                <option value="percent">%</option>
-                                                                <option value="fixed">Rp</option>
-                                                            </select>
-                                                            <input
-                                                                type="number"
-                                                                min="0"
-                                                                value={item.discount_value || 0}
-                                                                onChange={(e) => updateItem(index, 'discount_value', parseFloat(e.target.value) || 0)}
-                                                                className="w-24 h-10 px-3 text-right rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-semibold focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                                                            />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1 block">Total</label>
+                                                        <div className="h-9 px-2 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700 flex items-center justify-end font-bold text-emerald-600 dark:text-emerald-400 text-xs">
+                                                            {formatCurrency(calculateItemTotal(item))}
                                                         </div>
-                                                        <div className="text-xs text-red-600 dark:text-red-400 mt-2 text-right font-medium">
-                                                            -{formatCurrency(calculateItemDiscount(item))}
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-6 py-4 text-right font-bold text-lg text-emerald-600 dark:text-emerald-400">
-                                                        {formatCurrency(calculateItemTotal(item))}
-                                                    </td>
-                                                    <td className="px-6 py-4 text-center">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => removeItem(index)}
-                                                            className="inline-flex items-center justify-center w-9 h-9 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 transition-all duration-200 hover:scale-110"
-                                                            title="Hapus item"
+                                                    </div>
+                                                </div>
+
+                                                <div>
+                                                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1 block">Diskon</label>
+                                                    <div className="flex gap-2 items-end">
+                                                        <select
+                                                            value={item.discount_type || 'none'}
+                                                            onChange={(e) => updateItem(index, 'discount_type', e.target.value)}
+                                                            className="h-9 px-2 text-xs rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-medium focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                                                         >
-                                                            <IconTrash size={18} />
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                        <tfoot className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800/60 dark:to-slate-900/60 border-t-2 border-slate-200 dark:border-slate-700">
-                                            <tr>
-                                                <td colSpan="4" className="px-6 py-4 text-right font-bold text-slate-700 dark:text-slate-300 text-base">
-                                                    Subtotal Item
-                                                </td>
-                                                <td className="px-6 py-4 text-right font-bold text-xl text-slate-900 dark:text-white">
-                                                    {formatCurrency(itemsSubtotal)}
-                                                </td>
-                                                <td></td>
-                                            </tr>
-                                        </tfoot>
-                                    </table>
+                                                            <option value="none">-</option>
+                                                            <option value="percent">%</option>
+                                                            <option value="fixed">Rp</option>
+                                                        </select>
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            value={item.discount_value || 0}
+                                                            onChange={(e) => updateItem(index, 'discount_value', parseFloat(e.target.value) || 0)}
+                                                            className="flex-1 h-9 px-2 text-right text-xs rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-semibold focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                                        />
+                                                    </div>
+                                                    <p className="text-xs text-red-600 dark:text-red-400 mt-1 font-medium">
+                                                        Potongan: -{formatCurrency(calculateItemDiscount(item))}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* Subtotal */}
+                                    <div className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800/60 dark:to-slate-900/60 border-t-2 border-slate-200 dark:border-slate-700 rounded-lg p-4 flex items-center justify-between">
+                                        <span className="font-bold text-slate-700 dark:text-slate-300">Subtotal Item</span>
+                                        <span className="font-bold text-xl text-slate-900 dark:text-white">{formatCurrency(itemsSubtotal)}</span>
+                                    </div>
                                 </div>
                             ) : (
                                 <div className="p-16 text-center">
@@ -461,18 +534,18 @@ export default function Create({ parts = [], customers = [] }) {
                                         </div>
                                     </div>
                                 </div>
-                                <div className="p-6">
-                                    <div className="grid gap-6 md:grid-cols-2">
+                                <div className="p-4">
+                                    <div className="grid gap-4 sm:grid-cols-2">
                                         <div>
-                                            <label className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-2">
-                                                <IconPercentage size={16} className="text-orange-500" />
-                                                Diskon Transaksi
+                                            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-2">
+                                                <IconPercentage size={14} className="text-orange-500" />
+                                                Diskon
                                             </label>
-                                            <div className="flex gap-3">
+                                            <div className="flex gap-2 items-center">
                                                 <select
                                                     value={data.discount_type}
                                                     onChange={(e) => setData('discount_type', e.target.value)}
-                                                    className="h-12 px-4 rounded-xl border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-medium focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                                                    className="px-2 py-2 text-xs rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-medium focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                                                 >
                                                     <option value="none">Tidak Ada</option>
                                                     <option value="percent">%</option>
@@ -483,24 +556,24 @@ export default function Create({ parts = [], customers = [] }) {
                                                     min="0"
                                                     value={data.discount_value}
                                                     onChange={(e) => setData('discount_value', e.target.value)}
-                                                    className="flex-1 h-12 px-4 rounded-xl border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-semibold focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                                                    className="flex-1 px-3 py-2 text-xs rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-semibold focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                                                 />
                                             </div>
-                                            <div className="mt-3 px-4 py-2 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-700/30">
+                                            <div className="mt-2 px-3 py-1.5 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-700/30">
                                                 <p className="text-xs text-orange-700 dark:text-orange-400 font-medium">Potongan</p>
-                                                <p className="text-lg font-bold text-orange-600 dark:text-orange-400">{formatCurrency(transactionDiscount)}</p>
+                                                <p className="text-base font-bold text-orange-600 dark:text-orange-400">{formatCurrency(transactionDiscount)}</p>
                                             </div>
                                         </div>
                                         <div>
-                                            <label className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-2">
-                                                <IconReceipt size={16} className="text-green-500" />
+                                            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-2">
+                                                <IconReceipt size={14} className="text-green-500" />
                                                 Pajak
                                             </label>
-                                            <div className="flex gap-3">
+                                            <div className="flex gap-2 items-center">
                                                 <select
                                                     value={data.tax_type}
                                                     onChange={(e) => setData('tax_type', e.target.value)}
-                                                    className="h-12 px-4 rounded-xl border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-medium focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                                                    className="px-2 py-2 text-xs rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-medium focus:ring-2 focus:ring-green-500 focus:border-green-500"
                                                 >
                                                     <option value="none">Tidak Ada</option>
                                                     <option value="percent">%</option>
@@ -511,12 +584,12 @@ export default function Create({ parts = [], customers = [] }) {
                                                     min="0"
                                                     value={data.tax_value}
                                                     onChange={(e) => setData('tax_value', e.target.value)}
-                                                    className="flex-1 h-12 px-4 rounded-xl border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-semibold focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                                                    className="flex-1 px-3 py-2 text-xs rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-semibold focus:ring-2 focus:ring-green-500 focus:border-green-500"
                                                 />
                                             </div>
-                                            <div className="mt-3 px-4 py-2 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-700/30">
+                                            <div className="mt-2 px-3 py-1.5 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-700/30">
                                                 <p className="text-xs text-green-700 dark:text-green-400 font-medium">Pajak</p>
-                                                <p className="text-lg font-bold text-green-600 dark:text-green-400">{formatCurrency(taxAmount)}</p>
+                                                <p className="text-base font-bold text-green-600 dark:text-green-400">{formatCurrency(taxAmount)}</p>
                                             </div>
                                         </div>
                                     </div>
@@ -682,63 +755,63 @@ export default function Create({ parts = [], customers = [] }) {
                                                 setSelectedPart(part);
                                                 setItemPrice(part.sell_price || part.selling_price || part.price || itemPrice || 0);
                                             }}
-                                            className={`w-full text-left px-5 py-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all duration-200 ${
+                                            className={`w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all duration-200 ${
                                                 selectedPart?.id === part.id ? 'bg-purple-50 dark:bg-purple-900/30 border-l-4 border-purple-500' : ''
                                             }`}
                                         >
-                                            <div className="flex justify-between items-center">
-                                                <div>
-                                                    <div className="font-bold text-slate-900 dark:text-white">{part.name}</div>
+                                            <div className="flex justify-between items-center gap-3">
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="font-bold text-slate-900 dark:text-white text-sm">{part.name}</div>
                                                     {part.part_number && (
                                                         <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                                                             Kode: <span className="font-medium">{part.part_number}</span>
                                                         </div>
                                                     )}
                                                 </div>
-                                                <div className="text-base font-bold text-emerald-600 dark:text-emerald-400">
+                                                <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
                                                     {formatCurrency(part.sell_price || part.selling_price || part.price || 0)}
                                                 </div>
                                             </div>
                                         </button>
                                     ))
                                 ) : (
-                                    <div className="px-5 py-8 text-center">
+                                    <div className="px-4 py-8 text-center">
                                         <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 mb-3">
                                             <IconSearch size={32} className="text-slate-400" />
                                         </div>
-                                        <p className="text-slate-500 dark:text-slate-400 font-medium">Tidak ada hasil</p>
+                                        <p className="text-slate-500 dark:text-slate-400 font-medium text-sm">Tidak ada hasil</p>
                                     </div>
                                 )}
                             </div>
 
-                            <div className="grid grid-cols-3 gap-4">
+                            <div className="grid gap-3 grid-cols-3">
                                 <div>
-                                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Jumlah</label>
+                                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Jumlah</label>
                                     <input
                                         type="number"
                                         min="1"
                                         value={itemQty}
                                         onChange={(e) => setItemQty(parseInt(e.target.value) || 1)}
-                                        className="w-full h-12 px-4 text-center rounded-xl border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-bold text-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                        className="w-full h-10 px-3 text-center text-sm rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-bold focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Harga Satuan</label>
+                                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Harga</label>
                                     <input
                                         type="number"
                                         min="0"
                                         value={itemPrice}
                                         onChange={(e) => setItemPrice(parseInt(e.target.value) || 0)}
-                                        className="w-full h-12 px-4 text-right rounded-xl border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-bold focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                        className="w-full h-10 px-3 text-right text-xs rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-bold focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Diskon</label>
-                                    <div className="flex gap-2">
+                                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Diskon</label>
+                                    <div className="flex gap-1 h-10">
                                         <select
                                             value={itemDiscountType}
                                             onChange={(e) => setItemDiscountType(e.target.value)}
-                                            className="h-12 px-2 rounded-xl border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-medium focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                            className="w-14 px-2 text-xs rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-medium focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                                         >
                                             <option value="none">-</option>
                                             <option value="percent">%</option>
@@ -749,7 +822,7 @@ export default function Create({ parts = [], customers = [] }) {
                                             min="0"
                                             value={itemDiscountValue}
                                             onChange={(e) => setItemDiscountValue(parseFloat(e.target.value) || 0)}
-                                            className="flex-1 h-12 px-3 text-right rounded-xl border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-bold focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                            className="flex-1 px-3 text-right text-xs rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-bold focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                                         />
                                     </div>
                                 </div>

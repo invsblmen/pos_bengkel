@@ -217,7 +217,12 @@ export default function Create({ suppliers, parts, categories = [] }) {
         router.post(route('part-purchases.store'), formData, {
             onError: (err) => {
                 setErrors(err);
-                toast.error('Failed to create purchase');
+                const firstError = err?.error || Object.values(err || {})[0];
+                if (firstError) {
+                    toast.error(firstError);
+                } else {
+                    toast.error('Failed to create purchase');
+                }
             },
             onFinish: () => {
                 setSubmitting(false);
