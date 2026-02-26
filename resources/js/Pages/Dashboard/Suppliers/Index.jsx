@@ -3,6 +3,7 @@ import { Head, router, Link } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import toast from 'react-hot-toast';
 import Pagination from '@/Components/Dashboard/Pagination';
+import { useVisibilityRealtime } from '@/Hooks/useRealtime';
 import {
     IconDatabaseOff,
     IconFilter,
@@ -29,6 +30,14 @@ export default function Index({ suppliers, filters }) {
         ...(typeof filters !== 'undefined' ? filters : {}),
     });
     const [showFilters, setShowFilters] = useState(false);
+
+    // Enable real-time updates
+    useVisibilityRealtime({
+        interval: 5000,
+        only: ['suppliers'],
+        preserveScroll: true,
+        preserveState: true
+    });
 
     useEffect(() => {
         setFilterData({

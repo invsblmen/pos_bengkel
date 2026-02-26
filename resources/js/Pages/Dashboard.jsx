@@ -4,9 +4,15 @@ import Widget from '@/Components/Dashboard/Widget';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import { Head } from '@inertiajs/react';
 import { IconBox, IconCategory, IconMoneybag, IconUsers } from '@tabler/icons-react';
+import { useVisibilityRealtime } from '@/Hooks/useRealtime';
+
 export default function Dashboard() {
-
-
+    // Enable real-time updates for dashboard stats
+    useVisibilityRealtime({
+        interval: 10000, // Refresh every 10 seconds
+        preserveScroll: true,
+        preserveState: true
+    });
 
     return (
         <>

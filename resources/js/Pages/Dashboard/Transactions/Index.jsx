@@ -18,6 +18,7 @@ import HeldTransactions, {
     HoldButton,
 } from "@/Components/POS/HeldTransactions";
 import useBarcodeScanner from "@/Hooks/useBarcodeScanner";
+import { useVisibilityRealtime } from "@/Hooks/useRealtime";
 import { getProductImageUrl } from "@/Utils/imageUrl";
 import {
     IconUser,
@@ -53,6 +54,15 @@ export default function Index({
     defaultPaymentGateway = "cash",
 }) {
     const { auth, errors } = usePage().props;
+
+    // Enable real-time updates for products and cart
+    // Pause when tab not visible to save resources
+    useVisibilityRealtime({
+        interval: 5000,
+        only: ['products', 'carts', 'heldCarts'],
+        preserveScroll: true,
+        preserveState: true
+    });
 
     // State
     const [searchQuery, setSearchQuery] = useState("");

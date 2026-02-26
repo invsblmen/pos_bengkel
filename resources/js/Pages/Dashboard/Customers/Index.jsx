@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import DashboardLayout from "@/Layouts/DashboardLayout";
 import { Head, usePage, Link } from "@inertiajs/react";
 import Button from "@/Components/Dashboard/Button";
+import { useVisibilityRealtime } from "@/Hooks/useRealtime";
 import {
     IconCirclePlus,
     IconDatabaseOff,
@@ -114,6 +115,14 @@ function CustomerCard({ customer }) {
 export default function Index({ customers }) {
     const { roles, permissions, errors } = usePage().props;
     const [viewMode, setViewMode] = useState("grid");
+
+    // Enable real-time updates
+    useVisibilityRealtime({
+        interval: 5000,
+        only: ['customers'],
+        preserveScroll: true,
+        preserveState: true
+    });
 
     return (
         <>

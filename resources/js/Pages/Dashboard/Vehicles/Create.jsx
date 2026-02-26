@@ -9,7 +9,9 @@ import {
     IconEngine,
     IconInfoCircle,
     IconLicense,
-    IconNote
+    IconNote,
+    IconX,
+    IconPlus
 } from '@tabler/icons-react';
 import toast from 'react-hot-toast';
 
@@ -26,6 +28,7 @@ export default function Create({ customers }) {
         engine_type: '',
         transmission_type: '',
         cylinder_volume: '',
+        features: [],
         notes: '',
         // STNK fields
         chassis_number: '',
@@ -36,6 +39,19 @@ export default function Create({ customers }) {
         stnk_expiry_date: '',
         previous_owner: '',
     });
+
+    const [featureInput, setFeatureInput] = useState('');
+
+    const addFeature = () => {
+        if (featureInput.trim()) {
+            setData('features', [...data.features, featureInput.trim()]);
+            setFeatureInput('');
+        }
+    };
+
+    const removeFeature = (index) => {
+        setData('features', data.features.filter((_, i) => i !== index));
+    };
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -447,6 +463,81 @@ export default function Create({ customers }) {
                                     )}
                                 </div>
                             </div>
+                        </div>
+                    </div>
+
+                    {/* Features */}
+                    <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 dark:bg-slate-800 dark:ring-slate-700">
+                        <div className="border-b border-slate-200 bg-slate-50 px-6 py-4 dark:border-slate-700 dark:bg-slate-800/50">
+                            <div className="flex items-center gap-3">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100 dark:bg-indigo-900/50">
+                                    <IconInfoCircle size={20} className="text-indigo-600 dark:text-indigo-400" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+                                        Fitur & Kondisi Kendaraan
+                                    </h3>
+                                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                                        Tambahkan fitur atau kondisi khusus kendaraan
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="p-6">
+                            <div className="flex gap-2 mb-4">
+                                <input
+                                    type="text"
+                                    value={featureInput}
+                                    onChange={(e) => setFeatureInput(e.target.value)}
+                                    onKeyPress={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            addFeature();
+                                        }
+                                    }}
+                                    placeholder="Contoh: ABS, Smart Key System, LED Headlight..."
+                                    className="flex-1 h-11 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:ring-4 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={addFeature}
+                                    className="flex items-center gap-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-xl transition-all duration-200 shadow-sm hover:shadow"
+                                >
+                                    <IconPlus size={18} />
+                                    <span className="hidden sm:inline">Tambah</span>
+                                </button>
+                            </div>
+                            
+                            {/* Features Tags */}
+                            {data.features.length > 0 && (
+                                <div className="flex flex-wrap gap-2">
+                                    {data.features.map((feature, index) => (
+                                        <div
+                                            key={index}
+                                            className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 rounded-lg border border-indigo-200 dark:border-indigo-800"
+                                        >
+                                            <span className="text-sm font-medium">{feature}</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => removeFeature(index)}
+                                                className="hover:bg-indigo-200 dark:hover:bg-indigo-800 rounded p-0.5 transition-colors"
+                                            >
+                                                <IconX size={14} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            
+                            {data.features.length === 0 && (
+                                <p className="text-sm text-slate-400 dark:text-slate-500 italic">
+                                    Belum ada fitur ditambahkan
+                                </p>
+                            )}
+                            
+                            {errors.features && (
+                                <p className="mt-2 text-xs text-danger-500">{errors.features}</p>
+                            )}
                         </div>
                     </div>
 

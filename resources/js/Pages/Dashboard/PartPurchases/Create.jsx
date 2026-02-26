@@ -787,43 +787,86 @@ export default function Create({ suppliers, parts, categories = [] }) {
                 }}
                 initialName={createPartName}
                 categories={categories}
+                onSuccess={(newPart) => {
+                    // Direct callback from modal with new part data
+                    console.log('🎯 onSuccess callback received:', newPart);
+                    console.log('📋 newPart fields:', {
+                        id: newPart?.id,
+                        name: newPart?.name,
+                        buy_price: newPart?.buy_price,
+                        sell_price: newPart?.sell_price,
+                        stock: newPart?.stock,
+                        part_number: newPart?.part_number,
+                    });
+
+                    if (newPart && newPart.id) {
+                        console.log('✅ Adding new part to local list:', newPart.name);
+
+                        // Ensure newPart has default values for required fields
+                        const completePart = {
+                            ...newPart,
+                            stock: newPart.stock ?? 0,
+                            buy_price: newPart.buy_price ?? 0,
+                            sell_price: newPart.sell_price ?? 0,
+                            part_number: newPart.part_number ?? '',
+                        };
+
+                        console.log('📦 Complete part:', completePart);
+
+                        // Update local parts list with the newly created part
+                        setLocalParts((prev) => {
+                            // Check if part already exists to avoid duplicates
+                            const exists = prev.some((p) => p.id === completePart.id);
+                            if (exists) {
+                                console.log('⚠️ Part already exists in list');
+                                return prev;
+                            }
+                            console.log('✅ Adding part to list, total:', prev.length + 1);
+                            return [...prev, completePart];
+                        });
+
+                        // Auto-select the newly created part
+                        console.log('🎯 Setting selectedPart:', completePart.name);
+                        setSelectedPart(completePart);
+                        console.log('💰 Setting itemPrice:', completePart.buy_price);
+                        setItemPrice(completePart.buy_price || 0);
+                        setItemQty(1);
+
+                        // Reset search part agar semua parts terlihat
+                        console.log('🔍 Resetting searchPart');
+                        setSearchPart('');
+
+                        // Close the create part modal
+                        console.log('❌ Closing create part modal');
+                        setShowPartModal(false);
+                        setCreatePartName('');
+
+                        toast.success('✅ Sparepart berhasil ditambahkan dan dipilih');
+
+                        // Keep item modal open so user can adjust quantity and add to cart
+                        console.log('📂 Opening item selection modal');
+                        setShowItemModal(true);
+
+                        console.log('✅ All state updates queued');
+                    } else {
+                        console.error('❌ Invalid part data:', newPart);
+                        toast.error('Data sparepart tidak valid');
+                    }
+                }}
                 onPartCreated={() => {
-                    // Refetch parts list after part creation
+                    // Refetch parts list after part creation (fallback)
+                    console.log('🔄 Refetching parts list...');
                     router.get(route('part-purchases.create'), {}, {
                         preserveScroll: true,
-                        preserveState: true, // Preserve component state to keep modals open
+                        preserveState: true,
                         only: ['parts'],
                         onSuccess: (response) => {
                             const updatedParts = response.props?.parts || [];
+                            console.log('✅ Parts list refetched, total:', updatedParts.length);
                             setLocalParts(updatedParts);
-
-                            // Find and select the newly created part by name
-                            const createdPart = updatedParts.find(p => p.name === createPartName);
-                            if (createdPart) {
-                                setSelectedPart(createdPart);
-                                setItemPrice(createdPart.buy_price || createdPart.sell_price || 0);
-                                toast.success('Sparepart berhasil ditambahkan dan dipilih');
-                            }
-
-                            // Close only the create part modal, keep item selection modal open
-                            setShowPartModal(false);
-                            setCreatePartName('');
-                            // Explicitly keep the item selection modal open
-                            setShowItemModal(true);
+                            toast.success('Data sparepart diperbarui');
                         }
                     });
-                }}
-                onSuccess={(newPart) => {
-                    if (newPart && newPart.id) {
-                        // Update local parts list with the new part
-                        setLocalParts(prev => [...prev, newPart]);
-                        // Auto-select the newly created part
-                        setSelectedPart(newPart);
-                        setItemPrice(newPart.buy_price || newPart.sell_price || 0);
-                        setShowPartModal(false);
-                        setCreatePartName('');
-                        toast.success('Sparepart berhasil ditambahkan dan dipilih');
-                    }
                 }}
             />
         </>

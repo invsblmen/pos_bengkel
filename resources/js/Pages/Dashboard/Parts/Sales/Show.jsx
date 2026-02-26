@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
-import { IconArrowLeft, IconPrinter, IconPencil, IconEdit, IconCheck, IconX, IconCash } from '@tabler/icons-react';
+import { IconArrowLeft, IconPrinter, IconPencil, IconEdit, IconCheck, IconX, IconCash, IconShoppingCart, IconReceipt, IconUser, IconDiscount } from '@tabler/icons-react';
 import toast from 'react-hot-toast';
 
 const statusColors = {
@@ -48,7 +48,7 @@ export default function Show({ sale }) {
     const taxAmount = sale.tax_amount || 0;
     const grandTotal = sale.grand_total ?? subtotal - discountAmount + taxAmount;
     const paidAmount = sale.paid_amount || 0;
-    const remainingAmount = sale.remaining_amount ?? Math.max(0, grandTotal - paidAmount);
+    const remainingAmount = sale.remaining_amount ?? (grandTotal - paidAmount);
 
     const handlePrint = () => window.print();
 
@@ -107,302 +107,424 @@ export default function Show({ sale }) {
         <DashboardLayout>
             <Head title={`Penjualan ${sale.sale_number}`} />
 
-            <div className="space-y-6 print:hidden">
-                <div className="rounded-2xl bg-gradient-to-r from-primary-600 to-primary-700 p-6 text-white shadow-lg">
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex items-center gap-3">
-                            <Link href={route('part-sales.index')} className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2 text-sm font-semibold">
-                                <IconArrowLeft size={18} /> Kembali
-                            </Link>
-                            <div>
-                                <h1 className="text-2xl font-bold">{sale.sale_number}</h1>
-                                <p className="text-sm text-white/80">{formatDate(sale.sale_date || sale.created_at)}</p>
+            <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 -m-6 p-6">
+                <div className="space-y-6 print:hidden">
+                    {/* Hero Header */}
+                    <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 dark:from-emerald-700 dark:to-emerald-800 rounded-2xl shadow-xl">
+                        <div className="px-6 py-6">
+                            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                                <div className="flex items-center gap-4">
+                                    <Link href={route('part-sales.index')}>
+                                        <button className="flex items-center justify-center w-12 h-12 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all duration-200 backdrop-blur-sm hover:scale-105">
+                                            <IconArrowLeft size={20} />
+                                        </button>
+                                    </Link>
+                                    <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-white/10 backdrop-blur-sm">
+                                        <IconShoppingCart size={28} className="text-white" />
+                                    </div>
+                                    <div>
+                                        <h1 className="text-3xl font-bold text-white">{sale.sale_number}</h1>
+                                        <p className="text-emerald-100 mt-1">{formatDate(sale.sale_date || sale.created_at)}</p>
+                                    </div>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-3">
+                                    <span className={`inline-flex items-center px-4 py-2 rounded-xl text-sm font-bold border-2 shadow-lg ${
+                                        statusColors[sale.status] || 'bg-white/10 text-white border-white/20'
+                                    }`}>
+                                        {sale.status === 'confirmed'
+                                            ? '✅ Dikonfirmasi'
+                                            : sale.status === 'draft'
+                                                ? '📝 Draft'
+                                                : sale.status === 'completed'
+                                                    ? '🎯 Selesai'
+                                                    : '❌ Dibatalkan'}
+                                    </span>
+                                    <button
+                                        onClick={handlePrint}
+                                        className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-bold text-emerald-700 shadow-xl hover:shadow-2xl hover:scale-105 transition-all"
+                                    >
+                                        <IconPrinter size={18} /> Cetak
+                                    </button>
+                                    {sale.status === 'draft' && (
+                                        <Link
+                                            href={route('part-sales.edit', sale.id)}
+                                            className="inline-flex items-center gap-2 rounded-xl bg-white/10 border-2 border-white/20 px-5 py-2.5 text-sm font-bold text-white hover:bg-white/20 backdrop-blur-sm transition-all"
+                                        >
+                                            <IconPencil size={18} /> Edit
+                                        </Link>
+                                    )}
+                                    {canChangeStatus() && (
+                                        <button
+                                            onClick={() => setShowStatusModal(true)}
+                                            className="inline-flex items-center gap-2 rounded-xl bg-white/10 border-2 border-white/20 px-5 py-2.5 text-sm font-bold text-white hover:bg-white/20 backdrop-blur-sm transition-all"
+                                        >
+                                            <IconEdit size={18} /> Update Status
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                            <span className={`inline-flex items-center px-3 py-1 rounded-lg text-xs font-semibold border ${
-                                statusColors[sale.status] || 'bg-white/10 text-white border-white/20'
-                            }`}>
-                                {sale.status === 'confirmed'
-                                    ? 'Dikonfirmasi'
-                                    : sale.status === 'draft'
-                                        ? 'Draft'
-                                        : sale.status === 'completed'
-                                            ? 'Selesai'
-                                            : 'Dibatalkan'}
-                            </span>
-                            <button
-                                onClick={handlePrint}
-                                className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-primary-700 shadow hover:bg-white/90"
-                            >
-                                <IconPrinter size={18} /> Cetak
-                            </button>
-                            {sale.status === 'draft' && (
-                                <Link
-                                    href={route('part-sales.edit', sale.id)}
-                                    className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2 text-sm font-semibold"
-                                >
-                                    <IconPencil size={18} /> Edit
-                                </Link>
+                    </div>
+
+                    <div className="grid gap-6 lg:grid-cols-3">
+                        <div className="lg:col-span-2 space-y-6">
+                            {/* Details Section */}
+                            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                                <div className="bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 px-6 py-4 border-b border-purple-200 dark:border-purple-700/30">
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-purple-500 text-white shadow-lg shadow-purple-500/30">
+                                            <IconReceipt size={20} />
+                                        </div>
+                                        <div>
+                                            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Detail Penjualan</h2>
+                                            <p className="text-sm text-slate-600 dark:text-slate-400">{sale.details.length} item sparepart</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm">
+                                        <thead className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 border-b-2 border-slate-200 dark:border-slate-700">
+                                            <tr>
+                                                <th className="px-6 py-3 text-left font-bold text-slate-700 dark:text-slate-300">Sparepart</th>
+                                                <th className="px-6 py-3 text-right font-bold text-slate-700 dark:text-slate-300">Qty</th>
+                                                <th className="px-6 py-3 text-right font-bold text-slate-700 dark:text-slate-300">Harga</th>
+                                                <th className="px-6 py-3 text-right font-bold text-slate-700 dark:text-slate-300">Diskon</th>
+                                                <th className="px-6 py-3 text-right font-bold text-slate-700 dark:text-slate-300">Total</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                            {sale.details.map((detail) => (
+                                                <tr key={detail.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
+                                                    <td className="px-6 py-4">
+                                                        <div className="font-bold text-slate-900 dark:text-white">{detail.part?.name || '-'}</div>
+                                                        <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">{detail.part?.part_number || '-'}</div>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-right font-bold text-slate-900 dark:text-white">{detail.quantity}</td>
+                                                    <td className="px-6 py-4 text-right font-semibold text-slate-900 dark:text-white">{formatCurrency(detail.unit_price)}</td>
+                                                    <td className="px-6 py-4 text-right font-bold text-red-600 dark:text-red-400">-{formatCurrency(calculateItemDiscount(detail))}</td>
+                                                    <td className="px-6 py-4 text-right font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(calculateItemTotal(detail))}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                        <tfoot className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800/60 dark:to-slate-900/60 border-t-2 border-slate-200 dark:border-slate-700">
+                                            <tr>
+                                                <td colSpan="4" className="px-6 py-4 text-right font-bold text-slate-900 dark:text-white">Subtotal Item</td>
+                                                <td className="px-6 py-4 text-right font-bold text-xl text-emerald-600 dark:text-emerald-400">{formatCurrency(subtotal)}</td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </div>
+
+                            {sale.notes && (
+                                <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                                    <div className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 px-6 py-4 border-b border-blue-200 dark:border-blue-700/30">
+                                        <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                            <IconReceipt size={18} className="text-blue-600 dark:text-blue-400" />
+                                            Catatan Penjualan
+                                        </h3>
+                                    </div>
+                                    <div className="p-6">
+                                        <p className="text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{sale.notes}</p>
+                                    </div>
+                                </div>
                             )}
-                            {canChangeStatus() && (
-                                <button
-                                    onClick={() => setShowStatusModal(true)}
-                                    className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2 text-sm font-semibold"
-                                >
-                                    <IconEdit size={18} /> Update Status
-                                </button>
+                        </div>
+
+                        <div className="space-y-6">
+                            {/* Info Card */}
+                            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                                <div className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 px-6 py-4 border-b border-blue-200 dark:border-blue-700/30">
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-blue-500 text-white shadow-lg shadow-blue-500/30">
+                                            <IconUser size={20} />
+                                        </div>
+                                        <h3 className="font-bold text-slate-900 dark:text-white">Informasi</h3>
+                                    </div>
+                                </div>
+                                <div className="p-6 space-y-4">
+                                    <div className="space-y-3 text-sm">
+                                        <div className="flex items-center justify-between py-3 border-b border-slate-200 dark:border-slate-800">
+                                            <span className="text-slate-600 dark:text-slate-400 font-medium">Pelanggan</span>
+                                            <span className="font-bold text-slate-900 dark:text-white">{sale.customer?.name || '-'}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between py-3 border-b border-slate-200 dark:border-slate-800">
+                                            <span className="text-slate-600 dark:text-slate-400 font-medium">Dibuat oleh</span>
+                                            <span className="font-bold text-slate-900 dark:text-white">{sale.creator?.name || '-'}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between py-3">
+                                            <span className="text-slate-600 dark:text-slate-400 font-medium">Status Pembayaran</span>
+                                            <span className={`inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-bold border-2 shadow-sm ${
+                                                paymentColors[sale.payment_status] || paymentColors.unpaid
+                                            }`}>
+                                                {sale.payment_status === 'paid' ? '✓ Lunas' : sale.payment_status === 'partial' ? '◐ Sebagian' : '○ Belum Bayar'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Summary Card */}
+                            <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-800/20 rounded-2xl shadow-xl border-2 border-emerald-200 dark:border-emerald-700/30 overflow-hidden">
+                                <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 px-6 py-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm">
+                                            <IconReceipt size={20} className="text-white" />
+                                        </div>
+                                        <h3 className="font-bold text-white text-lg">Ringkasan Penjualan</h3>
+                                    </div>
+                                </div>
+                                <div className="p-6 space-y-4">
+                                    <div className="space-y-3 text-sm">
+                                        <div className="flex items-center justify-between pb-3 border-b border-emerald-200 dark:border-emerald-700/30">
+                                            <span className="text-slate-600 dark:text-slate-400 font-medium">Subtotal</span>
+                                            <span className="font-bold text-slate-900 dark:text-white">{formatCurrency(subtotal)}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between pb-3 border-b border-emerald-200 dark:border-emerald-700/30">
+                                            <span className="text-slate-600 dark:text-slate-400 font-medium flex items-center gap-1">
+                                                <IconDiscount size={14} className="text-red-500" />
+                                                Diskon
+                                            </span>
+                                            <span className="font-bold text-red-600 dark:text-red-400">-{formatCurrency(discountAmount)}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between pb-3 border-b border-emerald-200 dark:border-emerald-700/30">
+                                            <span className="text-slate-600 dark:text-slate-400 font-medium">Pajak</span>
+                                            <span className="font-bold text-green-600 dark:text-green-400">+{formatCurrency(taxAmount)}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between pt-2 pb-4 border-b-2 border-emerald-300 dark:border-emerald-600">
+                                            <span className="text-lg font-bold text-slate-900 dark:text-white">Total</span>
+                                            <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(grandTotal)}</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-3 text-sm">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-slate-600 dark:text-slate-400 font-medium">Sudah Bayar</span>
+                                            <span className="font-bold text-slate-900 dark:text-white">{formatCurrency(paidAmount)}</span>
+                                        </div>
+                                        {paidAmount > grandTotal && (
+                                            <div className="px-4 py-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-700/30">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="font-bold text-blue-700 dark:text-blue-400">Kembalian</span>
+                                                    <span className="font-bold text-blue-600 dark:text-blue-400">{formatCurrency(paidAmount - grandTotal)}</span>
+                                                </div>
+                                            </div>
+                                        )}
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-slate-600 dark:text-slate-400 font-medium">Sisa Pembayaran</span>
+                                            <span className={`font-bold ${
+                                                remainingAmount <= 0
+                                                    ? 'text-green-600 dark:text-green-400'
+                                                    : 'text-slate-900 dark:text-white'
+                                            }`}>
+                                                {remainingAmount > 0 ? formatCurrency(remainingAmount) : '-'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Payment Section */}
+                            {remainingAmount > 0 && sale.status !== 'draft' && (
+                                <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                                    <div className="bg-gradient-to-r from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 px-6 py-4 border-b border-orange-200 dark:border-orange-700/30">
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-orange-500 text-white shadow-lg shadow-orange-500/30">
+                                                <IconCash size={20} />
+                                            </div>
+                                            <h3 className="font-bold text-slate-900 dark:text-white">Catat Pembayaran</h3>
+                                        </div>
+                                    </div>
+                                    <div className="p-6 space-y-4">
+                                        <div>
+                                            <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
+                                                Jumlah Pembayaran
+                                            </label>
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                value={paymentAmount}
+                                                onChange={(e) => setPaymentAmount(e.target.value)}
+                                                placeholder="Masukkan jumlah pembayaran..."
+                                                className="w-full h-12 px-4 rounded-xl border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-bold text-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all"
+                                            />
+                                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                                                Sisa yang harus dibayar: <span className="font-bold text-orange-600">{formatCurrency(remainingAmount)}</span>
+                                            </p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={handleUpdatePayment}
+                                            disabled={updatingPayment}
+                                            className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-orange-600 to-orange-700 text-white py-3 text-sm font-bold hover:from-orange-700 hover:to-orange-800 shadow-lg shadow-orange-500/30 disabled:opacity-70 transition-all hover:scale-105"
+                                        >
+                                            {updatingPayment ? (
+                                                <>
+                                                    <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                    </svg>
+                                                    Menyimpan...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <IconCash size={18} /> Simpan Pembayaran
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
+                                </div>
                             )}
                         </div>
                     </div>
                 </div>
 
-                <div className="grid gap-6 lg:grid-cols-3">
-                    <div className="lg:col-span-2 space-y-6">
-                        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-                            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800">
-                                <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Detail Penjualan</h2>
+                {/* Print View */}
+                <div className="hidden print:block">
+                    <div className="space-y-6 text-slate-900">
+                        <div className="flex items-start justify-between border-b border-slate-300 pb-4">
+                            <div>
+                                <h1 className="text-2xl font-bold">Invoice Penjualan Sparepart</h1>
+                                <p className="text-sm text-slate-600">{sale.sale_number}</p>
                             </div>
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-sm">
-                                    <thead className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
-                                        <tr>
-                                            <th className="px-6 py-3 text-left font-semibold text-slate-600 dark:text-slate-300">Sparepart</th>
-                                            <th className="px-6 py-3 text-right font-semibold text-slate-600 dark:text-slate-300">Qty</th>
-                                            <th className="px-6 py-3 text-right font-semibold text-slate-600 dark:text-slate-300">Harga</th>
-                                            <th className="px-6 py-3 text-right font-semibold text-slate-600 dark:text-slate-300">Diskon</th>
-                                            <th className="px-6 py-3 text-right font-semibold text-slate-600 dark:text-slate-300">Total</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                        {sale.details.map((detail) => (
-                                            <tr key={detail.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
-                                                <td className="px-6 py-3">
-                                                    <div className="font-medium text-slate-900 dark:text-white">{detail.part?.name || '-'}</div>
-                                                    <div className="text-xs text-slate-500 dark:text-slate-400">{detail.part?.part_number || '-'}</div>
-                                                </td>
-                                                <td className="px-6 py-3 text-right text-slate-900 dark:text-white">{detail.quantity}</td>
-                                                <td className="px-6 py-3 text-right text-slate-900 dark:text-white">{formatCurrency(detail.unit_price)}</td>
-                                                <td className="px-6 py-3 text-right text-rose-600">-{formatCurrency(calculateItemDiscount(detail))}</td>
-                                                <td className="px-6 py-3 text-right font-semibold text-slate-900 dark:text-white">{formatCurrency(calculateItemTotal(detail))}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                            <div className="text-sm text-slate-600">
+                                <p>Tanggal: {formatDate(sale.sale_date || sale.created_at)}</p>
+                                <p>Status: {sale.status}</p>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <p className="font-semibold">Pelanggan</p>
+                                <p>{sale.customer?.name || '-'}</p>
+                            </div>
+                            <div className="text-right">
+                                <p className="font-semibold">Pembayaran</p>
+                                <p>{sale.payment_status}</p>
+                            </div>
+                        </div>
+
+                        <table className="w-full text-sm border border-slate-300">
+                            <thead className="bg-slate-100">
+                                <tr>
+                                    <th className="px-3 py-2 text-left border-b border-slate-300">Sparepart</th>
+                                    <th className="px-3 py-2 text-right border-b border-slate-300">Harga</th>
+                                    <th className="px-3 py-2 text-right border-b border-slate-300">Qty</th>
+                                    <th className="px-3 py-2 text-right border-b border-slate-300">Diskon</th>
+                                    <th className="px-3 py-2 text-right border-b border-slate-300">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {sale.details.map((detail) => (
+                                    <tr key={detail.id} className="border-b border-slate-200">
+                                        <td className="px-3 py-2">{detail.part?.name || '-'}</td>
+                                        <td className="px-3 py-2 text-right">{formatCurrency(detail.unit_price)}</td>
+                                        <td className="px-3 py-2 text-right">{detail.quantity}</td>
+                                        <td className="px-3 py-2 text-right">-{formatCurrency(calculateItemDiscount(detail))}</td>
+                                        <td className="px-3 py-2 text-right">{formatCurrency(calculateItemTotal(detail))}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+
+                        <div className="flex justify-end">
+                            <div className="w-72 space-y-2 text-sm">
+                                <div className="flex justify-between">
+                                    <span>Subtotal</span>
+                                    <span>{formatCurrency(subtotal)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span>Diskon</span>
+                                    <span>-{formatCurrency(discountAmount)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span>Pajak</span>
+                                    <span>+{formatCurrency(taxAmount)}</span>
+                                </div>
+                                <div className="flex justify-between border-t border-slate-300 pt-2 font-semibold">
+                                    <span>Total</span>
+                                    <span>{formatCurrency(grandTotal)}</span>
+                                </div>
                             </div>
                         </div>
 
                         {sale.notes && (
-                            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
-                                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Catatan</h3>
-                                <p className="text-slate-600 dark:text-slate-400 whitespace-pre-wrap">{sale.notes}</p>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="space-y-6">
-                        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
-                            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Informasi</h3>
-                            <div className="space-y-3 text-sm text-slate-600 dark:text-slate-300">
-                                <div className="flex items-center justify-between">
-                                    <span>Pelanggan</span>
-                                    <span className="font-medium text-slate-900 dark:text-white">{sale.customer?.name || '-'}</span>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <span>Dibuat oleh</span>
-                                    <span className="font-medium text-slate-900 dark:text-white">{sale.creator?.name || '-'}</span>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <span>Status Pembayaran</span>
-                                    <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium border ${
-                                        paymentColors[sale.payment_status] || paymentColors.unpaid
-                                    }`}>
-                                        {sale.payment_status === 'paid' ? 'Lunas' : sale.payment_status === 'partial' ? 'Sebagian' : 'Belum Bayar'}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
-                            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Ringkasan</h3>
-                            <div className="space-y-2 text-sm text-slate-600 dark:text-slate-300">
-                                <div className="flex items-center justify-between">
-                                    <span>Subtotal</span>
-                                    <span className="font-medium text-slate-900 dark:text-white">{formatCurrency(subtotal)}</span>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <span>Diskon</span>
-                                    <span className="font-medium text-rose-600">-{formatCurrency(discountAmount)}</span>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <span>Pajak</span>
-                                    <span className="font-medium text-emerald-600">+{formatCurrency(taxAmount)}</span>
-                                </div>
-                                <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800 text-base font-bold">
-                                    <span>Total</span>
-                                    <span className="text-slate-900 dark:text-white">{formatCurrency(grandTotal)}</span>
-                                </div>
-                            </div>
-                            <div className="mt-4 space-y-2 text-sm text-slate-600 dark:text-slate-300">
-                                <div className="flex items-center justify-between">
-                                    <span>Sudah Bayar</span>
-                                    <span className="font-medium text-slate-900 dark:text-white">{formatCurrency(paidAmount)}</span>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <span>Sisa</span>
-                                    <span className="font-semibold text-slate-900 dark:text-white">{formatCurrency(remainingAmount)}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {remainingAmount > 0 && sale.status !== 'draft' && (
-                            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
-                                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Catat Pembayaran</h3>
-                                <div className="space-y-3">
-                                    <input
-                                        type="number"
-                                        min="1"
-                                        value={paymentAmount}
-                                        onChange={(e) => setPaymentAmount(e.target.value)}
-                                        placeholder="Masukkan jumlah pembayaran"
-                                        className="w-full h-11 px-4 rounded-xl border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={handleUpdatePayment}
-                                        disabled={updatingPayment}
-                                        className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary-600 text-white py-2.5 text-sm font-semibold hover:bg-primary-700 disabled:opacity-70"
-                                    >
-                                        <IconCash size={16} /> Simpan Pembayaran
-                                    </button>
-                                </div>
+                            <div className="text-sm text-slate-700">
+                                <p className="font-semibold">Catatan:</p>
+                                <p>{sale.notes}</p>
                             </div>
                         )}
                     </div>
                 </div>
-            </div>
 
-            <div className="hidden print:block">
-                <div className="space-y-6 text-slate-900">
-                    <div className="flex items-start justify-between border-b border-slate-300 pb-4">
-                        <div>
-                            <h1 className="text-2xl font-bold">Invoice Penjualan Sparepart</h1>
-                            <p className="text-sm text-slate-600">{sale.sale_number}</p>
-                        </div>
-                        <div className="text-sm text-slate-600">
-                            <p>Tanggal: {formatDate(sale.sale_date || sale.created_at)}</p>
-                            <p>Status: {sale.status}</p>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                            <p className="font-semibold">Pelanggan</p>
-                            <p>{sale.customer?.name || '-'}</p>
-                        </div>
-                        <div className="text-right">
-                            <p className="font-semibold">Pembayaran</p>
-                            <p>{sale.payment_status}</p>
-                        </div>
-                    </div>
-
-                    <table className="w-full text-sm border border-slate-300">
-                        <thead className="bg-slate-100">
-                            <tr>
-                                <th className="px-3 py-2 text-left border-b border-slate-300">Sparepart</th>
-                                <th className="px-3 py-2 text-right border-b border-slate-300">Harga</th>
-                                <th className="px-3 py-2 text-right border-b border-slate-300">Qty</th>
-                                <th className="px-3 py-2 text-right border-b border-slate-300">Diskon</th>
-                                <th className="px-3 py-2 text-right border-b border-slate-300">Total</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {sale.details.map((detail) => (
-                                <tr key={detail.id} className="border-b border-slate-200">
-                                    <td className="px-3 py-2">{detail.part?.name || '-'}</td>
-                                    <td className="px-3 py-2 text-right">{formatCurrency(detail.unit_price)}</td>
-                                    <td className="px-3 py-2 text-right">{detail.quantity}</td>
-                                    <td className="px-3 py-2 text-right">-{formatCurrency(calculateItemDiscount(detail))}</td>
-                                    <td className="px-3 py-2 text-right">{formatCurrency(calculateItemTotal(detail))}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-
-                    <div className="flex justify-end">
-                        <div className="w-72 space-y-2 text-sm">
-                            <div className="flex justify-between">
-                                <span>Subtotal</span>
-                                <span>{formatCurrency(subtotal)}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span>Diskon</span>
-                                <span>-{formatCurrency(discountAmount)}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span>Pajak</span>
-                                <span>+{formatCurrency(taxAmount)}</span>
-                            </div>
-                            <div className="flex justify-between border-t border-slate-300 pt-2 font-semibold">
-                                <span>Total</span>
-                                <span>{formatCurrency(grandTotal)}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {sale.notes && (
-                        <div className="text-sm text-slate-700">
-                            <p className="font-semibold">Catatan:</p>
-                            <p>{sale.notes}</p>
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            {showStatusModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                    <div className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl">
-                        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800">
-                            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Update Status</h3>
-                            <button onClick={() => setShowStatusModal(false)} className="text-slate-500 hover:text-slate-700">
-                                <IconX size={18} />
-                            </button>
-                        </div>
-                        <div className="p-6 space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Status Baru</label>
-                                <select
-                                    value={newStatus}
-                                    onChange={(e) => setNewStatus(e.target.value)}
-                                    className="w-full h-11 px-3 rounded-xl border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                {/* Status Update Modal */}
+                {showStatusModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn">
+                        <div className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 shadow-2xl border-2 border-slate-200 dark:border-slate-800 animate-slideUp">
+                            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-5 flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm">
+                                        <IconEdit size={20} className="text-white" />
+                                    </div>
+                                    <h3 className="text-xl font-bold text-white">Update Status</h3>
+                                </div>
+                                <button 
+                                    onClick={() => setShowStatusModal(false)} 
+                                    className="flex items-center justify-center w-10 h-10 rounded-xl hover:bg-white/10 text-white transition-all duration-200"
                                 >
-                                    <option value="draft">Draft</option>
-                                    <option value="confirmed">Dikonfirmasi</option>
-                                    <option value="completed">Selesai</option>
-                                    <option value="cancelled">Dibatalkan</option>
-                                </select>
+                                    <IconX size={20} />
+                                </button>
+                            </div>
+                            <div className="p-6 space-y-4">
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
+                                        Status Baru
+                                    </label>
+                                    <select
+                                        value={newStatus}
+                                        onChange={(e) => setNewStatus(e.target.value)}
+                                        className="w-full h-12 px-4 rounded-xl border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                                    >
+                                        <option value="draft">📝 Draft</option>
+                                        <option value="confirmed">✅ Dikonfirmasi</option>
+                                        <option value="completed">🎯 Selesai</option>
+                                        <option value="cancelled">❌ Dibatalkan</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div className="flex items-center justify-end gap-3 px-6 py-5 border-t-2 border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowStatusModal(false)}
+                                    className="px-5 py-2.5 rounded-xl border-2 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                                >
+                                    Batal
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={updateStatus}
+                                    disabled={updatingStatus}
+                                    className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold hover:from-blue-700 hover:to-blue-800 shadow-lg shadow-blue-500/30 disabled:opacity-70 transition-all hover:scale-105"
+                                >
+                                    {updatingStatus ? (
+                                        <>
+                                            <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            Menyimpan...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <IconCheck size={18} /> Simpan
+                                        </>
+                                    )}
+                                </button>
                             </div>
                         </div>
-                        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 rounded-b-2xl">
-                            <button
-                                type="button"
-                                onClick={() => setShowStatusModal(false)}
-                                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
-                            >
-                                Batal
-                            </button>
-                            <button
-                                type="button"
-                                onClick={updateStatus}
-                                disabled={updatingStatus}
-                                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-600 text-white font-semibold hover:bg-primary-700 disabled:opacity-70"
-                            >
-                                <IconCheck size={16} /> Simpan
-                            </button>
-                        </div>
                     </div>
-                </div>
-            )}
+                )}
+            </div>
         </DashboardLayout>
     );
 }

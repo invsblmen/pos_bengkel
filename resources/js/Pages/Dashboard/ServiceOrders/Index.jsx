@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import Pagination from '@/Components/Dashboard/Pagination';
+import { useVisibilityRealtime } from '@/Hooks/useRealtime';
 import {
     IconPlus,
     IconSearch,
@@ -29,6 +30,15 @@ export default function Index({ orders, stats, mechanics, filters }) {
     const [dateTo, setDateTo] = useState(filters.date_to || '');
     const [mechanicId, setMechanicId] = useState(filters.mechanic_id || 'all');
     const [showFilters, setShowFilters] = useState(false);
+
+    // Enable real-time updates - auto refresh every 5 seconds
+    // Pause when tab not visible to save resources
+    useVisibilityRealtime({
+        interval: 5000,
+        only: ['orders', 'stats'],
+        preserveScroll: true,
+        preserveState: true
+    });
 
     const handleFilter = (e) => {
         e?.preventDefault();

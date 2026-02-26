@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { createPortal } from "react-dom";
 import axios from "axios";
 import {
     IconUserPlus,
@@ -14,7 +15,7 @@ import toast from "react-hot-toast";
 export default function AddCustomerModal({ isOpen, onClose, onSuccess }) {
     const [form, setForm] = useState({
         name: "",
-        no_telp: "",
+        phone: "",
         email: "",
         address: "",
     });
@@ -32,11 +33,12 @@ export default function AddCustomerModal({ isOpen, onClose, onSuccess }) {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        e.stopPropagation();
 
         // Basic validation
         const newErrors = {};
         if (!form.name.trim()) newErrors.name = "Nama wajib diisi";
-        if (!form.no_telp.trim()) newErrors.no_telp = "No. telepon wajib diisi";
+        if (!form.phone.trim()) newErrors.phone = "No. telepon wajib diisi";
         if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
             newErrors.email = "Email tidak valid";
         }
@@ -57,7 +59,8 @@ export default function AddCustomerModal({ isOpen, onClose, onSuccess }) {
 
             if (response.data.success) {
                 toast.success("Pelanggan berhasil ditambahkan");
-                setForm({ name: "", no_telp: "", email: "", address: "" });
+                setForm({ name: "", phone: "", email: "", address: "" });
+                setErrors({});
                 setIsSubmitting(false);
                 onSuccess?.(response.data.customer);
                 onClose();
@@ -69,28 +72,52 @@ export default function AddCustomerModal({ isOpen, onClose, onSuccess }) {
                 setIsSubmitting(false);
             }
         } catch (err) {
-            console.error("Add customer error:", err);
+            console.error("Add customer error:", {
+                status: err.response?.status,
+                data: err.response?.data,
+                message: err.message
+            });
+
+            const errorMessage = err.response?.data?.message || err.message || "Gagal menambahkan pelanggan";
+
+            // Handle validation errors from server
             if (err.response?.data?.errors) {
-                setErrors(err.response.data.errors);
+                const serverErrors = err.response.data.errors;
+                setErrors(serverErrors);
+            } else if (err.response?.status === 422) {
+                // Unprocessable entity - validation error
+                toast.error("Data tidak valid: " + errorMessage);
+            } else if (err.response?.status === 401) {
+                toast.error("Anda harus login terlebih dahulu");
+            } else if (err.response?.status === 403) {
+                toast.error("Anda tidak memiliki izin untuk membuat pelanggan");
+            } else {
+                toast.error(errorMessage);
             }
-            toast.error(
-                err.response?.data?.message || "Gagal menambahkan pelanggan"
-            );
+
             setIsSubmitting(false);
         }
     };
 
     const handleClose = () => {
-        setForm({ name: "", no_telp: "", email: "", address: "" });
+        setForm({ name: "", phone: "", email: "", address: "" });
         setErrors({});
         onClose();
     };
 
     if (!isOpen) return null;
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+    return createPortal(
+        <div 
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+            onClick={(e) => {
+                // Only close if clicking the overlay background, not the modal itself
+                if (e.target === e.currentTarget) {
+                    handleClose();
+                }
+            }}
+        >
+            <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
                 {/* Header */}
                 <div className="bg-gradient-to-r from-primary-500 to-primary-600 px-6 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-3 text-white">
@@ -150,19 +177,19 @@ export default function AddCustomerModal({ isOpen, onClose, onSuccess }) {
                         </label>
                         <input
                             type="tel"
-                            name="no_telp"
-                            value={form.no_telp}
+                            name="phone"
+                            value={form.phone}
                             onChange={handleChange}
                             placeholder="Contoh: 08123456789"
                             className={`w-full h-11 px-4 rounded-xl border ${
-                                errors.no_telp
+                                errors.phone
                                     ? "border-danger-500 focus:ring-danger-500/20"
                                     : "border-slate-200 dark:border-slate-700 focus:ring-primary-500/20"
                             } bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-4 focus:border-primary-500 transition-all`}
                         />
-                        {errors.no_telp && (
+                        {errors.phone && (
                             <p className="mt-1 text-xs text-danger-500">
-                                {errors.no_telp}
+                                {errors.phone}
                             </p>
                         )}
                     </div>
@@ -247,7 +274,8 @@ export default function AddCustomerModal({ isOpen, onClose, onSuccess }) {
                     </div>
                 </form>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }
 

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import DashboardLayout from "@/Layouts/DashboardLayout";
 import { Head, usePage, Link } from "@inertiajs/react";
 import Button from "@/Components/Dashboard/Button";
+import { useVisibilityRealtime } from "@/Hooks/useRealtime";
 import {
     IconCirclePlus,
     IconDatabaseOff,
@@ -76,6 +77,14 @@ function CategoryCard({ category }) {
 export default function Index({ categories }) {
     const { roles, permissions, errors } = usePage().props;
     const [viewMode, setViewMode] = useState("grid");
+
+    // Enable real-time updates
+    useVisibilityRealtime({
+        interval: 5000,
+        only: ['categories'],
+        preserveScroll: true,
+        preserveState: true
+    });
 
     return (
         <>

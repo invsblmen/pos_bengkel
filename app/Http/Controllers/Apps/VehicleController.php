@@ -120,7 +120,7 @@ class VehicleController extends Controller
             'engine_type' => $request->engine_type,
             'transmission_type' => $request->transmission_type,
             'cylinder_volume' => $request->cylinder_volume,
-            'features' => $request->features ? json_encode($request->features) : null,
+            'features' => $request->features,
             'notes' => $request->notes,
             // STNK fields
             'chassis_number' => $request->chassis_number,
@@ -143,11 +143,6 @@ class VehicleController extends Controller
     {
         $vehicle = Vehicle::findOrFail($id);
         $customers = Customer::orderBy('name')->get();
-
-        // Decode JSON features if exists
-        if ($vehicle->features) {
-            $vehicle->features = json_decode($vehicle->features, true);
-        }
 
         return inertia('Dashboard/Vehicles/Edit', [
             'vehicle' => $vehicle,
@@ -215,7 +210,7 @@ class VehicleController extends Controller
                 'cylinder_volume' => $vehicle->cylinder_volume,
                 'last_service_date' => $calculatedData['last_service_date'],
                 'next_service_date' => $calculatedData['next_service_date'],
-                'features' => $vehicle->features,
+                'features' => is_array($vehicle->features) ? $vehicle->features : (is_string($vehicle->features) ? json_decode($vehicle->features, true) ?? [] : []),
                 'notes' => $vehicle->notes,
                 'customer' => $vehicle->customer ? [
                     'id' => $vehicle->customer->id,
@@ -268,7 +263,7 @@ class VehicleController extends Controller
             'engine_type' => $request->engine_type,
             'transmission_type' => $request->transmission_type,
             'cylinder_volume' => $request->cylinder_volume,
-            'features' => $request->features ? json_encode($request->features) : null,
+            'features' => $request->features,
             'notes' => $request->notes,
             // STNK fields
             'chassis_number' => $request->chassis_number,

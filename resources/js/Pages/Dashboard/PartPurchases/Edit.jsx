@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Head, router } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import toast from 'react-hot-toast';
-import { IconPlus, IconTrash, IconArrowLeft, IconPencil, IconTruck, IconCheck, IconX, IconAlertTriangle } from '@tabler/icons-react';
+import { IconPlus, IconTrash, IconArrowLeft, IconPencil, IconTruck, IconCheck, IconX, IconAlertTriangle, IconPercentage } from '@tabler/icons-react';
 import { todayLocalDate, extractDateFromISO } from '@/Utils/datetime';
 import AddSupplierModal from '@/Components/Dashboard/AddSupplierModal';
 import QuickCreatePartModal from '@/Components/Dashboard/QuickCreatePartModal';
@@ -211,6 +211,20 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
         }).format(value);
     };
 
+    const calculateSellingPrice = (item) => {
+        const itemTotal = calculateItemTotal(item);
+        const costPerUnit = itemTotal / item.quantity;
+
+        let markupAmount = 0;
+        if (item.markup_type === 'percent') {
+            markupAmount = costPerUnit * (item.markup_value / 100);
+        } else if (item.markup_type === 'fixed') {
+            markupAmount = item.markup_value;
+        }
+
+        return costPerUnit + markupAmount;
+    };
+
     const handleSubmit = (e) => {
         e.preventDefault();
 
@@ -268,59 +282,64 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
 
     return (
         <>
-            <Head title={`Edit Purchase ${purchase.purchase_number}`} />
+            <Head title={`Edit Pembelian ${purchase.purchase_number}`} />
             <div className="p-6">
                 <div className="mb-6">
                     <button
-                        onClick={() => router.visit(route('part-purchases.show', purchase.id))}
-                        className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 mb-4"
+                        onClick={() => router.visit(route('part-purchases.index'))}
+                        className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 mb-4 transition-colors"
                     >
                         <IconArrowLeft size={16} />
-                        <span>Back to Purchase Details</span>
+                        <span>Kembali ke Pembelian</span>
                     </button>
-
-                    {/* Header */}
-                    <div className="bg-gradient-to-r from-amber-500 to-orange-600 rounded-2xl p-6 text-white shadow-lg">
-                        <div className="flex items-center gap-4">
-                            <div className="w-16 h-16 rounded-xl bg-white/20 flex items-center justify-center">
-                                <IconPencil size={32} />
-                            </div>
-                            <div>
-                                <div className="text-sm font-medium text-white/80 mb-1">Edit Purchase Order</div>
-                                <h1 className="text-3xl font-bold">{purchase.purchase_number}</h1>
-                            </div>
+                    <div className="flex items-start justify-between">
+                        <div>
+                            <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Edit Pembelian Sparepart</h1>
+                            <p className="text-slate-500 dark:text-slate-400 mt-2">Edit data pembelian sparepart dari supplier</p>
                         </div>
-
-                        {/* Warning for received purchases */}
-                        {purchase.status === 'received' && (
-                            <div className="mt-4 bg-white/10 border border-white/30 rounded-xl p-4 flex items-start gap-3">
-                                <IconAlertTriangle size={20} className="flex-shrink-0 mt-0.5" />
-                                <div className="text-sm">
-                                    <div className="font-semibold mb-1">Purchase Already Received</div>
-                                    <div className="text-white/80">This purchase has been received and stock has been updated. Editing is not recommended as it may cause data inconsistencies.</div>
-                                </div>
-                            </div>
-                        )}
                     </div>
                 </div>
 
                 <form onSubmit={handleSubmit}>
-                    <div className="grid gap-6">
-                        {/* Basic Information */}
-                        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6">
-                            <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Purchase Information</h2>
-                            <div className="grid gap-4 md:grid-cols-2">
+                    {/* Warning for received purchases */}
+                    {purchase.status === 'received' && (
+                        <div className="mb-6 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900/40 rounded-2xl p-4 flex items-start gap-3">
+                            <IconAlertTriangle size={20} className="text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                            <div className="text-sm">
+                                <div className="font-semibold text-amber-800 dark:text-amber-300 mb-1">Pembelian Sudah Diterima</div>
+                                <div className="text-amber-700 dark:text-amber-200">Pembelian ini sudah diterima dan stok sudah diperbarui. Pengeditan tidak disarankan karena mungkin menyebabkan inkonsistensi data.</div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Purchase Information Section */}
+                    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm mb-6 overflow-hidden">
+                        <div className="bg-gradient-to-r from-amber-500 to-amber-600 px-6 py-4">
+                            <div className="flex items-center gap-3 text-white">
+                                <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center">
+                                    <IconTruck size={20} />
+                                </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                    <h2 className="font-semibold text-lg">Informasi Pembelian</h2>
+                                    <p className="text-sm text-white/80">Data utama pembelian sparepart</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-6">
+                            <div className="grid gap-6 md:grid-cols-2">
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
                                         Supplier <span className="text-red-500">*</span>
                                     </label>
                                     <div className="flex gap-2">
                                         <select
                                             value={formData.supplier_id}
                                             onChange={(e) => handleChange('supplier_id', e.target.value)}
-                                            className="flex-1 h-11 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
+                                            className={`flex-1 h-11 px-4 rounded-xl border transition-colors ${errors.supplier_id ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'} bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500`}
+                                            required
                                         >
-                                            <option value="">Select Supplier</option>
+                                            <option value="">Pilih Supplier</option>
                                             {localSuppliers.map(s => (
                                                 <option key={s.id} value={s.id}>{s.name}</option>
                                             ))}
@@ -328,213 +347,274 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
                                         <button
                                             type="button"
                                             onClick={() => setShowSupplierModal(true)}
-                                            className="h-11 px-4 rounded-xl bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/50 border border-primary-200 dark:border-primary-800 transition-colors flex items-center gap-2"
+                                            className="h-11 px-4 rounded-xl bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/50 border border-amber-200 dark:border-amber-800 transition-colors flex items-center gap-2 font-medium"
+                                            title="Tambah supplier baru"
                                         >
                                             <IconPlus size={18} />
+                                            <span className="hidden sm:inline">Baru</span>
                                         </button>
                                     </div>
-                                    {errors.supplier_id && <p className="text-xs text-red-500 mt-1">{errors.supplier_id}</p>}
+                                    {errors.supplier_id && <p className="text-xs text-red-500 mt-1.5">{errors.supplier_id}</p>}
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                        Purchase Date <span className="text-red-500">*</span>
+                                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                                        Tanggal Pembelian <span className="text-red-500">*</span>
                                     </label>
                                     <input
                                         type="date"
                                         value={formData.purchase_date}
                                         onChange={(e) => handleChange('purchase_date', e.target.value)}
-                                        className="w-full h-11 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
+                                        className={`w-full h-11 px-4 rounded-xl border transition-colors ${errors.purchase_date ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'} bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500`}
+                                        required
                                     />
-                                    {errors.purchase_date && <p className="text-xs text-red-500 mt-1">{errors.purchase_date}</p>}
+                                    {errors.purchase_date && <p className="text-xs text-red-500 mt-1.5">{errors.purchase_date}</p>}
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                        Expected Delivery Date
+                                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                                        Tgl. Pengiriman Diharapkan
                                     </label>
                                     <input
                                         type="date"
                                         value={formData.expected_delivery_date}
                                         onChange={(e) => handleChange('expected_delivery_date', e.target.value)}
-                                        className="w-full h-11 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
+                                        className="w-full h-11 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500 transition-colors"
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                        Notes
+                                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                                        Catatan
                                     </label>
                                     <input
                                         type="text"
                                         value={formData.notes}
                                         onChange={(e) => handleChange('notes', e.target.value)}
-                                        placeholder="Optional notes..."
-                                        className="w-full h-11 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
+                                        placeholder="Tambahkan catatan untuk pembelian ini..."
+                                        className="w-full h-11 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-colors"
                                     />
                                 </div>
                             </div>
                         </div>
+                    </div>
 
-                        {/* Items Section */}
-                        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6">
-                            <div className="flex justify-between items-center mb-4">
-                                <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Purchase Items</h2>
+                    {/* Items Section */}
+                    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm mb-6 overflow-hidden">
+                        <div className="bg-gradient-to-r from-primary-500 to-primary-600 px-6 py-4 flex items-center justify-between">
+                            <div className="flex items-center gap-3 text-white">
+                                <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center">
+                                    <IconPlus size={20} />
+                                </div>
+                                <div>
+                                    <h2 className="font-semibold text-lg">Item Pembelian</h2>
+                                    <p className="text-sm text-white/80">Daftar sparepart yang dibeli</p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={openItemModal}
+                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white/20 text-white hover:bg-white/30 transition-colors font-medium"
+                            >
+                                <IconPlus size={18} />
+                                <span>Tambah Item</span>
+                            </button>
+                        </div>
+
+                        <div className="p-6">
+
+                        {formData.items.length === 0 ? (
+                            <div className="text-center py-12 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl">
+                                <p className="text-slate-500 dark:text-slate-400 mb-3">Belum ada item yang ditambahkan</p>
                                 <button
                                     type="button"
                                     onClick={openItemModal}
-                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-500 text-white hover:bg-primary-600 transition-colors"
+                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-50 text-primary-600 hover:bg-primary-100 transition-colors"
                                 >
                                     <IconPlus size={18} />
-                                    <span>Add Item</span>
+                                    <span>Tambah Item Pertama</span>
                                 </button>
                             </div>
-
-                            {formData.items.length === 0 ? (
-                                <div className="text-center py-12 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl">
-                                    <p className="text-slate-500 dark:text-slate-400 mb-3">No items added yet</p>
-                                    <button
-                                        type="button"
-                                        onClick={openItemModal}
-                                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-50 text-primary-600 hover:bg-primary-100 transition-colors"
-                                    >
-                                        <IconPlus size={18} />
-                                        <span>Add First Item</span>
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className="overflow-x-auto -mx-6">
-                                    <table className="w-full">
-                                        <thead>
-                                            <tr className="border-b border-slate-200 dark:border-slate-700">
-                                                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Part</th>
-                                                <th className="px-6 py-3 text-center text-xs font-semibold text-slate-500 uppercase">Qty</th>
-                                                <th className="px-6 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Price</th>
-                                                <th className="px-6 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Discount</th>
-                                                <th className="px-6 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Total</th>
-                                                <th className="px-6 py-3 text-center text-xs font-semibold text-slate-500 uppercase">Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                            {formData.items.map((item, idx) => (
-                                                <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                                                    <td className="px-6 py-4">
-                                                        <div className="text-sm font-semibold text-slate-900 dark:text-white">{item.part_name}</div>
-                                                        {item.discount_type !== 'none' && (
-                                                            <div className="text-xs text-slate-500 mt-1">
-                                                                Disc: {item.discount_type === 'percent' ? `${item.discount_value}%` : formatCurrency(item.discount_value)}
-                                                            </div>
-                                                        )}
-                                                    </td>
-                                                    <td className="px-6 py-4 text-center">
-                                                        <input
-                                                            type="number"
-                                                            value={item.quantity}
-                                                            onChange={(e) => updateItemQty(idx, e.target.value)}
-                                                            min="1"
-                                                            className="w-20 h-9 px-2 rounded-lg border text-center"
-                                                        />
-                                                    </td>
-                                                    <td className="px-6 py-4 text-right">
-                                                        <input
-                                                            type="number"
-                                                            value={item.unit_price}
-                                                            onChange={(e) => updateItemPrice(idx, e.target.value)}
-                                                            min="0"
-                                                            className="w-32 h-9 px-2 rounded-lg border text-right"
-                                                        />
-                                                    </td>
-                                                    <td className="px-6 py-4 text-right text-sm text-red-600">
-                                                        {calculateItemDiscount(item) > 0 ? `-${formatCurrency(calculateItemDiscount(item))}` : '-'}
-                                                    </td>
-                                                    <td className="px-6 py-4 text-right text-sm font-semibold">
-                                                        {formatCurrency(calculateItemTotal(item))}
-                                                    </td>
-                                                    <td className="px-6 py-4 text-center">
-                                                        <div className="flex items-center justify-center gap-2">
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => openEditItemModal(idx)}
-                                                                className="p-1.5 rounded-lg text-primary-600 hover:bg-primary-50 transition-colors"
-                                                            >
-                                                                <IconPencil size={16} />
-                                                            </button>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => removeItem(idx)}
-                                                                className="p-1.5 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
-                                                            >
-                                                                <IconTrash size={16} />
-                                                            </button>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="border-b border-slate-200 dark:border-slate-700">
+                                            <th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-300">Part</th>
+                                            <th className="px-4 py-3 text-center font-semibold text-slate-700 dark:text-slate-300">Qty</th>
+                                            <th className="px-4 py-3 text-right font-semibold text-slate-700 dark:text-slate-300">Harga</th>
+                                            <th className="px-4 py-3 text-right font-semibold text-slate-700 dark:text-slate-300">Diskon</th>
+                                            <th className="px-4 py-3 text-right font-semibold text-slate-700 dark:text-slate-300">Subtotal</th>
+                                            <th className="px-4 py-3 text-right font-semibold text-slate-700 dark:text-slate-300">Harga Jual</th>
+                                            <th className="px-4 py-3 text-center font-semibold text-slate-700 dark:text-slate-300">Aksi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                        {formData.items.map((item, idx) => {
+                                            const sellingPrice = calculateSellingPrice(item);
+                                            const discountTotal = calculateItemDiscount(item);
+                                            const itemTotal = calculateItemTotal(item);
+                                            return (
+                                            <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                                <td className="px-4 py-3">
+                                                    <div className="font-medium text-slate-900 dark:text-white">{item.part_name}</div>
+                                                    {item.discount_type !== 'none' && (
+                                                        <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                                                            Disc: {item.discount_type === 'percent' ? `${item.discount_value}%` : formatCurrency(item.discount_value)}
                                                         </div>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            )}
+                                                    )}
+                                                </td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <input
+                                                        type="number"
+                                                        value={item.quantity}
+                                                        onChange={(e) => updateItemQty(idx, e.target.value)}
+                                                        min="1"
+                                                        className="w-16 h-9 px-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-center text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:outline-none"
+                                                    />
+                                                </td>
+                                                <td className="px-4 py-3 text-right">
+                                                    <input
+                                                        type="number"
+                                                        value={item.unit_price}
+                                                        onChange={(e) => updateItemPrice(idx, e.target.value)}
+                                                        min="0"
+                                                        className="w-28 h-9 px-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-right text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:outline-none"
+                                                    />
+                                                </td>
+                                                <td className="px-4 py-3 text-right text-red-600 dark:text-red-400 font-semibold">
+                                                    {discountTotal > 0 ? `-${formatCurrency(discountTotal)}` : '-'}
+                                                </td>
+                                                <td className="px-4 py-3 text-right font-semibold text-slate-900 dark:text-white">
+                                                    {formatCurrency(itemTotal)}
+                                                </td>
+                                                <td className="px-4 py-3 text-right font-semibold text-slate-900 dark:text-white">
+                                                    {formatCurrency(sellingPrice)}
+                                                </td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <div className="flex items-center justify-center gap-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => openEditItemModal(idx)}
+                                                            className="p-1.5 rounded-lg text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors"
+                                                        >
+                                                            <IconPencil size={16} />
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => removeItem(idx)}
+                                                            className="p-1.5 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                                        >
+                                                            <IconTrash size={16} />
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
                         </div>
+                    </div>
 
-                        {/* Discount & Tax */}
-                        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6">
-                            <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Discount & Tax</h2>
-                            <div className="grid gap-4 md:grid-cols-2">
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Discount Type</label>
-                                    <select
-                                        value={formData.discount_type}
-                                        onChange={(e) => handleChange('discount_type', e.target.value)}
-                                        className="w-full h-11 px-4 rounded-xl border"
-                                    >
-                                        <option value="none">No Discount</option>
-                                        <option value="percent">Percentage (%)</option>
-                                        <option value="fixed">Fixed Amount</option>
-                                    </select>
+                    {/* Discount & Tax Section */}
+                    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm mb-6 overflow-hidden p-6">
+                        <div className="mb-6 pb-6 border-b border-slate-200 dark:border-slate-800">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+                                    <IconPercentage size={20} className="text-primary-600 dark:text-primary-400" />
                                 </div>
-                                {formData.discount_type !== 'none' && (
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Discount Value</label>
-                                        <input
-                                            type="number"
-                                            value={formData.discount_value}
-                                            onChange={(e) => handleChange('discount_value', e.target.value)}
-                                            min="0"
-                                            step={formData.discount_type === 'percent' ? '0.01' : '1'}
-                                            className="w-full h-11 px-4 rounded-xl border"
-                                        />
-                                    </div>
-                                )}
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Tax Type</label>
-                                    <select
-                                        value={formData.tax_type}
-                                        onChange={(e) => handleChange('tax_type', e.target.value)}
-                                        className="w-full h-11 px-4 rounded-xl border"
-                                    >
-                                        <option value="none">No Tax</option>
-                                        <option value="percent">Percentage (%)</option>
-                                        <option value="fixed">Fixed Amount</option>
-                                    </select>
+                                    <h2 className="font-semibold text-lg text-slate-900 dark:text-white">Diskon & Pajak</h2>
+                                    <p className="text-sm text-slate-500 dark:text-slate-400">Pengaturan diskon dan pajak pembelian</p>
                                 </div>
-                                {formData.tax_type !== 'none' && (
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Tax Value</label>
-                                        <input
-                                            type="number"
-                                            value={formData.tax_value}
-                                            onChange={(e) => handleChange('tax_value', e.target.value)}
-                                            min="0"
-                                            step={formData.tax_type === 'percent' ? '0.01' : '1'}
-                                            className="w-full h-11 px-4 rounded-xl border"
-                                        />
+                            </div>
+
+                            {/* Transaction Discount */}
+                            <div className="mb-4">
+                                <div className="grid grid-cols-12 gap-3 items-end">
+                                    <div className="col-span-4">
+                                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">Diskon Transaksi</label>
+                                        <select
+                                            value={formData.discount_type}
+                                            onChange={(e) => handleChange('discount_type', e.target.value)}
+                                            className="w-full h-10 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                        >
+                                            <option value="none">Tidak Ada</option>
+                                            <option value="percent">Persen (%)</option>
+                                            <option value="fixed">Nilai Tetap</option>
+                                        </select>
                                     </div>
-                                )}
+                                    {formData.discount_type !== 'none' && (
+                                        <div className="col-span-4">
+                                            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                                                {formData.discount_type === 'percent' ? 'Nilai (%)' : 'Nilai (Rp)'}
+                                            </label>
+                                            <input
+                                                type="number"
+                                                value={formData.discount_value}
+                                                onChange={(e) => handleChange('discount_value', e.target.value)}
+                                                placeholder={formData.discount_type === 'percent' ? '0-100' : '0'}
+                                                className="w-full h-10 px-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                            />
+                                        </div>
+                                    )}
+                                    <div className={`${formData.discount_type !== 'none' ? 'col-span-4' : 'col-span-8'} text-right`}>
+                                        {transactionDiscount > 0 && (
+                                            <span className="text-sm text-red-600 dark:text-red-400 font-semibold">-{formatCurrency(transactionDiscount)}</span>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex justify-between items-center text-sm bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg">
+                                <span className="text-slate-600 dark:text-slate-300">Setelah Diskon:</span>
+                                <span className="font-semibold text-slate-900 dark:text-white text-base">{formatCurrency(afterDiscount)}</span>
+                            </div>
+
+                            {/* Tax */}
+                            <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+                                <div className="grid grid-cols-12 gap-3 items-end">
+                                    <div className="col-span-4">
+                                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">Pajak</label>
+                                        <select
+                                            value={formData.tax_type}
+                                            onChange={(e) => handleChange('tax_type', e.target.value)}
+                                            className="w-full h-10 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                        >
+                                            <option value="none">Tidak Ada</option>
+                                            <option value="percent">Persen (%)</option>
+                                            <option value="fixed">Nilai Tetap</option>
+                                        </select>
+                                    </div>
+                                    {formData.tax_type !== 'none' && (
+                                        <div className="col-span-4">
+                                            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                                                {formData.tax_type === 'percent' ? 'Nilai (%)' : 'Nilai (Rp)'}
+                                            </label>
+                                            <input
+                                                type="number"
+                                                value={formData.tax_value}
+                                                onChange={(e) => handleChange('tax_value', e.target.value)}
+                                                placeholder={formData.tax_type === 'percent' ? '0-100' : '0'}
+                                                className="w-full h-10 px-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                            />
+                                        </div>
+                                    )}
+                                    <div className={`${formData.tax_type !== 'none' ? 'col-span-4' : 'col-span-8'} text-right`}>
+                                        {taxAmount > 0 && (
+                                            <span className="text-sm text-green-600 dark:text-green-400 font-semibold">+{formatCurrency(taxAmount)}</span>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
                         </div>
+                    </div>
 
-                        {/* Total Summary */}
-                        <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
+                    {/* Total Summary */}
+                    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 shadow-sm mb-6 p-6">
                             <div className="space-y-3">
                                 <div className="flex justify-between text-sm">
                                     <span className="text-slate-600 dark:text-slate-400">Subtotal ({formData.items.length} items)</span>
@@ -559,34 +639,33 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
                             </div>
                         </div>
 
-                        {/* Action Buttons */}
-                        <div className="flex justify-end gap-3">
-                            <button
-                                type="button"
-                                onClick={() => router.visit(route('part-purchases.show', purchase.id))}
-                                disabled={submitting}
-                                className="px-6 py-3 rounded-xl border border-slate-300 text-slate-700 font-medium hover:bg-slate-50 transition-colors disabled:opacity-50"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="submit"
-                                disabled={submitting || formData.items.length === 0}
-                                className="px-6 py-3 rounded-xl bg-primary-500 text-white font-medium hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
-                            >
-                                {submitting ? (
-                                    <>
-                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                        <span>Updating...</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <IconCheck size={18} />
-                                        <span>Update Purchase</span>
-                                    </>
-                                )}
-                            </button>
-                        </div>
+                    {/* Action Buttons */}
+                    <div className="flex flex-col sm:flex-row gap-4">
+                        <button
+                            type="button"
+                            onClick={() => router.visit(route('part-purchases.index'))}
+                            disabled={submitting}
+                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-200 dark:bg-slate-700 px-6 py-3.5 font-semibold text-slate-700 dark:text-slate-200 transition hover:bg-slate-300 dark:hover:bg-slate-600 disabled:opacity-50"
+                        >
+                            Batal
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={submitting || formData.items.length === 0}
+                            className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary-600 to-primary-700 px-6 py-3.5 font-semibold text-white shadow-lg shadow-primary-500/30 transition hover:shadow-xl hover:shadow-primary-500/40 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {submitting ? (
+                                <>
+                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                    <span>Menyimpan...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <IconCheck size={20} />
+                                    <span>Simpan Pembelian</span>
+                                </>
+                            )}
+                        </button>
                     </div>
                 </form>
             </div>

@@ -62,8 +62,7 @@ export default function CustomerSelect({
 
     const handleAddCustomerSuccess = (newCustomer) => {
         setShowAddModal(false);
-        // Reload page data to get updated customer list
-        router.reload({ only: ["customers"] });
+        onSelect(newCustomer);  // Pass the customer object
         onCustomerAdded?.(newCustomer);
     };
 

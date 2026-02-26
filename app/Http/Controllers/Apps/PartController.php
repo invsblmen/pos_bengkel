@@ -124,10 +124,12 @@ class PartController extends Controller
         $part = Part::create($data);
         $part->load('supplier', 'category');
 
-        return back()->with([
-            'success' => 'Part created successfully.',
-            'flash' => ['part' => $part]
-        ]);
+        // Return JSON response dengan part data
+        return response()->json([
+            'success' => true,
+            'message' => 'Part created successfully.',
+            'part' => $part,
+        ], 201);
     }
 
     public function update(Request $request, $id)

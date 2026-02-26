@@ -4,6 +4,7 @@ import DashboardLayout from '@/Layouts/DashboardLayout';
 import Button from '@/Components/Dashboard/Button';
 import Search from '@/Components/Dashboard/Search';
 import Pagination from '@/Components/Dashboard/Pagination';
+import { useVisibilityRealtime } from '@/Hooks/useRealtime';
 import {
     IconDatabaseOff, IconCirclePlus, IconPencilCog, IconTrash,
     IconPackage, IconAlertCircle, IconMapPin,
@@ -63,6 +64,15 @@ export default function Index({ parts, filters, categories, suppliers }) {
         category_id: filters?.category_id || '',
         supplier_id: filters?.supplier_id || '',
         stock_status: filters?.stock_status || '',
+    });
+
+    // Enable real-time updates - auto refresh every 5 seconds
+    // Pause when tab not visible to save resources
+    useVisibilityRealtime({
+        interval: 5000,
+        only: ['parts'],
+        preserveScroll: true,
+        preserveState: true
     });
 
     const pageStats = useMemo(() => {

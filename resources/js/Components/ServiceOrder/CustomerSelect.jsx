@@ -60,7 +60,7 @@ export default function CustomerSelect({
 
     const handleAddCustomerSuccess = (newCustomer) => {
         setShowAddModal(false);
-        onSelect(newCustomer);  // Pass the customer object, not just the ID
+        onSelect(newCustomer);  // Pass the customer object
         onCustomerAdded?.(newCustomer);
     };
 
