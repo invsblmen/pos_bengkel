@@ -73,96 +73,116 @@ export default function Index({ purchases, suppliers, filters }) {
     return (
         <>
             <Head title="Part Purchases" />
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Part Purchases</h1>
-                        <p className="text-sm text-slate-500">{purchases?.total || 0} purchases</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        {/* View Toggle */}
-                        <div className="inline-flex items-center bg-white border border-slate-200 rounded-xl p-1">
-                            <button
-                                onClick={() => setViewMode('card')}
-                                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                                    viewMode === 'card'
-                                        ? 'bg-primary-500 text-white'
-                                        : 'text-slate-600 hover:text-slate-900'
-                                }`}
-                            >
-                                <IconLayoutGrid size={16} />
-                                <span className="hidden sm:inline">Card</span>
-                            </button>
-                            <button
-                                onClick={() => setViewMode('table')}
-                                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                                    viewMode === 'table'
-                                        ? 'bg-primary-500 text-white'
-                                        : 'text-slate-600 hover:text-slate-900'
-                                }`}
-                            >
-                                <IconList size={16} />
-                                <span className="hidden sm:inline">List</span>
-                            </button>
+            <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 -m-6 p-6">
+                {/* Hero Header */}
+                <div className="bg-gradient-to-r from-amber-600 to-amber-700 dark:from-amber-700 dark:to-amber-800 rounded-2xl shadow-xl mb-6">
+                    <div className="px-6 py-5">
+                        <div className="flex items-center justify-between gap-6">
+                            <div>
+                                <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+                                    <IconTruck size={32} className="text-white/90" />
+                                    Pembelian Sparepart
+                                </h1>
+                                <p className="text-amber-100 mt-1">Kelola transaksi pembelian dari supplier</p>
+                            </div>
+                            <div className="hidden lg:flex items-center gap-4">
+                                <div className="text-right">
+                                    <p className="text-amber-100 text-sm font-medium">Total Pembelian</p>
+                                    <p className="text-3xl font-bold text-white">{purchases?.total || 0}</p>
+                                </div>
+                            </div>
                         </div>
-
-                        <button
-                            onClick={() => setShowFilters(!showFilters)}
-                            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-colors ${
-                                showFilters || hasActiveFilters
-                                    ? "bg-primary-50 border-primary-200 text-primary-700"
-                                    : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
-                            }`}
-                        >
-                            <IconFilter size={18} />
-                            <span>Filter</span>
-                            {hasActiveFilters && <span className="w-2 h-2 rounded-full bg-primary-500"></span>}
-                        </button>
-                        <Link
-                            href={route('part-purchases.create')}
-                            className="px-4 py-2 rounded-xl bg-primary-500 text-white inline-flex items-center gap-2 hover:bg-primary-600 transition-colors"
-                        >
-                            <IconCirclePlus size={16} />
-                            <span>New Purchase</span>
-                        </Link>
                     </div>
                 </div>
 
+                <div className="max-w-7xl mx-auto space-y-6">
+                    {/* Controls */}
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div className="flex items-center gap-2 flex-wrap">
+                            {/* View Toggle */}
+                            <div className="inline-flex items-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-1 shadow-sm">
+                                <button
+                                    onClick={() => setViewMode('card')}
+                                    className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                                        viewMode === 'card'
+                                            ? 'bg-amber-500 text-white shadow-md'
+                                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-300'
+                                    }`}
+                                >
+                                    <IconLayoutGrid size={16} />
+                                    <span className="hidden sm:inline">Kartu</span>
+                                </button>
+                                <button
+                                    onClick={() => setViewMode('table')}
+                                    className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                                        viewMode === 'table'
+                                            ? 'bg-amber-500 text-white shadow-md'
+                                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-300'
+                                    }`}
+                                >
+                                    <IconList size={16} />
+                                    <span className="hidden sm:inline">Tabel</span>
+                                </button>
+                            </div>
+
+                            <button
+                                onClick={() => setShowFilters(!showFilters)}
+                                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-all duration-200 ${
+                                    showFilters || hasActiveFilters
+                                        ? "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 shadow-sm"
+                                        : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700"
+                                }`}
+                            >
+                                <IconFilter size={18} />
+                                <span>Filter</span>
+                                {hasActiveFilters && <span className="w-2 h-2 rounded-full bg-amber-500"></span>}
+                            </button>
+                        </div>
+                        <Link
+                            href={route('part-purchases.create')}
+                            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white inline-flex items-center gap-2 font-medium shadow-lg hover:shadow-xl transition-all duration-200"
+                        >
+                            <IconCirclePlus size={18} />
+                            <span>Buat Pembelian</span>
+                        </Link>
+                    </div>
+
                 {/* Filters Panel */}
                 {showFilters && (
-                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 mb-4 animate-slide-up">
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xl animate-slide-up">
                         <form onSubmit={applyFilters}>
-                            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Search</label>
+                                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Cari</label>
                                     <input
                                         type="text"
-                                        placeholder="Purchase number, notes..."
+                                        placeholder="No pembelian, catatan..."
                                         value={filterData.q}
                                         onChange={(e) => handleChange('q', e.target.value)}
-                                        className="w-full h-11 px-4 rounded-xl border"
+                                        className="w-full h-11 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-colors"
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Supplier</label>
+                                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Supplier</label>
                                     <select
                                         value={filterData.supplier_id}
                                         onChange={(e) => handleChange('supplier_id', e.target.value)}
-                                        className="w-full h-11 px-4 rounded-xl border"
+                                        className="w-full h-11 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500 transition-colors"
                                     >
-                                        <option value="">All Suppliers</option>
+                                        <option value="">Semua Supplier</option>
                                         {suppliers.map(s => (
                                             <option key={s.id} value={s.id}>{s.name}</option>
                                         ))}
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Status</label>
+                                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Status</label>
                                     <select
                                         value={filterData.status}
                                         onChange={(e) => handleChange('status', e.target.value)}
-                                        className="w-full h-11 px-4 rounded-xl border"
+                                        className="w-full h-11 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500 transition-colors"
                                     >
-                                        <option value="">All Status</option>
+                                        <option value="">Semua Status</option>
                                         <option value="pending">Pending</option>
                                         <option value="ordered">Ordered</option>
                                         <option value="received">Received</option>
@@ -170,36 +190,36 @@ export default function Index({ purchases, suppliers, filters }) {
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Date From</label>
+                                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Dari Tanggal</label>
                                     <input
                                         type="date"
                                         value={filterData.date_from}
                                         onChange={(e) => handleChange('date_from', e.target.value)}
-                                        className="w-full h-11 px-4 rounded-xl border"
+                                        className="w-full h-11 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500 transition-colors"
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Date To</label>
+                                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Sampai Tanggal</label>
                                     <input
                                         type="date"
                                         value={filterData.date_to}
                                         onChange={(e) => handleChange('date_to', e.target.value)}
-                                        className="w-full h-11 px-4 rounded-xl border"
+                                        className="w-full h-11 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500 transition-colors"
                                     />
                                 </div>
-                                <div className="flex items-end gap-2 md:col-span-2 lg:col-span-3">
+                                <div className="flex items-end gap-2">
                                     <button
                                         type="submit"
-                                        className="flex-1 h-11 inline-flex items-center justify-center gap-2 rounded-xl bg-primary-500 hover:bg-primary-600 text-white font-medium transition-colors"
+                                        className="flex-1 h-11 inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-medium shadow-md hover:shadow-lg transition-all duration-200"
                                     >
                                         <IconSearch size={18} />
-                                        <span>Search</span>
+                                        <span>Cari</span>
                                     </button>
                                     {hasActiveFilters && (
                                         <button
                                             type="button"
                                             onClick={resetFilters}
-                                            className="h-11 px-4 inline-flex items-center justify-center gap-2 rounded-xl border hover:bg-slate-50 transition-colors"
+                                            className="h-11 px-4 inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                                         >
                                             <IconX size={18} />
                                         </button>
@@ -215,36 +235,36 @@ export default function Index({ purchases, suppliers, filters }) {
                     <>
                         {/* Card View */}
                         {viewMode === 'card' && (
-                            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                                 {purchases.data.map((p, idx) => (
-                                <div key={p.id} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 hover:shadow-lg hover:border-primary-300 dark:hover:border-primary-700 transition-all duration-200 overflow-hidden">
+                                <div key={p.id} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 hover:shadow-xl hover:border-amber-300 dark:hover:border-amber-700 transition-all duration-200 overflow-hidden shadow-lg">
                                     {/* Card Header */}
-                                    <div className="bg-gradient-to-r from-primary-500 to-primary-600 px-4 py-3">
+                                    <div className="bg-gradient-to-r from-amber-500 to-amber-600 dark:from-amber-600 dark:to-amber-700 px-6 py-4">
                                         <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
-                                                    <IconReceipt size={18} className="text-white" />
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center">
+                                                    <IconReceipt size={20} className="text-white" />
                                                 </div>
                                                 <div>
-                                                    <div className="text-xs font-medium text-white/80">Purchase #{idx + 1 + ((purchases.current_page || 1) - 1) * (purchases.per_page || purchases.data.length)}</div>
-                                                    <div className="text-sm font-bold text-white">{p.purchase_number}</div>
+                                                    <div className="text-xs font-medium text-amber-100">Pembelian #{idx + 1 + ((purchases.current_page || 1) - 1) * (purchases.per_page || purchases.data.length)}</div>
+                                                    <div className="text-lg font-bold text-white">{p.purchase_number}</div>
                                                 </div>
                                             </div>
-                                            <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium border ${statusColors[p.status] || 'bg-gray-100 text-gray-700 border-gray-200'}`}>
+                                            <span className={`inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-semibold border ${statusColors[p.status] || 'bg-gray-100 text-gray-700 border-gray-200'}`}>
                                                 {statusLabels[p.status] || p.status}
                                             </span>
                                         </div>
                                     </div>
 
                                     {/* Card Body */}
-                                    <div className="p-4 space-y-3">
+                                    <div className="p-6 space-y-4">
                                         {/* Supplier */}
                                         <div className="flex items-start gap-3">
-                                            <div className="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center flex-shrink-0">
-                                                <IconTruck size={18} className="text-blue-600 dark:text-blue-400" />
+                                            <div className="w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center flex-shrink-0">
+                                                <IconTruck size={20} className="text-blue-600 dark:text-blue-400" />
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <div className="text-xs text-slate-500 dark:text-slate-400">Supplier</div>
+                                                <div className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-0.5">Supplier</div>
                                                 <div className="text-sm font-semibold text-slate-900 dark:text-white truncate">
                                                     {p.supplier?.name || '-'}
                                                 </div>
@@ -252,22 +272,22 @@ export default function Index({ purchases, suppliers, filters }) {
                                         </div>
 
                                         {/* Date & Items */}
-                                        <div className="grid grid-cols-2 gap-3">
+                                        <div className="grid grid-cols-2 gap-4">
                                             <div className="flex items-start gap-2">
-                                                <IconCalendar size={16} className="text-slate-400 mt-0.5 flex-shrink-0" />
+                                                <IconCalendar size={18} className="text-slate-400 mt-0.5 flex-shrink-0" />
                                                 <div className="flex-1 min-w-0">
-                                                    <div className="text-xs text-slate-500 dark:text-slate-400">Date</div>
-                                                    <div className="text-sm font-medium text-slate-900 dark:text-white">
+                                                    <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">Tanggal</div>
+                                                    <div className="text-sm font-semibold text-slate-900 dark:text-white">
                                                         {formatDate(p.purchase_date)}
                                                     </div>
                                                 </div>
                                             </div>
                                             <div className="flex items-start gap-2">
-                                                <IconPackage size={16} className="text-slate-400 mt-0.5 flex-shrink-0" />
+                                                <IconPackage size={18} className="text-slate-400 mt-0.5 flex-shrink-0" />
                                                 <div className="flex-1 min-w-0">
-                                                    <div className="text-xs text-slate-500 dark:text-slate-400">Items</div>
-                                                    <div className="text-sm font-medium text-slate-900 dark:text-white">
-                                                        {p.details?.length || 0} items
+                                                    <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">Item</div>
+                                                    <div className="text-sm font-semibold text-slate-900 dark:text-white">
+                                                        {p.details?.length || 0} item
                                                     </div>
                                                 </div>
                                             </div>
@@ -275,33 +295,33 @@ export default function Index({ purchases, suppliers, filters }) {
 
                                         {/* Notes */}
                                         {p.notes && (
-                                            <div className="text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 rounded-lg p-2 line-clamp-2">
+                                            <div className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 rounded-lg p-3 line-clamp-2 border border-slate-100 dark:border-slate-700">
                                                 {p.notes}
                                             </div>
                                         )}
 
                                         {/* Total Amount */}
-                                        <div className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-lg p-3 border border-emerald-100 dark:border-emerald-800">
-                                            <div className="text-xs text-emerald-700 dark:text-emerald-400 font-medium mb-1">Total Amount</div>
-                                            <div className="text-xl font-bold text-emerald-900 dark:text-emerald-100">
+                                        <div className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-xl p-4 border border-emerald-100 dark:border-emerald-900/50">
+                                            <div className="text-xs text-emerald-700 dark:text-emerald-400 font-semibold mb-1">Total Pembelian</div>
+                                            <div className="text-2xl font-bold text-emerald-900 dark:text-emerald-100">
                                                 {formatCurrency(p.total_amount)}
                                             </div>
                                         </div>
                                     </div>
 
                                     {/* Card Footer */}
-                                    <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 flex gap-2">
+                                    <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700 flex gap-2">
                                         <Link
                                             href={route('part-purchases.show', p.id)}
-                                            className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-primary-50 hover:text-primary-700 hover:border-primary-300 dark:hover:bg-primary-900/30 dark:hover:text-primary-400 dark:hover:border-primary-700 transition-colors"
+                                            className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600 hover:border-slate-300 dark:hover:border-slate-500 transition-all duration-200"
                                         >
                                             <IconEye size={16} />
-                                            <span>Detail</span>
+                                            <span>Lihat</span>
                                         </Link>
                                         {(p.status === 'pending' || p.status === 'ordered') && (
                                             <Link
                                                 href={route('part-purchases.edit', p.id)}
-                                                className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 transition-colors"
+                                                className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold transition-all duration-200 shadow-md hover:shadow-lg"
                                             >
                                                 <IconEdit size={16} />
                                                 <span>Edit</span>
@@ -315,61 +335,61 @@ export default function Index({ purchases, suppliers, filters }) {
 
                         {/* Table View */}
                         {viewMode === 'table' && (
-                            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xl">
                                 <div className="overflow-x-auto">
                                     <table className="w-full">
                                         <thead>
-                                            <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
-                                                <th className="px-4 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">No</th>
-                                                <th className="px-4 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Purchase Number</th>
-                                                <th className="px-4 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Supplier</th>
-                                                <th className="px-4 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Date</th>
-                                                <th className="px-4 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Items</th>
-                                                <th className="px-4 py-4 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Amount</th>
-                                                <th className="px-4 py-4 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Status</th>
-                                                <th className="px-4 py-4 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Actions</th>
+                                            <tr className="border-b border-slate-200 dark:border-slate-700 bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900">
+                                                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">No</th>
+                                                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">No Pembelian</th>
+                                                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Supplier</th>
+                                                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Tanggal</th>
+                                                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Item</th>
+                                                <th className="px-6 py-4 text-right text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Total</th>
+                                                <th className="px-6 py-4 text-center text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Status</th>
+                                                <th className="px-6 py-4 text-center text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Aksi</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                        <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                                             {purchases.data.map((p, idx) => (
                                                 <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                                                    <td className="px-4 py-4 text-sm text-slate-600 dark:text-slate-400">
+                                                    <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400 font-medium">
                                                         {idx + 1 + ((purchases.current_page || 1) - 1) * (purchases.per_page || purchases.data.length)}
                                                     </td>
-                                                    <td className="px-4 py-4">
+                                                    <td className="px-6 py-4">
                                                         <div className="text-sm font-semibold text-slate-900 dark:text-white">{p.purchase_number}</div>
-                                                        {p.notes && <div className="text-xs text-slate-400 mt-1 line-clamp-1">{p.notes}</div>}
+                                                        {p.notes && <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-1">{p.notes}</div>}
                                                     </td>
-                                                    <td className="px-4 py-4 text-sm text-slate-600 dark:text-slate-400">
+                                                    <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
                                                         {p.supplier?.name || '-'}
                                                     </td>
-                                                    <td className="px-4 py-4 text-sm text-slate-600 dark:text-slate-400">
+                                                    <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
                                                         {formatDate(p.purchase_date)}
                                                     </td>
-                                                    <td className="px-4 py-4 text-sm text-slate-600 dark:text-slate-400">
-                                                        {p.details?.length || 0} items
+                                                    <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
+                                                        {p.details?.length || 0} item
                                                     </td>
-                                                    <td className="px-4 py-4 text-sm text-right font-semibold text-slate-900 dark:text-white">
+                                                    <td className="px-6 py-4 text-sm text-right font-semibold text-slate-900 dark:text-white">
                                                         {formatCurrency(p.total_amount)}
                                                     </td>
-                                                    <td className="px-4 py-4 text-center">
-                                                        <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium border ${statusColors[p.status] || 'bg-gray-100 text-gray-700 border-gray-200'}`}>
+                                                    <td className="px-6 py-4 text-center">
+                                                        <span className={`inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold border ${statusColors[p.status] || 'bg-gray-100 text-gray-700 border-gray-200'}`}>
                                                             {statusLabels[p.status] || p.status}
                                                         </span>
                                                     </td>
-                                                    <td className="px-4 py-4">
+                                                    <td className="px-6 py-4">
                                                         <div className="flex items-center justify-center gap-2">
                                                             <Link
                                                                 href={route('part-purchases.show', p.id)}
-                                                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/30 transition-colors"
+                                                                className="inline-flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-200"
                                                             >
                                                                 <IconEye size={16} />
-                                                                <span>View</span>
+                                                                <span>Lihat</span>
                                                             </Link>
                                                             {(p.status === 'pending' || p.status === 'ordered') && (
                                                                 <Link
                                                                     href={route('part-purchases.edit', p.id)}
-                                                                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-colors"
+                                                                    className="inline-flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-semibold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all duration-200"
                                                                 >
                                                                     <IconEdit size={16} />
                                                                     <span>Edit</span>
@@ -390,23 +410,25 @@ export default function Index({ purchases, suppliers, filters }) {
                         </div>
                     </>
                 ) : (
-                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-12 text-center">
-                        <IconDatabaseOff size={48} className="mx-auto text-slate-300 mb-4" />
-                        <h3 className="text-lg font-semibold text-slate-700 dark:text-slate-300 mb-2">No purchases found</h3>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
-                            {hasActiveFilters ? 'Try adjusting your filters' : 'Create your first purchase'}
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-12 text-center shadow-lg">
+                        <IconDatabaseOff size={52} className="mx-auto text-slate-300 dark:text-slate-600 mb-4" />
+                        <h3 className="text-lg font-semibold text-slate-700 dark:text-slate-300 mb-2">Pembelian tidak ditemukan</h3>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+                            {hasActiveFilters ? 'Coba sesuaikan filter Anda' : 'Buat pembelian pertama Anda'}
                         </p>
                         {!hasActiveFilters && (
                             <Link
                                 href={route('part-purchases.create')}
-                                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-500 text-white hover:bg-primary-600 transition-colors"
+                                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200"
                             >
-                                <IconCirclePlus size={16} />
-                                <span>New Purchase</span>
+                                <IconCirclePlus size={18} />
+                                <span>Buat Pembelian Baru</span>
                             </Link>
                         )}
                     </div>
                 )}
+                </div>
+            </div>
         </>
     );
 }

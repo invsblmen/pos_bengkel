@@ -1,17 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Head, router } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import toast from 'react-hot-toast';
-import { IconPlus, IconTrash, IconArrowLeft, IconPencil, IconTruck, IconCheck, IconX, IconAlertTriangle, IconPercentage } from '@tabler/icons-react';
+import { IconPlus, IconTrash, IconArrowLeft, IconPencil, IconTruck, IconCheck, IconAlertTriangle, IconPercentage, IconReceipt, IconShoppingCart, IconSearch } from '@tabler/icons-react';
 import { todayLocalDate, extractDateFromISO } from '@/Utils/datetime';
 import AddSupplierModal from '@/Components/Dashboard/AddSupplierModal';
-import QuickCreatePartModal from '@/Components/Dashboard/QuickCreatePartModal';
 
 export default function Edit({ purchase, suppliers, parts, categories = [] }) {
     const [localSuppliers, setLocalSuppliers] = useState(suppliers);
     const [localParts, setLocalParts] = useState(parts);
-    const [showPartModal, setShowPartModal] = useState(false);
-    const [createPartName, setCreatePartName] = useState('');
     const [showSupplierModal, setShowSupplierModal] = useState(false);
 
     // Initialize form with purchase data
@@ -42,9 +39,9 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
     const [errors, setErrors] = useState({});
     const [submitting, setSubmitting] = useState(false);
 
-    // Item selection modal
-    const [showItemModal, setShowItemModal] = useState(false);
+    // Item selection
     const [searchPart, setSearchPart] = useState('');
+    const [isPartDropdownOpen, setIsPartDropdownOpen] = useState(false);
     const [editingIndex, setEditingIndex] = useState(null);
     const [selectedPart, setSelectedPart] = useState(null);
     const [itemQty, setItemQty] = useState(1);
@@ -59,29 +56,22 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
         }
     };
 
-    const openItemModal = () => {
-        setSelectedPart(null);
-        setSearchPart('');
-        setItemQty(1);
-        setItemPrice(0);
-        setItemDiscountType('none');
-        setItemDiscountValue(0);
-        setEditingIndex(null);
-        setShowItemModal(true);
-    };
-
     const openEditItemModal = (index) => {
         const item = formData.items[index];
         if (!item) return;
-        const part = parts.find(p => p.id === item.part_id) || null;
+        const part = localParts.find(p => p.id === item.part_id) || {
+            id: item.part_id,
+            name: item.part_name,
+            buy_price: item.unit_price,
+        };
         setSelectedPart(part);
-        setSearchPart('');
+        setSearchPart(part?.name || '');
+        setIsPartDropdownOpen(false);
         setItemQty(item.quantity || 1);
         setItemPrice(item.unit_price || 0);
         setItemDiscountType(item.discount_type || 'none');
         setItemDiscountValue(item.discount_value || 0);
         setEditingIndex(index);
-        setShowItemModal(true);
     };
 
     const addItem = () => {
@@ -130,8 +120,14 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
             };
         });
 
-        setShowItemModal(false);
         setEditingIndex(null);
+        setSelectedPart(null);
+        setSearchPart('');
+        setItemQty(1);
+        setItemPrice(0);
+        setItemDiscountType('none');
+        setItemDiscountValue(0);
+        setIsPartDropdownOpen(false);
         toast.success(editingIndex !== null ? 'Item updated' : 'Item added');
     };
 
@@ -283,23 +279,40 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
     return (
         <>
             <Head title={`Edit Pembelian ${purchase.purchase_number}`} />
-            <div className="p-6">
-                <div className="mb-6">
-                    <button
-                        onClick={() => router.visit(route('part-purchases.index'))}
-                        className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 mb-4 transition-colors"
-                    >
-                        <IconArrowLeft size={16} />
-                        <span>Kembali ke Pembelian</span>
-                    </button>
-                    <div className="flex items-start justify-between">
-                        <div>
-                            <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Edit Pembelian Sparepart</h1>
-                            <p className="text-slate-500 dark:text-slate-400 mt-2">Edit data pembelian sparepart dari supplier</p>
+            <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 -m-6 p-6">
+                {/* Hero Header */}
+                <div className="bg-gradient-to-r from-amber-600 to-amber-700 dark:from-amber-700 dark:to-amber-800 rounded-2xl shadow-xl mb-6">
+                    <div className="px-6 py-5">
+                        <div className="flex items-center justify-between gap-6">
+                            <div className="flex items-center gap-4">
+                                <button
+                                    onClick={() => router.visit(route('part-purchases.index'))}
+                                    className="flex items-center justify-center w-11 h-11 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all duration-200 backdrop-blur-sm hover:scale-105"
+                                >
+                                    <IconArrowLeft size={20} />
+                                </button>
+                                <div>
+                                    <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+                                        <IconPencil size={28} className="text-white/90" />
+                                        Edit Pembelian Sparepart
+                                    </h1>
+                                    <p className="text-amber-100 mt-1">Perbarui data pembelian {purchase.purchase_number}</p>
+                                </div>
+                            </div>
+                            <div className="hidden lg:flex items-center gap-4">
+                                <div className="text-right">
+                                    <p className="text-amber-100 text-sm font-medium">Total Pembelian</p>
+                                    <p className="text-3xl font-bold text-white">{formatCurrency(grandTotal)}</p>
+                                    {formData.items.length > 0 && (
+                                        <p className="text-amber-200 text-xs mt-1">{formData.items.length} item</p>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
+                <div className="max-w-6xl mx-auto space-y-6">
                 <form onSubmit={handleSubmit}>
                     {/* Warning for received purchases */}
                     {purchase.status === 'received' && (
@@ -313,86 +326,92 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
                     )}
 
                     {/* Purchase Information Section */}
-                    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm mb-6 overflow-hidden">
-                        <div className="bg-gradient-to-r from-amber-500 to-amber-600 px-6 py-4">
-                            <div className="flex items-center gap-3 text-white">
-                                <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center">
-                                    <IconTruck size={20} />
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800">
+                        <div className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+                            <div className="flex items-center gap-3">
+                                <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-amber-500 text-white shadow-lg shadow-amber-500/30">
+                                    <IconReceipt size={20} />
                                 </div>
                                 <div>
-                                    <h2 className="font-semibold text-lg">Informasi Pembelian</h2>
-                                    <p className="text-sm text-white/80">Data utama pembelian sparepart</p>
+                                    <h2 className="text-lg font-bold text-slate-900 dark:text-white">Informasi Pembelian</h2>
+                                    <p className="text-sm text-slate-600 dark:text-slate-400">Detail transaksi dan supplier</p>
                                 </div>
                             </div>
                         </div>
-
-                        <div className="p-6">
-                            <div className="grid gap-6 md:grid-cols-2">
-                                <div>
-                                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                                        Supplier <span className="text-red-500">*</span>
-                                    </label>
-                                    <div className="flex gap-2">
-                                        <select
-                                            value={formData.supplier_id}
-                                            onChange={(e) => handleChange('supplier_id', e.target.value)}
-                                            className={`flex-1 h-11 px-4 rounded-xl border transition-colors ${errors.supplier_id ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'} bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500`}
-                                            required
-                                        >
-                                            <option value="">Pilih Supplier</option>
-                                            {localSuppliers.map(s => (
-                                                <option key={s.id} value={s.id}>{s.name}</option>
-                                            ))}
-                                        </select>
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowSupplierModal(true)}
-                                            className="h-11 px-4 rounded-xl bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/50 border border-amber-200 dark:border-amber-800 transition-colors flex items-center gap-2 font-medium"
-                                            title="Tambah supplier baru"
-                                        >
-                                            <IconPlus size={18} />
-                                            <span className="hidden sm:inline">Baru</span>
-                                        </button>
-                                    </div>
-                                    {errors.supplier_id && <p className="text-xs text-red-500 mt-1.5">{errors.supplier_id}</p>}
+                        <div className="p-6 space-y-4">
+                            {/* Supplier Section */}
+                            <div className="p-4 bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-900/20 dark:to-amber-800/20 rounded-xl border border-amber-200 dark:border-amber-700/30">
+                                <label className="block text-xs font-bold text-amber-700 dark:text-amber-400 mb-2 uppercase tracking-wide">
+                                    🚚 Supplier
+                                </label>
+                                <div className="flex gap-2">
+                                    <select
+                                        value={formData.supplier_id}
+                                        onChange={(e) => handleChange('supplier_id', e.target.value)}
+                                        className="flex-1 h-10 px-3 rounded-lg border-2 border-amber-300 dark:border-amber-700 dark:bg-amber-900/30 text-sm font-semibold focus:ring-amber-500 focus:border-amber-500 transition-all dark:text-white"
+                                        required
+                                    >
+                                        <option value="">Pilih Supplier...</option>
+                                        {localSuppliers.map(s => (
+                                            <option key={s.id} value={s.id}>{s.name}</option>
+                                        ))}
+                                    </select>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowSupplierModal(true)}
+                                        className="px-3 h-10 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold transition-all"
+                                        title="Tambah supplier baru"
+                                    >
+                                        <IconPlus size={18} />
+                                    </button>
                                 </div>
+                                {errors.supplier_id && (
+                                    <p className="text-xs text-red-600 dark:text-red-400 mt-2 flex items-center gap-1">
+                                        <IconAlertTriangle size={14} /> {errors.supplier_id}
+                                    </p>
+                                )}
+                            </div>
 
-                                <div>
-                                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                                        Tanggal Pembelian <span className="text-red-500">*</span>
+                            {/* Details Grid */}
+                            <div className="grid gap-4 md:grid-cols-3">
+                                {/* Tanggal Pembelian */}
+                                <div className="p-4 bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-900/20 dark:to-emerald-800/20 rounded-xl border border-emerald-200 dark:border-emerald-700/30">
+                                    <label className="block text-xs font-bold text-emerald-700 dark:text-emerald-400 mb-2 uppercase tracking-wide">
+                                        📅 Tanggal Pembelian
                                     </label>
                                     <input
                                         type="date"
                                         value={formData.purchase_date}
                                         onChange={(e) => handleChange('purchase_date', e.target.value)}
-                                        className={`w-full h-11 px-4 rounded-xl border transition-colors ${errors.purchase_date ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'} bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500`}
+                                        className="w-full h-10 px-3 rounded-lg border-2 border-emerald-300 dark:border-emerald-700 dark:bg-emerald-900/30 text-sm font-semibold focus:ring-emerald-500 focus:border-emerald-500 transition-all dark:text-white"
                                         required
                                     />
-                                    {errors.purchase_date && <p className="text-xs text-red-500 mt-1.5">{errors.purchase_date}</p>}
                                 </div>
 
-                                <div>
-                                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                                        Tgl. Pengiriman Diharapkan
+                                {/* Tanggal Pengiriman */}
+                                <div className="p-4 bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl border border-blue-200 dark:border-blue-700/30">
+                                    <label className="block text-xs font-bold text-blue-700 dark:text-blue-400 mb-2 uppercase tracking-wide">
+                                        ✈️ Pengiriman
                                     </label>
                                     <input
                                         type="date"
                                         value={formData.expected_delivery_date}
                                         onChange={(e) => handleChange('expected_delivery_date', e.target.value)}
-                                        className="w-full h-11 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500 transition-colors"
+                                        className="w-full h-10 px-3 rounded-lg border-2 border-blue-300 dark:border-blue-700 dark:bg-blue-900/30 text-sm font-semibold focus:ring-blue-500 focus:border-blue-500 transition-all dark:text-white"
                                     />
                                 </div>
 
-                                <div>
-                                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                                        Catatan
+                                {/* Catatan */}
+                                <div className="p-4 bg-gradient-to-br from-orange-50 to-orange-100/50 dark:from-orange-900/20 dark:to-orange-800/20 rounded-xl border border-orange-200 dark:border-orange-700/30">
+                                    <label className="block text-xs font-bold text-orange-700 dark:text-orange-400 mb-2 uppercase tracking-wide">
+                                        📝 Catatan
                                     </label>
                                     <input
                                         type="text"
                                         value={formData.notes}
                                         onChange={(e) => handleChange('notes', e.target.value)}
-                                        placeholder="Tambahkan catatan untuk pembelian ini..."
-                                        className="w-full h-11 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-colors"
+                                        placeholder="Tambahkan catatan..."
+                                        className="w-full h-10 px-3 rounded-lg border-2 border-orange-300 dark:border-orange-700 dark:bg-orange-900/30 text-sm font-medium focus:ring-orange-500 focus:border-orange-500 transition-all dark:text-white"
                                     />
                                 </div>
                             </div>
@@ -400,44 +419,218 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
                     </div>
 
                     {/* Items Section */}
-                    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm mb-6 overflow-hidden">
-                        <div className="bg-gradient-to-r from-primary-500 to-primary-600 px-6 py-4 flex items-center justify-between">
-                            <div className="flex items-center gap-3 text-white">
-                                <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center">
-                                    <IconPlus size={20} />
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                        <div className="bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 px-6 py-4 border-b border-purple-200 dark:border-purple-700/30">
+                            <div className="flex items-center gap-3">
+                                <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-purple-500 text-white shadow-lg shadow-purple-500/30">
+                                    <IconShoppingCart size={20} />
                                 </div>
                                 <div>
-                                    <h2 className="font-semibold text-lg">Item Pembelian</h2>
-                                    <p className="text-sm text-white/80">Daftar sparepart yang dibeli</p>
+                                    <h2 className="text-lg font-bold text-slate-900 dark:text-white">Item Pembelian</h2>
+                                    <p className="text-sm text-slate-600 dark:text-slate-400">
+                                        {formData.items.length} item dipilih
+                                    </p>
                                 </div>
                             </div>
-                            <button
-                                type="button"
-                                onClick={openItemModal}
-                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white/20 text-white hover:bg-white/30 transition-colors font-medium"
-                            >
-                                <IconPlus size={18} />
-                                <span>Tambah Item</span>
-                            </button>
                         </div>
 
-                        <div className="p-6">
-
-                        {formData.items.length === 0 ? (
-                            <div className="text-center py-12 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl">
-                                <p className="text-slate-500 dark:text-slate-400 mb-3">Belum ada item yang ditambahkan</p>
+                        <div className="p-4 bg-gradient-to-br from-white to-purple-50/70 dark:from-slate-900/40 dark:to-purple-900/20 border-b border-slate-200 dark:border-slate-800">
+                            {/* Inline Add Item Form */}
+                            {editingIndex !== null && (
+                                <div className="mb-3 flex flex-wrap items-center gap-2">
+                                    <div className="inline-flex items-center gap-2 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200 px-3 py-1 text-xs font-semibold">
+                                        <span className="h-2 w-2 rounded-full bg-amber-500"></span>
+                                        Sedang mengedit item #{editingIndex + 1}
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setEditingIndex(null);
+                                            setSelectedPart(null);
+                                            setSearchPart('');
+                                            setItemQty(1);
+                                            setItemPrice(0);
+                                            setItemDiscountType('none');
+                                            setItemDiscountValue(0);
+                                            setIsPartDropdownOpen(false);
+                                        }}
+                                        className="text-xs font-semibold text-amber-700 dark:text-amber-200 hover:underline"
+                                    >
+                                        Batal Edit
+                                    </button>
+                                </div>
+                            )}
+                            <div className="flex flex-col gap-3 lg:flex-row lg:flex-nowrap lg:items-end">
+                                <div className="flex-1 min-w-[320px]">
+                                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">Cari Sparepart</label>
+                                    <div className="relative">
+                                        <IconSearch size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                        <input
+                                            type="text"
+                                            value={searchPart}
+                                            onChange={(e) => {
+                                                setSearchPart(e.target.value);
+                                                setSelectedPart(null);
+                                                setIsPartDropdownOpen(true);
+                                            }}
+                                            onFocus={() => setIsPartDropdownOpen(true)}
+                                            onBlur={() => setTimeout(() => setIsPartDropdownOpen(false), 150)}
+                                            placeholder="Cari nama atau kode part..."
+                                            className="w-full h-10 pl-9 pr-9 rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white text-sm font-medium focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                        />
+                                        {searchPart && (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setSearchPart('');
+                                                    setSelectedPart(null);
+                                                    setIsPartDropdownOpen(true);
+                                                }}
+                                                className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-6 w-6 items-center justify-center rounded-full text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
+                                                aria-label="Hapus pencarian"
+                                            >
+                                                <span className="text-base leading-none">×</span>
+                                            </button>
+                                        )}
+                                        {isPartDropdownOpen && (
+                                            <div className="absolute z-20 mt-2 w-full max-h-60 overflow-y-auto rounded-lg border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-xl">
+                                                {filteredParts.length > 0 ? (
+                                                    <div className="divide-y divide-slate-200 dark:divide-slate-700">
+                                                        {filteredParts.map((part) => (
+                                                            <button
+                                                                key={part.id}
+                                                                type="button"
+                                                                onMouseDown={(e) => {
+                                                                    e.preventDefault();
+                                                                    setSelectedPart(part);
+                                                                    setItemPrice(part.buy_price || part.sell_price || 0);
+                                                                    setSearchPart(part.name || '');
+                                                                    setIsPartDropdownOpen(false);
+                                                                }}
+                                                                className="w-full px-3 py-2 text-left hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors"
+                                                            >
+                                                                <div className="flex items-center justify-between gap-3">
+                                                                    <div className="min-w-0">
+                                                                        <div className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+                                                                            {part.name || 'Tanpa nama'}
+                                                                        </div>
+                                                                        <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                                                                            {part.part_number ? `Kode: ${part.part_number}` : 'Tanpa kode'} · Stok: {part.stock || 0}
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                                                                        {formatCurrency(part.buy_price || part.sell_price || 0)}
+                                                                    </div>
+                                                                </div>
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <div className="px-3 py-3 text-xs text-slate-500 dark:text-slate-400">
+                                                        Sparepart tidak ditemukan
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="w-20">
+                                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">Qty</label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        value={itemQty}
+                                        onChange={(e) => setItemQty(parseInt(e.target.value) || 1)}
+                                        className="w-full h-10 px-2 text-center text-sm rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-bold focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                    />
+                                </div>
+                                <div className="w-36">
+                                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">Harga</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        value={itemPrice}
+                                        onChange={(e) => setItemPrice(parseInt(e.target.value) || 0)}
+                                        className="w-full h-10 px-3 text-right text-sm rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-bold focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                    />
+                                </div>
+                                <div className="w-52">
+                                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">Diskon</label>
+                                    <div className="flex items-center gap-2">
+                                        <div className="inline-flex h-10 rounded-lg border-2 border-slate-300 dark:border-slate-700 overflow-hidden">
+                                            <button
+                                                type="button"
+                                                onClick={() => setItemDiscountType('none')}
+                                                className={`px-2 text-[11px] font-bold transition-all ${
+                                                    itemDiscountType === 'none'
+                                                        ? 'bg-purple-600 text-white'
+                                                        : 'bg-white text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                                                }`}
+                                            >
+                                                Tidak
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setItemDiscountType('percent')}
+                                                className={`px-2 text-[11px] font-bold transition-all ${
+                                                    itemDiscountType === 'percent'
+                                                        ? 'bg-purple-600 text-white'
+                                                        : 'bg-white text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                                                }`}
+                                            >
+                                                %
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setItemDiscountType('fixed')}
+                                                className={`px-2 text-[11px] font-bold transition-all ${
+                                                    itemDiscountType === 'fixed'
+                                                        ? 'bg-emerald-600 text-white'
+                                                        : 'bg-white text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                                                }`}
+                                            >
+                                                Rp
+                                            </button>
+                                        </div>
+                                        <div className="relative flex-1">
+                                            {itemDiscountType === 'fixed' && (
+                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">Rp</span>
+                                            )}
+                                            {itemDiscountType === 'percent' && (
+                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">%</span>
+                                            )}
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                value={itemDiscountValue}
+                                                onChange={(e) => setItemDiscountValue(parseFloat(e.target.value) || 0)}
+                                                className={`w-full h-10 rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-bold text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 ${
+                                                    itemDiscountType === 'fixed' ? 'pl-9 pr-3 text-right' : 'px-3 text-right'
+                                                } ${itemDiscountType === 'percent' ? 'pr-7' : ''}`}
+                                                disabled={itemDiscountType === 'none'}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
                                 <button
                                     type="button"
-                                    onClick={openItemModal}
-                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-50 text-primary-600 hover:bg-primary-100 transition-colors"
+                                    onClick={addItem}
+                                    disabled={!selectedPart}
+                                    className="h-10 px-4 min-w-[104px] rounded-lg bg-gradient-to-r from-purple-600 to-purple-700 text-white text-sm font-bold hover:from-purple-700 hover:to-purple-800 shadow-lg shadow-purple-500/30 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2 shrink-0"
                                 >
-                                    <IconPlus size={18} />
-                                    <span>Tambah Item Pertama</span>
+                                    <IconPlus size={16} /> Tambah
                                 </button>
-                            </div>
-                        ) : (
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-sm">
+                                </div>
+
+                            {/* Items Display */}
+                            {formData.items.length === 0 ? (
+                                <div className="text-center py-12 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl">
+                                    <p className="text-slate-500 dark:text-slate-400 mb-3">Belum ada item yang ditambahkan</p>
+                                    <p className="text-xs text-slate-400">Gunakan form di atas untuk menambahkan item pembelian</p>
+                                </div>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm">
                                     <thead>
                                         <tr className="border-b border-slate-200 dark:border-slate-700">
                                             <th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-300">Part</th>
@@ -520,69 +713,73 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
                     </div>
 
                     {/* Discount & Tax Section */}
-                    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm mb-6 overflow-hidden p-6">
-                        <div className="mb-6 pb-6 border-b border-slate-200 dark:border-slate-800">
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
-                                    <IconPercentage size={20} className="text-primary-600 dark:text-primary-400" />
+                    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm mb-6 overflow-hidden">
+                        <div className="bg-gradient-to-r from-purple-500 to-purple-600 px-6 py-4">
+                            <div className="flex items-center gap-3 text-white">
+                                <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center">
+                                    <IconPercentage size={20} />
                                 </div>
                                 <div>
-                                    <h2 className="font-semibold text-lg text-slate-900 dark:text-white">Diskon & Pajak</h2>
-                                    <p className="text-sm text-slate-500 dark:text-slate-400">Pengaturan diskon dan pajak pembelian</p>
+                                    <h2 className="font-semibold text-lg">Diskon & Pajak</h2>
+                                    <p className="text-sm text-white/80">Pengaturan diskon dan pajak pembelian</p>
                                 </div>
                             </div>
+                        </div>
 
-                            {/* Transaction Discount */}
-                            <div className="mb-4">
-                                <div className="grid grid-cols-12 gap-3 items-end">
-                                    <div className="col-span-4">
-                                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">Diskon Transaksi</label>
-                                        <select
-                                            value={formData.discount_type}
-                                            onChange={(e) => handleChange('discount_type', e.target.value)}
-                                            className="w-full h-10 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                        >
-                                            <option value="none">Tidak Ada</option>
-                                            <option value="percent">Persen (%)</option>
-                                            <option value="fixed">Nilai Tetap</option>
-                                        </select>
-                                    </div>
-                                    {formData.discount_type !== 'none' && (
+                        <div className="p-6 space-y-6">
+                            <div className="pb-6 border-b border-slate-200 dark:border-slate-800">
+                                {/* Transaction Discount */}
+                                <div className="mb-4">
+                                    <div className="grid grid-cols-12 gap-3 items-end">
                                         <div className="col-span-4">
-                                            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                                                {formData.discount_type === 'percent' ? 'Nilai (%)' : 'Nilai (Rp)'}
-                                            </label>
-                                            <input
-                                                type="number"
-                                                value={formData.discount_value}
-                                                onChange={(e) => handleChange('discount_value', e.target.value)}
-                                                placeholder={formData.discount_type === 'percent' ? '0-100' : '0'}
-                                                className="w-full h-10 px-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                            />
+                                            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">Diskon Transaksi</label>
+                                            <select
+                                                value={formData.discount_type}
+                                                onChange={(e) => handleChange('discount_type', e.target.value)}
+                                                className="w-full h-10 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                            >
+                                                <option value="none">Tidak Ada</option>
+                                                <option value="percent">Persen (%)</option>
+                                                <option value="fixed">Nilai Tetap</option>
+                                            </select>
                                         </div>
-                                    )}
-                                    <div className={`${formData.discount_type !== 'none' ? 'col-span-4' : 'col-span-8'} text-right`}>
-                                        {transactionDiscount > 0 && (
-                                            <span className="text-sm text-red-600 dark:text-red-400 font-semibold">-{formatCurrency(transactionDiscount)}</span>
+                                        {formData.discount_type !== 'none' && (
+                                            <div className="col-span-4">
+                                                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                                                    {formData.discount_type === 'percent' ? 'Nilai (%)' : 'Nilai (Rp)'}
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    value={formData.discount_value}
+                                                    onChange={(e) => handleChange('discount_value', e.target.value)}
+                                                    placeholder={formData.discount_type === 'percent' ? '0-100' : '0'}
+                                                    className="w-full h-10 px-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                                />
+                                            </div>
                                         )}
+                                        <div className={`${formData.discount_type !== 'none' ? 'col-span-4' : 'col-span-8'} text-right`}>
+                                            {transactionDiscount > 0 && (
+                                                <span className="text-sm text-red-600 dark:text-red-400 font-semibold">-{formatCurrency(transactionDiscount)}</span>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            <div className="flex justify-between items-center text-sm bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg">
-                                <span className="text-slate-600 dark:text-slate-300">Setelah Diskon:</span>
-                                <span className="font-semibold text-slate-900 dark:text-white text-base">{formatCurrency(afterDiscount)}</span>
+                                <div className="flex justify-between items-center text-sm bg-purple-50 dark:bg-purple-900/20 p-3 rounded-lg border border-purple-200 dark:border-purple-900/40">
+                                    <span className="text-purple-700 dark:text-purple-300">Setelah Diskon:</span>
+                                    <span className="font-semibold text-purple-900 dark:text-white text-base">{formatCurrency(afterDiscount)}</span>
+                                </div>
                             </div>
 
                             {/* Tax */}
-                            <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+                            <div>
                                 <div className="grid grid-cols-12 gap-3 items-end">
                                     <div className="col-span-4">
                                         <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">Pajak</label>
                                         <select
                                             value={formData.tax_type}
                                             onChange={(e) => handleChange('tax_type', e.target.value)}
-                                            className="w-full h-10 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                            className="w-full h-10 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
                                         >
                                             <option value="none">Tidak Ada</option>
                                             <option value="percent">Persen (%)</option>
@@ -599,7 +796,7 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
                                                 value={formData.tax_value}
                                                 onChange={(e) => handleChange('tax_value', e.target.value)}
                                                 placeholder={formData.tax_type === 'percent' ? '0-100' : '0'}
-                                                className="w-full h-10 px-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                                className="w-full h-10 px-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
                                             />
                                         </div>
                                     )}
@@ -614,27 +811,27 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
                     </div>
 
                     {/* Total Summary */}
-                    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 shadow-sm mb-6 p-6">
+                    <div className="rounded-2xl border border-emerald-200 dark:border-emerald-900/50 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950 dark:to-emerald-900 shadow-xl mb-6 p-6">
                             <div className="space-y-3">
                                 <div className="flex justify-between text-sm">
-                                    <span className="text-slate-600 dark:text-slate-400">Subtotal ({formData.items.length} items)</span>
-                                    <span className="font-semibold text-slate-900 dark:text-white">{formatCurrency(itemsSubtotal)}</span>
+                                    <span className="text-emerald-700 dark:text-emerald-300">Subtotal ({formData.items.length} items)</span>
+                                    <span className="font-semibold text-emerald-900 dark:text-white">{formatCurrency(itemsSubtotal)}</span>
                                 </div>
                                 {transactionDiscount > 0 && (
-                                    <div className="flex justify-between text-sm border-t border-slate-200 dark:border-slate-700 pt-3">
-                                        <span className="text-slate-600 dark:text-slate-400">Discount</span>
-                                        <span className="font-semibold text-red-600">-{formatCurrency(transactionDiscount)}</span>
+                                    <div className="flex justify-between text-sm border-t border-emerald-200 dark:border-emerald-800 pt-3">
+                                        <span className="text-emerald-700 dark:text-emerald-300">Discount</span>
+                                        <span className="font-semibold text-red-600 dark:text-red-400">-{formatCurrency(transactionDiscount)}</span>
                                     </div>
                                 )}
                                 {taxAmount > 0 && (
-                                    <div className="flex justify-between text-sm border-t border-slate-200 dark:border-slate-700 pt-3">
-                                        <span className="text-slate-600 dark:text-slate-400">Tax</span>
-                                        <span className="font-semibold text-green-600">+{formatCurrency(taxAmount)}</span>
+                                    <div className="flex justify-between text-sm border-t border-emerald-200 dark:border-emerald-800 pt-3">
+                                        <span className="text-emerald-700 dark:text-emerald-300">Tax</span>
+                                        <span className="font-semibold text-green-600 dark:text-green-400">+{formatCurrency(taxAmount)}</span>
                                     </div>
                                 )}
-                                <div className="flex justify-between border-t-2 border-slate-300 dark:border-slate-600 pt-3">
-                                    <span className="text-lg font-bold text-slate-900 dark:text-white">Grand Total</span>
-                                    <span className="text-2xl font-bold text-primary-600">{formatCurrency(grandTotal)}</span>
+                                <div className="flex justify-between border-t-2 border-emerald-300 dark:border-emerald-700 pt-3">
+                                    <span className="text-lg font-bold text-emerald-900 dark:text-white">Grand Total</span>
+                                    <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(grandTotal)}</span>
                                 </div>
                             </div>
                         </div>
@@ -645,14 +842,14 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
                             type="button"
                             onClick={() => router.visit(route('part-purchases.index'))}
                             disabled={submitting}
-                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-200 dark:bg-slate-700 px-6 py-3.5 font-semibold text-slate-700 dark:text-slate-200 transition hover:bg-slate-300 dark:hover:bg-slate-600 disabled:opacity-50"
+                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-100 dark:bg-slate-800 px-6 py-3.5 font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50"
                         >
                             Batal
                         </button>
                         <button
                             type="submit"
                             disabled={submitting || formData.items.length === 0}
-                            className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary-600 to-primary-700 px-6 py-3.5 font-semibold text-white shadow-lg shadow-primary-500/30 transition hover:shadow-xl hover:shadow-primary-500/40 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-6 py-3.5 font-semibold text-white shadow-lg shadow-amber-500/30 transition hover:shadow-xl hover:shadow-amber-500/40 hover:to-amber-700 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {submitting ? (
                                 <>
@@ -668,6 +865,7 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
                         </button>
                     </div>
                 </form>
+                </div>
             </div>
 
             {/* Add Supplier Modal */}
@@ -680,202 +878,6 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
                     toast.success('Supplier berhasil ditambahkan dan dipilih');
                 }}
             />
-
-            {/* Quick Create Part Modal */}
-            <QuickCreatePartModal
-                isOpen={showPartModal}
-                onClose={() => {
-                    setShowPartModal(false);
-                    setCreatePartName('');
-                }}
-                initialName={createPartName}
-                categories={categories}
-                onPartCreated={() => {
-                    router.get(route('part-purchases.edit', purchase.id), {}, {
-                        preserveScroll: true,
-                        preserveState: true,
-                        only: ['parts'],
-                        onSuccess: (response) => {
-                            const updatedParts = response.props?.parts || [];
-                            setLocalParts(updatedParts);
-
-                            const createdPart = updatedParts.find(p => p.name === createPartName);
-                            if (createdPart) {
-                                setSelectedPart(createdPart);
-                                setItemPrice(createdPart.buy_price || createdPart.sell_price || 0);
-                                toast.success('Sparepart berhasil ditambahkan dan dipilih');
-                            }
-
-                            setShowPartModal(false);
-                            setCreatePartName('');
-                            setShowItemModal(true);
-                        }
-                    });
-                }}
-            />
-
-            {/* Item Selection Modal */}
-            {showItemModal && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
-                        <div className="sticky top-0 bg-gradient-to-r from-primary-500 to-primary-600 px-6 py-4 flex items-center justify-between">
-                            <div className="flex items-center gap-3 text-white">
-                                <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center">
-                                    <IconPlus size={20} />
-                                </div>
-                                <div>
-                                    <h3 className="font-semibold text-lg">
-                                        {editingIndex !== null ? 'Edit Item' : 'Tambah Item'}
-                                    </h3>
-                                    <p className="text-sm text-white/80">Pilih sparepart untuk ditambahkan</p>
-                                </div>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setShowItemModal(false);
-                                    setEditingIndex(null);
-                                }}
-                                className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
-                            >
-                                <IconX size={18} />
-                            </button>
-                        </div>
-
-                        <div className="p-6 flex-1 overflow-y-auto">
-                            <div className="mb-4">
-                                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Cari Sparepart</label>
-                                <div className="flex gap-2">
-                                    <input
-                                        type="text"
-                                        placeholder="Ketik nama atau kode part..."
-                                        value={searchPart}
-                                        onChange={(e) => setSearchPart(e.target.value)}
-                                        className="flex-1 h-11 px-4 rounded-xl border"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setCreatePartName(searchPart);
-                                            setShowPartModal(true);
-                                        }}
-                                        className="h-11 px-4 rounded-xl bg-primary-50 text-primary-600 hover:bg-primary-100 border border-primary-200 transition-colors flex items-center gap-2"
-                                    >
-                                        <IconPlus size={18} />
-                                        <span className="hidden sm:inline">Baru</span>
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="space-y-2 mb-6 max-h-64 overflow-y-auto">
-                                {filteredParts.map(p => (
-                                    <div
-                                        key={p.id}
-                                        onClick={() => {
-                                            setSelectedPart(p);
-                                            setItemPrice(p.buy_price || 0);
-                                        }}
-                                        className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                                            selectedPart?.id === p.id
-                                                ? 'border-primary-500 bg-primary-50'
-                                                : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                                        }`}
-                                    >
-                                        <div className="flex justify-between items-start">
-                                            <div>
-                                                <div className="font-semibold text-slate-900">{p.name}</div>
-                                                {p.part_number && <div className="text-sm text-slate-500 mt-1">Kode: {p.part_number}</div>}
-                                            </div>
-                                            <div className="text-right">
-                                                <div className="text-sm font-semibold text-slate-700">Stock: {p.stock}</div>
-                                                <div className="text-xs text-slate-500">Harga: {formatCurrency(p.buy_price || 0)}</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-
-                            {selectedPart && (
-                                <div className="space-y-4 border-t pt-4">
-                                    <div className="bg-primary-50 rounded-lg p-3">
-                                        <p className="text-sm font-medium text-primary-900">
-                                            Sparepart: <span className="font-semibold">{selectedPart.name}</span>
-                                        </p>
-                                    </div>
-
-                                    <div className="grid gap-4 md:grid-cols-2">
-                                        <div>
-                                            <label className="block text-sm font-semibold text-slate-700 mb-2">Jumlah</label>
-                                            <input
-                                                type="number"
-                                                value={itemQty}
-                                                onChange={(e) => setItemQty(e.target.value)}
-                                                min="1"
-                                                className="w-full h-11 px-4 rounded-xl border"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-semibold text-slate-700 mb-2">Harga Satuan</label>
-                                            <input
-                                                type="number"
-                                                value={itemPrice}
-                                                onChange={(e) => setItemPrice(e.target.value)}
-                                                min="0"
-                                                className="w-full h-11 px-4 rounded-xl border"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-sm font-semibold text-slate-700 mb-2">Diskon Item</label>
-                                        <div className="grid gap-4 md:grid-cols-2">
-                                            <select
-                                                value={itemDiscountType}
-                                                onChange={(e) => setItemDiscountType(e.target.value)}
-                                                className="w-full h-11 px-4 rounded-xl border"
-                                            >
-                                                <option value="none">Tidak Ada Diskon</option>
-                                                <option value="percent">Persen (%)</option>
-                                                <option value="fixed">Nilai Tetap</option>
-                                            </select>
-                                            {itemDiscountType !== 'none' && (
-                                                <input
-                                                    type="number"
-                                                    value={itemDiscountValue}
-                                                    onChange={(e) => setItemDiscountValue(e.target.value)}
-                                                    min="0"
-                                                    className="w-full h-11 px-4 rounded-xl border"
-                                                />
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="sticky bottom-0 bg-slate-50 border-t px-6 py-4 flex justify-end gap-3">
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setShowItemModal(false);
-                                    setEditingIndex(null);
-                                }}
-                                className="px-4 py-2 rounded-xl border text-slate-700 hover:bg-white transition-colors"
-                            >
-                                Batal
-                            </button>
-                            <button
-                                type="button"
-                                onClick={addItem}
-                                disabled={!selectedPart}
-                                className="px-4 py-2 rounded-xl bg-primary-500 text-white hover:bg-primary-600 transition-colors disabled:opacity-50"
-                            >
-                                {editingIndex !== null ? 'Update Item' : 'Tambah Item'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </>
     );
 }

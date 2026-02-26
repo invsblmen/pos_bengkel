@@ -18,9 +18,9 @@ export default function Create({ parts = [], customers = [] }) {
         sale_date: todayLocalDate(),
         items: [],
         notes: '',
-        discount_type: 'none',
+        discount_type: 'percent',
         discount_value: 0,
-        tax_type: 'none',
+        tax_type: 'percent',
         tax_value: 0,
         paid_amount: 0,
         status: 'confirmed',
@@ -262,68 +262,83 @@ export default function Create({ parts = [], customers = [] }) {
                                     </div>
                                 </div>
                             </div>
-                            <div className="p-6 space-y-6">
-                                <div>
+                            <div className="p-6 space-y-4">
+                                {/* Pelanggan Section */}
+                                <div className="p-4 bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl border border-blue-200 dark:border-blue-700/30">
+                                    <label className="block text-xs font-bold text-blue-700 dark:text-blue-400 mb-2 uppercase tracking-wide">
+                                        👤 Pelanggan
+                                    </label>
                                     <CustomerSelect
                                         customers={localCustomers}
                                         selected={data.customer_id ? localCustomers.find(c => c.id === data.customer_id) : null}
                                         onSelect={(customer) => setData('customer_id', customer?.id || '')}
                                         placeholder="Pilih pelanggan..."
                                         error={errors?.customer_id}
-                                        label="Pelanggan"
                                         onCustomerAdded={(newCustomer) => {
                                             setLocalCustomers([...localCustomers, newCustomer]);
                                             setData('customer_id', newCustomer.id);
                                         }}
                                     />
+                                    {errors.customer_id && (
+                                        <p className="text-xs text-red-600 dark:text-red-400 mt-2 flex items-center gap-1">
+                                            <IconAlertCircle size={14} /> {errors.customer_id}
+                                        </p>
+                                    )}
                                 </div>
-                                <div className="grid gap-6 md:grid-cols-2">
-                                    <div>
-                                        <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                                            Tanggal Penjualan <span className="text-red-500">*</span>
+
+                                {/* Details Grid */}
+                                <div className="grid gap-4 md:grid-cols-3">
+                                    {/* Tanggal */}
+                                    <div className="p-4 bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-900/20 dark:to-emerald-800/20 rounded-xl border border-emerald-200 dark:border-emerald-700/30">
+                                        <label className="block text-xs font-bold text-emerald-700 dark:text-emerald-400 mb-2 uppercase tracking-wide">
+                                            📅 Tanggal Penjualan
                                         </label>
                                         <input
                                             type="date"
                                             value={data.sale_date}
                                             onChange={(e) => setData('sale_date', e.target.value)}
-                                            className={`w-full h-12 px-4 rounded-xl border-2 ${
+                                            className={`w-full h-10 px-3 rounded-lg border-2 text-sm font-semibold ${
                                                 errors.sale_date
                                                     ? 'border-red-500 focus:ring-red-500'
-                                                    : 'border-slate-300 dark:border-slate-700 focus:ring-emerald-500 focus:border-emerald-500'
-                                            } dark:bg-slate-800 dark:text-white transition-all duration-200 font-medium`}
+                                                    : 'border-emerald-300 dark:border-emerald-700 focus:ring-emerald-500 focus:border-emerald-500'
+                                            } dark:bg-emerald-900/30 dark:text-white transition-all duration-200`}
                                         />
                                         {errors.sale_date && (
-                                            <p className="text-xs text-red-500 mt-2 flex items-center gap-1">
-                                                <IconAlertCircle size={14} /> {errors.sale_date}
+                                            <p className="text-xs text-red-600 dark:text-red-400 mt-1 flex items-center gap-1">
+                                                <IconAlertCircle size={12} /> {errors.sale_date}
                                             </p>
                                         )}
                                     </div>
-                                    <div>
-                                        <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                                            Status Penjualan
+
+                                    {/* Status */}
+                                    <div className="p-4 bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-900/20 dark:to-purple-800/20 rounded-xl border border-purple-200 dark:border-purple-700/30">
+                                        <label className="block text-xs font-bold text-purple-700 dark:text-purple-400 mb-2 uppercase tracking-wide">
+                                            ✓ Status Penjualan
                                         </label>
                                         <select
                                             value={data.status}
                                             onChange={(e) => setData('status', e.target.value)}
-                                            className="w-full h-12 px-4 rounded-xl border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200 font-medium"
+                                            className="w-full h-10 px-3 rounded-lg border-2 border-purple-300 dark:border-purple-700 dark:bg-purple-900/30 dark:text-white text-sm font-semibold focus:ring-purple-500 focus:border-purple-500 transition-all duration-200"
                                         >
                                             <option value="draft">📝 Draft</option>
                                             <option value="confirmed">✅ Dikonfirmasi</option>
                                         </select>
-                                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                                        <p className="text-xs text-purple-700 dark:text-purple-400 mt-2 font-medium">
                                             {data.status === 'draft' ? '⚠️ Draft tidak mengurangi stok' : '✓ Konfirmasi akan mengurangi stok'}
                                         </p>
                                     </div>
-                                    <div>
-                                        <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                                            Catatan (Opsional)
+
+                                    {/* Catatan */}
+                                    <div className="p-4 bg-gradient-to-br from-orange-50 to-orange-100/50 dark:from-orange-900/20 dark:to-orange-800/20 rounded-xl border border-orange-200 dark:border-orange-700/30">
+                                        <label className="block text-xs font-bold text-orange-700 dark:text-orange-400 mb-2 uppercase tracking-wide">
+                                            📝 Catatan
                                         </label>
                                         <input
                                             type="text"
                                             value={data.notes}
                                             onChange={(e) => setData('notes', e.target.value)}
-                                            placeholder="Catatan untuk transaksi ini..."
-                                            className="w-full h-12 px-4 rounded-xl border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
+                                            placeholder="Tambahkan catatan..."
+                                            className="w-full h-10 px-3 rounded-lg border-2 border-orange-300 dark:border-orange-700 dark:bg-orange-900/30 dark:text-white text-sm font-medium focus:ring-orange-500 focus:border-orange-500 transition-all duration-200"
                                         />
                                     </div>
                                 </div>
@@ -755,23 +770,48 @@ export default function Create({ parts = [], customers = [] }) {
                                                 <IconPercentage size={14} className="text-orange-500" />
                                                 Diskon
                                             </label>
-                                            <div className="flex gap-2 items-center">
-                                                <select
-                                                    value={data.discount_type}
-                                                    onChange={(e) => setData('discount_type', e.target.value)}
-                                                    className="px-2 py-2 text-xs rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-medium focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                                                >
-                                                    <option value="none">Tidak Ada</option>
-                                                    <option value="percent">%</option>
-                                                    <option value="fixed">Rp</option>
-                                                </select>
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    value={data.discount_value}
-                                                    onChange={(e) => setData('discount_value', e.target.value)}
-                                                    className="flex-1 px-3 py-2 text-xs rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-semibold focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                                                />
+                                            <div className="flex gap-2 items-start">
+                                                <div className="inline-flex h-9 rounded-lg border-2 border-slate-300 dark:border-slate-700 overflow-hidden">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setData('discount_type', 'percent')}
+                                                        className={`px-3 text-[11px] font-bold transition-all ${
+                                                            data.discount_type === 'percent'
+                                                                ? 'bg-orange-600 text-white'
+                                                                : 'bg-white text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                                                        }`}
+                                                    >
+                                                        %
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setData('discount_type', 'fixed')}
+                                                        className={`px-3 text-[11px] font-bold transition-all ${
+                                                            data.discount_type === 'fixed'
+                                                                ? 'bg-orange-600 text-white'
+                                                                : 'bg-white text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                                                        }`}
+                                                    >
+                                                        Rp
+                                                    </button>
+                                                </div>
+                                                <div className="relative flex-1">
+                                                    {data.discount_type === 'fixed' && (
+                                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">Rp</span>
+                                                    )}
+                                                    {data.discount_type !== 'fixed' && (
+                                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">%</span>
+                                                    )}
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        value={data.discount_value}
+                                                        onChange={(e) => setData('discount_value', e.target.value)}
+                                                        className={`w-full h-9 px-3 text-xs rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-semibold focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-right ${
+                                                            data.discount_type === 'fixed' ? 'pl-8 pr-3' : 'pl-3 pr-8'
+                                                        }`}
+                                                    />
+                                                </div>
                                             </div>
                                             <div className="mt-2 px-3 py-1.5 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-700/30">
                                                 <p className="text-xs text-orange-700 dark:text-orange-400 font-medium">Potongan</p>
@@ -783,23 +823,48 @@ export default function Create({ parts = [], customers = [] }) {
                                                 <IconReceipt size={14} className="text-green-500" />
                                                 Pajak
                                             </label>
-                                            <div className="flex gap-2 items-center">
-                                                <select
-                                                    value={data.tax_type}
-                                                    onChange={(e) => setData('tax_type', e.target.value)}
-                                                    className="px-2 py-2 text-xs rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-medium focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                                                >
-                                                    <option value="none">Tidak Ada</option>
-                                                    <option value="percent">%</option>
-                                                    <option value="fixed">Rp</option>
-                                                </select>
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    value={data.tax_value}
-                                                    onChange={(e) => setData('tax_value', e.target.value)}
-                                                    className="flex-1 px-3 py-2 text-xs rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-semibold focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                                                />
+                                            <div className="flex gap-2 items-start">
+                                                <div className="inline-flex h-9 rounded-lg border-2 border-slate-300 dark:border-slate-700 overflow-hidden">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setData('tax_type', 'percent')}
+                                                        className={`px-3 text-[11px] font-bold transition-all ${
+                                                            data.tax_type === 'percent'
+                                                                ? 'bg-green-600 text-white'
+                                                                : 'bg-white text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                                                        }`}
+                                                    >
+                                                        %
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setData('tax_type', 'fixed')}
+                                                        className={`px-3 text-[11px] font-bold transition-all ${
+                                                            data.tax_type === 'fixed'
+                                                                ? 'bg-green-600 text-white'
+                                                                : 'bg-white text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                                                        }`}
+                                                    >
+                                                        Rp
+                                                    </button>
+                                                </div>
+                                                <div className="relative flex-1">
+                                                    {data.tax_type === 'fixed' && (
+                                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">Rp</span>
+                                                    )}
+                                                    {data.tax_type !== 'fixed' && (
+                                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">%</span>
+                                                    )}
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        value={data.tax_value}
+                                                        onChange={(e) => setData('tax_value', e.target.value)}
+                                                        className={`w-full h-9 px-3 text-xs rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-semibold focus:ring-2 focus:ring-green-500 focus:border-green-500 text-right ${
+                                                            data.tax_type === 'fixed' ? 'pl-8 pr-3' : 'pl-3 pr-8'
+                                                        }`}
+                                                    />
+                                                </div>
                                             </div>
                                             <div className="mt-2 px-3 py-1.5 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-700/30">
                                                 <p className="text-xs text-green-700 dark:text-green-400 font-medium">Pajak</p>

@@ -68,70 +68,71 @@ export default function Show({ purchase }) {
     return (
         <>
             <div className="print:hidden">
-                <div className="min-h-screen bg-slate-100 dark:bg-slate-950 py-8 px-4">
-                    <div className="max-w-5xl mx-auto space-y-6">
-                        <button
-                            onClick={() => router.visit(route('part-purchases.index'))}
-                            className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900"
-                        >
-                            <IconArrowLeft size={16} />
-                            <span>Back to Purchases</span>
-                        </button>
+                <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 -m-6 p-6">
+                    <div className="max-w-6xl mx-auto space-y-6">
 
                         {/* Header Card */}
-                        <div className="bg-gradient-to-r from-primary-500 to-primary-600 rounded-2xl p-6 text-white shadow-lg">
-                            <div className="flex justify-between items-start">
-                                <div className="flex items-start gap-4">
-                                    <div className="w-16 h-16 rounded-xl bg-white/20 flex items-center justify-center">
-                                        <IconReceipt size={32} className="text-white" />
-                                    </div>
-                                    <div>
-                                        <div className="text-sm font-medium text-white/80 mb-1">Purchase Order</div>
-                                        <h1 className="text-3xl font-bold mb-2">{purchase.purchase_number}</h1>
-                                        <div className="flex items-center gap-3">
-                                            <span className={`inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium border ${statusColors[purchase.status] || 'bg-gray-100 text-gray-700 border-gray-200'}`}>
-                                                {statusLabels[purchase.status] || purchase.status}
-                                            </span>
-                                            <span className="text-white/80 text-sm">
-                                                {formatDate(purchase.purchase_date)}
-                                            </span>
+                        <div className="bg-gradient-to-r from-amber-600 to-amber-700 dark:from-amber-700 dark:to-amber-800 rounded-2xl shadow-xl">
+                            <div className="px-6 py-5">
+                                <div className="flex justify-between items-start">
+                                    <div className="flex items-start gap-4">
+                                        <button
+                                            onClick={() => router.visit(route('part-purchases.index'))}
+                                            className="flex items-center justify-center w-14 h-14 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all duration-200 backdrop-blur-sm hover:scale-105"
+                                        >
+                                            <IconArrowLeft size={22} />
+                                        </button>
+                                        <div className="w-14 h-14 rounded-xl bg-white/20 flex items-center justify-center">
+                                            <IconReceipt size={28} className="text-white" />
+                                        </div>
+                                        <div>
+                                            <div className="text-sm font-medium text-amber-100 mb-1">Purchase Order</div>
+                                            <h1 className="text-3xl font-bold text-white mb-2">{purchase.purchase_number}</h1>
+                                            <div className="flex items-center gap-3">
+                                                <span className={`inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium border ${statusColors[purchase.status] || 'bg-gray-100 text-gray-700 border-gray-200'}`}>
+                                                    {statusLabels[purchase.status] || purchase.status}
+                                                </span>
+                                                <span className="text-amber-100 text-sm">
+                                                    {formatDate(purchase.purchase_date)}
+                                                </span>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                                <div className="flex gap-2">
-                                    <button
-                                        type="button"
-                                        onClick={handlePrint}
-                                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/20 hover:bg-white/30 text-white font-medium transition-colors border border-white/30"
-                                    >
-                                        <IconPrinter size={18} />
-                                        <span>Print</span>
-                                    </button>
-                                    {(purchase.status === 'pending' || purchase.status === 'ordered') && (
-                                        <Link
-                                            href={route('part-purchases.edit', purchase.id)}
-                                            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/20 hover:bg-white/30 text-white font-medium transition-colors border border-white/30"
-                                        >
-                                            <IconEdit size={18} />
-                                            <span>Edit Purchase</span>
-                                        </Link>
-                                    )}
-                                    {canChangeStatus() && (
+                                    <div className="flex gap-2">
                                         <button
-                                            onClick={() => setShowStatusModal(true)}
-                                            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white text-primary-600 hover:bg-white/90 font-medium transition-colors"
+                                            type="button"
+                                            onClick={handlePrint}
+                                            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-medium transition-all duration-200 backdrop-blur-sm border border-white/20"
                                         >
-                                            Update Status
+                                            <IconPrinter size={18} />
+                                            <span>Print</span>
                                         </button>
-                                    )}
+                                        {(purchase.status === 'pending' || purchase.status === 'ordered') && (
+                                            <Link
+                                                href={route('part-purchases.edit', purchase.id)}
+                                                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-medium transition-all duration-200 backdrop-blur-sm border border-white/20"
+                                            >
+                                                <IconEdit size={18} />
+                                                <span>Edit</span>
+                                            </Link>
+                                        )}
+                                        {canChangeStatus() && (
+                                            <button
+                                                onClick={() => setShowStatusModal(true)}
+                                                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white text-amber-600 hover:bg-white/90 font-medium transition-all duration-200 shadow-lg"
+                                            >
+                                                Update Status
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
                         {/* Purchase Info Grid */}
-                        <div className="grid md:grid-cols-3 gap-4">
+                        <div className="grid md:grid-cols-3 gap-6">
                             {/* Supplier Info */}
-                            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 hover:shadow-lg transition-shadow">
+                            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-800 p-6 hover:shadow-xl transition-all duration-200">
                                 <div className="flex items-start gap-4">
                                     <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center flex-shrink-0">
                                         <IconTruck size={24} className="text-blue-600 dark:text-blue-400" />
@@ -150,7 +151,7 @@ export default function Show({ purchase }) {
                             </div>
 
                             {/* Delivery Info */}
-                            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 hover:shadow-lg transition-shadow">
+                            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-800 p-6 hover:shadow-xl transition-all duration-200">
                                 <div className="flex items-start gap-4">
                                     <div className="w-12 h-12 rounded-xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center flex-shrink-0">
                                         <IconCalendar size={24} className="text-amber-600 dark:text-amber-400" />
@@ -178,7 +179,7 @@ export default function Show({ purchase }) {
                             </div>
 
                             {/* Total Amount */}
-                            <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-6 text-white shadow-lg">
+                            <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-6 text-white shadow-xl">
                                 <div className="flex items-start gap-4">
                                     <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
                                         <IconCurrencyDollar size={24} className="text-white" />
@@ -197,9 +198,9 @@ export default function Show({ purchase }) {
                         </div>
 
                         {/* Payment Summary & Notes */}
-                        <div className="grid md:grid-cols-2 gap-4">
+                        <div className="grid md:grid-cols-2 gap-6">
                             {/* Payment Breakdown */}
-                            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 hover:shadow-lg transition-shadow">
+                            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-800 p-6 hover:shadow-xl transition-all duration-200">
                                 <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Payment Summary</h2>
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-sm">
@@ -233,7 +234,7 @@ export default function Show({ purchase }) {
                             </div>
 
                             {/* Notes */}
-                            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 hover:shadow-lg transition-shadow">
+                            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-800 p-6 hover:shadow-xl transition-all duration-200">
                                 <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Notes</h2>
                                 {purchase.notes ? (
                                     <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4">
@@ -246,8 +247,8 @@ export default function Show({ purchase }) {
                         </div>
 
                         {/* Items */}
-                        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-                            <div className="p-6 border-b border-slate-200">
+                        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                            <div className="px-6 py-4 bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 border-b border-slate-200 dark:border-slate-700">
                                 <h2 className="text-lg font-semibold">Purchase Items</h2>
                             </div>
                             <div className="overflow-x-auto">
