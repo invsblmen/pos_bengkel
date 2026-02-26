@@ -13,7 +13,7 @@ import AddSupplierModal from '@/Components/Dashboard/AddSupplierModal';
 export default function Create({ suppliers = [], parts = [], categories = [] }) {
     const [localSuppliers, setLocalSuppliers] = useState(suppliers);
     const [showSupplierModal, setShowSupplierModal] = useState(false);
-    
+
     const { data, setData, post, processing, errors } = useForm({
         supplier_id: '',
         purchase_date: todayLocalDate(),
@@ -86,7 +86,7 @@ export default function Create({ suppliers = [], parts = [], categories = [] }) 
         let part = inputPart || selectedPart;
         let partId = getPartId(part);
         let partName = getPartName(part);
-        
+
         if (!part) {
             toast.error('Pilih sparepart terlebih dahulu');
             return;
