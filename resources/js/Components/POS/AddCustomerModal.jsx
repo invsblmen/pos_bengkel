@@ -108,7 +108,7 @@ export default function AddCustomerModal({ isOpen, onClose, onSuccess }) {
     if (!isOpen) return null;
 
     return createPortal(
-        <div 
+        <div
             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
             onClick={(e) => {
                 // Only close if clicking the overlay background, not the modal itself

@@ -468,8 +468,8 @@ export default function Show({ sale }) {
                                     </div>
                                     <h3 className="text-xl font-bold text-white">Update Status</h3>
                                 </div>
-                                <button 
-                                    onClick={() => setShowStatusModal(false)} 
+                                <button
+                                    onClick={() => setShowStatusModal(false)}
                                     className="flex items-center justify-center w-10 h-10 rounded-xl hover:bg-white/10 text-white transition-all duration-200"
                                 >
                                     <IconX size={20} />

@@ -142,7 +142,7 @@ export default function Create({ parts = [], customers = [] }) {
         setItemDiscountType('percent');
         setItemDiscountValue(0);
         setSearchPart('');
-        
+
         toast.success('Item ditambahkan');
     };
 

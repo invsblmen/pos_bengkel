@@ -509,7 +509,7 @@ export default function Edit({ vehicle, customers }) {
                                     <span className="hidden sm:inline">Tambah</span>
                                 </button>
                             </div>
-                            
+
                             {/* Features Tags */}
                             {data.features.length > 0 && (
                                 <div className="flex flex-wrap gap-2">
@@ -530,13 +530,13 @@ export default function Edit({ vehicle, customers }) {
                                     ))}
                                 </div>
                             )}
-                            
+
                             {data.features.length === 0 && (
                                 <p className="text-sm text-slate-400 dark:text-slate-500 italic">
                                     Belum ada fitur ditambahkan
                                 </p>
                             )}
-                            
+
                             {errors.features && (
                                 <p className="mt-2 text-xs text-danger-500">{errors.features}</p>
                             )}

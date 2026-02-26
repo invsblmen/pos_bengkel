@@ -103,7 +103,7 @@ export default function Index({ sales, filters, customers = [] }) {
                                 </div>
                             </div>
                         </div>
-                        
+
                         {/* Action Buttons */}
                         <div className="flex flex-wrap items-center gap-3 mt-6">
                             <div className="inline-flex items-center rounded-xl border-2 border-white/20 bg-white/10 backdrop-blur-sm p-1">
