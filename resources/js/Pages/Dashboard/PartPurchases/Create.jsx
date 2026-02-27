@@ -36,7 +36,7 @@ export default function Create({ suppliers = [], parts = [], categories = [] }) 
 
     const getPartId = (part) => part?.id ?? part?.part_id ?? part?.value ?? part?.key ?? null;
     const getPartName = (part) => part?.name ?? part?.part_name ?? part?.title ?? '';
-    const getPartPrice = (part) => part?.cost_price ?? part?.purchase_price ?? part?.price ?? part?.unit_price ?? 0;
+    const getPartPrice = (part) => part?.buy_price ?? part?.cost_price ?? part?.purchase_price ?? part?.price ?? part?.unit_price ?? 0;
     const getPartNumber = (part) => part?.part_number ?? part?.part_no ?? part?.code ?? '';
     const getPartStock = (part) => part?.stock ?? part?.qty ?? part?.quantity ?? 0;
 
@@ -133,6 +133,10 @@ export default function Create({ suppliers = [], parts = [], categories = [] }) 
                 unit_price: itemPrice || fallbackPrice,
                 discount_type: itemDiscountType,
                 discount_value: itemDiscountValue,
+                margin_type: 'percent',
+                margin_value: 0,
+                promo_discount_type: 'none',
+                promo_discount_value: 0,
             },
         ]);
 

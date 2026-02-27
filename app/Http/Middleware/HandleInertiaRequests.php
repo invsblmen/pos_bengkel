@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Models\LowStockAlert;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -59,6 +60,32 @@ class HandleInertiaRequests extends Middleware
                                         'rack_location' => $alert->part->rack_location,
                                     ]
                                     : null,
+                            ];
+                        }),
+                ]
+                : [
+                    'count' => 0,
+                    'items' => [],
+                ],
+            'notifications' => $request->user() && Schema::hasTable('notifications')
+                ? [
+                    'count' => $request->user()->unreadNotifications()->count(),
+                    'items' => $request->user()->notifications()
+                        ->latest()
+                        ->take(5)
+                        ->get()
+                        ->map(function ($notification) {
+                            $data = $notification->data ?? [];
+
+                            return [
+                                'id' => $notification->id,
+                                'title' => $data['title'] ?? 'Notifikasi',
+                                'message' => $data['message'] ?? '',
+                                'reference' => $data['reference'] ?? null,
+                                'purchase_id' => $data['purchase_id'] ?? null,
+                                'context' => $data['context'] ?? null,
+                                'read_at' => $notification->read_at,
+                                'created_at' => $notification->created_at?->diffForHumans(),
                             ];
                         }),
                 ]

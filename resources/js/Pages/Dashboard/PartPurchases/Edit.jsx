@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Head, router } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import toast from 'react-hot-toast';
-import { IconPlus, IconTrash, IconArrowLeft, IconPencil, IconTruck, IconCheck, IconAlertTriangle, IconPercentage, IconReceipt, IconShoppingCart, IconSearch } from '@tabler/icons-react';
+import { IconPlus, IconTrash, IconArrowLeft, IconPencil, IconTruck, IconCheck, IconAlertTriangle, IconPercentage, IconReceipt, IconShoppingCart, IconSearch, IconDiscount, IconCash } from '@tabler/icons-react';
 import { todayLocalDate, extractDateFromISO } from '@/Utils/datetime';
 import AddSupplierModal from '@/Components/Dashboard/AddSupplierModal';
 
@@ -22,17 +22,17 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
             part_name: detail.part?.name || '',
             quantity: detail.quantity,
             unit_price: detail.unit_price,
-            discount_type: detail.discount_type || 'none',
+            discount_type: (detail.discount_type === 'none' || !detail.discount_type) ? 'percent' : detail.discount_type,
             discount_value: detail.discount_value || 0,
             subtotal: detail.subtotal,
-            margin_type: 'percent',
-            margin_value: 0,
-            promo_discount_type: 'none',
-            promo_discount_value: 0,
+            margin_type: detail.margin_type || 'percent',
+            margin_value: detail.margin_value || 0,
+            promo_discount_type: detail.promo_discount_type || 'none',
+            promo_discount_value: detail.promo_discount_value || 0,
         })) || [],
-        discount_type: purchase.discount_type || 'none',
+        discount_type: (purchase.discount_type === 'none' || !purchase.discount_type) ? 'percent' : purchase.discount_type,
         discount_value: purchase.discount_value || 0,
-        tax_type: purchase.tax_type || 'none',
+        tax_type: (purchase.tax_type === 'none' || !purchase.tax_type) ? 'percent' : purchase.tax_type,
         tax_value: purchase.tax_value || 0,
     });
 
@@ -46,7 +46,7 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
     const [selectedPart, setSelectedPart] = useState(null);
     const [itemQty, setItemQty] = useState(1);
     const [itemPrice, setItemPrice] = useState(0);
-    const [itemDiscountType, setItemDiscountType] = useState('none');
+    const [itemDiscountType, setItemDiscountType] = useState('percent');
     const [itemDiscountValue, setItemDiscountValue] = useState(0);
 
     const handleChange = (field, value) => {
@@ -69,7 +69,7 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
         setIsPartDropdownOpen(false);
         setItemQty(item.quantity || 1);
         setItemPrice(item.unit_price || 0);
-        setItemDiscountType(item.discount_type || 'none');
+        setItemDiscountType(item.discount_type || 'percent');
         setItemDiscountValue(item.discount_value || 0);
         setEditingIndex(index);
     };
@@ -125,7 +125,7 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
         setSearchPart('');
         setItemQty(1);
         setItemPrice(0);
-        setItemDiscountType('none');
+        setItemDiscountType('percent');
         setItemDiscountValue(0);
         setIsPartDropdownOpen(false);
         toast.success(editingIndex !== null ? 'Item updated' : 'Item added');
@@ -155,6 +155,23 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
             const newItems = [...prev.items];
             newItems[index].unit_price = newPrice;
             newItems[index].subtotal = newItems[index].quantity * newPrice;
+            return { ...prev, items: newItems };
+        });
+    };
+
+    const updateItemDiscountType = (index, type) => {
+        setFormData(prev => {
+            const newItems = [...prev.items];
+            newItems[index].discount_type = type;
+            return { ...prev, items: newItems };
+        });
+    };
+
+    const updateItemDiscountValue = (index, value) => {
+        const newValue = parseFloat(value) || 0;
+        setFormData(prev => {
+            const newItems = [...prev.items];
+            newItems[index].discount_value = newValue;
             return { ...prev, items: newItems };
         });
     };
@@ -312,7 +329,7 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
                     </div>
                 </div>
 
-                <div className="max-w-6xl mx-auto space-y-6">
+                <div className="max-w-6xl mx-auto">
                 <form onSubmit={handleSubmit}>
                     {/* Warning for received purchases */}
                     {purchase.status === 'received' && (
@@ -326,7 +343,7 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
                     )}
 
                     {/* Purchase Information Section */}
-                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800">
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 mb-6">
                         <div className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 px-6 py-4 border-b border-slate-200 dark:border-slate-700">
                             <div className="flex items-center gap-3">
                                 <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-amber-500 text-white shadow-lg shadow-amber-500/30">
@@ -419,7 +436,7 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
                     </div>
 
                     {/* Items Section */}
-                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 mb-6">
                         <div className="bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 px-6 py-4 border-b border-purple-200 dark:border-purple-700/30">
                             <div className="flex items-center gap-3">
                                 <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-purple-500 text-white shadow-lg shadow-purple-500/30">
@@ -434,10 +451,10 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
                             </div>
                         </div>
 
-                        <div className="p-4 bg-gradient-to-br from-white to-purple-50/70 dark:from-slate-900/40 dark:to-purple-900/20 border-b border-slate-200 dark:border-slate-800">
+                        <div className="p-4 bg-gradient-to-br from-white to-purple-50/70 dark:from-slate-900/40 dark:to-purple-900/20 border-b border-slate-200 dark:border-slate-800 overflow-visible">
                             {/* Inline Add Item Form */}
                             {editingIndex !== null && (
-                                <div className="mb-3 flex flex-wrap items-center gap-2">
+                                <div className="mb-3 flex flex-wrap items-center gap-2 relative z-0">
                                     <div className="inline-flex items-center gap-2 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200 px-3 py-1 text-xs font-semibold">
                                         <span className="h-2 w-2 rounded-full bg-amber-500"></span>
                                         Sedang mengedit item #{editingIndex + 1}
@@ -450,7 +467,7 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
                                             setSearchPart('');
                                             setItemQty(1);
                                             setItemPrice(0);
-                                            setItemDiscountType('none');
+                                            setItemDiscountType('percent');
                                             setItemDiscountValue(0);
                                             setIsPartDropdownOpen(false);
                                         }}
@@ -493,7 +510,7 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
                                             </button>
                                         )}
                                         {isPartDropdownOpen && (
-                                            <div className="absolute z-20 mt-2 w-full max-h-60 overflow-y-auto rounded-lg border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-xl">
+                                            <div className="absolute z-50 mt-2 w-full max-h-60 overflow-y-auto rounded-lg border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-xl">
                                                 {filteredParts.length > 0 ? (
                                                     <div className="divide-y divide-slate-200 dark:divide-slate-700">
                                                         {filteredParts.map((part) => (
@@ -557,22 +574,11 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
                                 <div className="w-52">
                                     <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">Diskon</label>
                                     <div className="flex items-center gap-2">
-                                        <div className="inline-flex h-10 rounded-lg border-2 border-slate-300 dark:border-slate-700 overflow-hidden">
-                                            <button
-                                                type="button"
-                                                onClick={() => setItemDiscountType('none')}
-                                                className={`px-2 text-[11px] font-bold transition-all ${
-                                                    itemDiscountType === 'none'
-                                                        ? 'bg-purple-600 text-white'
-                                                        : 'bg-white text-slate-600 dark:bg-slate-800 dark:text-slate-300'
-                                                }`}
-                                            >
-                                                Tidak
-                                            </button>
+                                        <div className="inline-flex h-10 rounded-lg border-2 border-slate-300 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-800">
                                             <button
                                                 type="button"
                                                 onClick={() => setItemDiscountType('percent')}
-                                                className={`px-2 text-[11px] font-bold transition-all ${
+                                                className={`px-3 text-xs font-bold transition-all ${
                                                     itemDiscountType === 'percent'
                                                         ? 'bg-purple-600 text-white'
                                                         : 'bg-white text-slate-600 dark:bg-slate-800 dark:text-slate-300'
@@ -583,7 +589,7 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
                                             <button
                                                 type="button"
                                                 onClick={() => setItemDiscountType('fixed')}
-                                                className={`px-2 text-[11px] font-bold transition-all ${
+                                                className={`px-3 text-xs font-bold transition-all ${
                                                     itemDiscountType === 'fixed'
                                                         ? 'bg-emerald-600 text-white'
                                                         : 'bg-white text-slate-600 dark:bg-slate-800 dark:text-slate-300'
@@ -607,7 +613,6 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
                                                 className={`w-full h-10 rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-bold text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 ${
                                                     itemDiscountType === 'fixed' ? 'pl-9 pr-3 text-right' : 'px-3 text-right'
                                                 } ${itemDiscountType === 'percent' ? 'pr-7' : ''}`}
-                                                disabled={itemDiscountType === 'none'}
                                             />
                                         </div>
                                     </div>
@@ -629,70 +634,134 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
                                     <p className="text-xs text-slate-400">Gunakan form di atas untuk menambahkan item pembelian</p>
                                 </div>
                             ) : (
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-sm">
-                                    <thead>
-                                        <tr className="border-b border-slate-200 dark:border-slate-700">
-                                            <th className="px-4 py-3 text-left font-semibold text-slate-700 dark:text-slate-300">Part</th>
-                                            <th className="px-4 py-3 text-center font-semibold text-slate-700 dark:text-slate-300">Qty</th>
-                                            <th className="px-4 py-3 text-right font-semibold text-slate-700 dark:text-slate-300">Harga</th>
-                                            <th className="px-4 py-3 text-right font-semibold text-slate-700 dark:text-slate-300">Diskon</th>
-                                            <th className="px-4 py-3 text-right font-semibold text-slate-700 dark:text-slate-300">Subtotal</th>
-                                            <th className="px-4 py-3 text-right font-semibold text-slate-700 dark:text-slate-300">Harga Jual</th>
-                                            <th className="px-4 py-3 text-center font-semibold text-slate-700 dark:text-slate-300">Aksi</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                <>
+                                    {/* Desktop Table View */}
+                                    <div className="space-y-2 p-2 hidden lg:block">
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-sm border-separate border-spacing-y-1">
+                                                <thead>
+                                                    <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
+                                                        <th className="px-3 py-2 text-left font-bold text-slate-700 dark:text-slate-300">Sparepart</th>
+                                                        <th className="px-3 py-2 text-center font-bold text-slate-700 dark:text-slate-300 w-20">Qty</th>
+                                                        <th className="px-3 py-2 text-right font-bold text-slate-700 dark:text-slate-300 w-28">Harga</th>
+                                                        <th className="px-3 py-2 text-right font-bold text-slate-700 dark:text-slate-300">Diskon</th>
+                                                        <th className="px-3 py-2 text-right font-bold text-slate-700 dark:text-slate-300 w-32">Total</th>
+                                                        <th className="px-3 py-2 text-center font-bold text-slate-700 dark:text-slate-300 w-14">Aksi</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {formData.items.map((item, idx) => {
+                                                        const discountAmount = calculateItemDiscount(item);
+                                                        const itemTotal = calculateItemTotal(item);
+                                                        return (
+                                                        <tr key={idx} className="bg-white dark:bg-slate-900/70 shadow-sm ring-1 ring-slate-200/60 dark:ring-slate-800/60">
+                                                            <td className="px-2 py-1.5 first:rounded-l-lg">
+                                                                <div className="font-semibold text-slate-900 dark:text-white text-sm">{item.part_name}</div>
+                                                                {discountAmount > 0 && (
+                                                                    <div className="text-[10px] text-red-600 dark:text-red-400 mt-0.5 font-medium">
+                                                                        -{formatCurrency(discountAmount)}
+                                                                    </div>
+                                                                )}
+                                                            </td>
+                                                            <td className="px-2 py-1.5 text-center">
+                                                                <input
+                                                                    type="number"
+                                                                    min="1"
+                                                                    value={item.quantity}
+                                                                    onChange={(e) => updateItemQty(idx, e.target.value)}
+                                                                    className="w-12 h-7 px-2 text-center text-sm rounded-md border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-semibold focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                                                />
+                                                            </td>
+                                                            <td className="px-2 py-1.5 text-right">
+                                                                <input
+                                                                    type="number"
+                                                                    min="0"
+                                                                    value={item.unit_price}
+                                                                    onChange={(e) => updateItemPrice(idx, e.target.value)}
+                                                                    className="w-24 h-7 px-2 text-right text-sm rounded-md border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-semibold focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                                                />
+                                                            </td>
+                                                            <td className="px-2 py-1.5">
+                                                                <div className="flex items-center justify-end gap-1">
+                                                                    <div className="inline-flex h-7 rounded-md border border-slate-300 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-800">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => updateItemDiscountType(idx, 'percent')}
+                                                                            className={`px-1.5 text-[10px] font-bold transition-all ${
+                                                                                (item.discount_type || 'percent') === 'percent'
+                                                                                    ? 'bg-purple-600 text-white'
+                                                                                    : 'bg-white text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                                                                            }`}
+                                                                        >
+                                                                            %
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => updateItemDiscountType(idx, 'fixed')}
+                                                                            className={`px-1.5 text-[10px] font-bold transition-all ${
+                                                                                item.discount_type === 'fixed'
+                                                                                    ? 'bg-emerald-600 text-white'
+                                                                                    : 'bg-white text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                                                                            }`}
+                                                                        >
+                                                                            Rp
+                                                                        </button>
+                                                                    </div>
+                                                                    <div className="relative">
+                                                                        {item.discount_type === 'fixed' && (
+                                                                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-500">Rp</span>
+                                                                        )}
+                                                                        {item.discount_type !== 'fixed' && (
+                                                                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-500">%</span>
+                                                                        )}
+                                                                        <input
+                                                                            type="number"
+                                                                            min="0"
+                                                                            value={item.discount_value || 0}
+                                                                            onChange={(e) => updateItemDiscountValue(idx, e.target.value)}
+                                                                            className={`w-20 h-7 rounded-md border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white text-[11px] font-semibold focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-right ${
+                                                                                item.discount_type === 'fixed' ? 'pl-5 pr-1' : 'px-1 pr-5'
+                                                                            }`}
+                                                                        />
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-2 py-1.5 text-right font-bold text-emerald-600 dark:text-emerald-400 text-sm">
+                                                                {formatCurrency(itemTotal)}
+                                                            </td>
+                                                            <td className="px-2 py-1.5 text-center last:rounded-r-lg">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => removeItem(idx)}
+                                                                    className="p-1.5 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                                                >
+                                                                    <IconTrash size={16} />
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+
+                                    {/* Mobile Card View */}
+                                    <div className="space-y-3 lg:hidden">
                                         {formData.items.map((item, idx) => {
-                                            const sellingPrice = calculateSellingPrice(item);
-                                            const discountTotal = calculateItemDiscount(item);
+                                            const discountAmount = calculateItemDiscount(item);
                                             const itemTotal = calculateItemTotal(item);
                                             return (
-                                            <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                                                <td className="px-4 py-3">
-                                                    <div className="font-medium text-slate-900 dark:text-white">{item.part_name}</div>
-                                                    {item.discount_type !== 'none' && (
-                                                        <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                                                            Disc: {item.discount_type === 'percent' ? `${item.discount_value}%` : formatCurrency(item.discount_value)}
+                                                <div key={idx} className="bg-white dark:bg-slate-900/70 shadow-sm ring-1 ring-slate-200/60 dark:ring-slate-800/60 rounded-lg p-3">
+                                                    <div className="flex justify-between items-start mb-3">
+                                                        <div className="flex-1">
+                                                            <div className="font-semibold text-slate-900 dark:text-white text-sm">{item.part_name}</div>
+                                                            {discountAmount > 0 && (
+                                                                <div className="text-[10px] text-red-600 dark:text-red-400 mt-1 font-medium">
+                                                                    Diskon: -{formatCurrency(discountAmount)}
+                                                                </div>
+                                                            )}
                                                         </div>
-                                                    )}
-                                                </td>
-                                                <td className="px-4 py-3 text-center">
-                                                    <input
-                                                        type="number"
-                                                        value={item.quantity}
-                                                        onChange={(e) => updateItemQty(idx, e.target.value)}
-                                                        min="1"
-                                                        className="w-16 h-9 px-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-center text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:outline-none"
-                                                    />
-                                                </td>
-                                                <td className="px-4 py-3 text-right">
-                                                    <input
-                                                        type="number"
-                                                        value={item.unit_price}
-                                                        onChange={(e) => updateItemPrice(idx, e.target.value)}
-                                                        min="0"
-                                                        className="w-28 h-9 px-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-right text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:outline-none"
-                                                    />
-                                                </td>
-                                                <td className="px-4 py-3 text-right text-red-600 dark:text-red-400 font-semibold">
-                                                    {discountTotal > 0 ? `-${formatCurrency(discountTotal)}` : '-'}
-                                                </td>
-                                                <td className="px-4 py-3 text-right font-semibold text-slate-900 dark:text-white">
-                                                    {formatCurrency(itemTotal)}
-                                                </td>
-                                                <td className="px-4 py-3 text-right font-semibold text-slate-900 dark:text-white">
-                                                    {formatCurrency(sellingPrice)}
-                                                </td>
-                                                <td className="px-4 py-3 text-center">
-                                                    <div className="flex items-center justify-center gap-2">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => openEditItemModal(idx)}
-                                                            className="p-1.5 rounded-lg text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors"
-                                                        >
-                                                            <IconPencil size={16} />
-                                                        </button>
                                                         <button
                                                             type="button"
                                                             onClick={() => removeItem(idx)}
@@ -701,140 +770,255 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
                                                             <IconTrash size={16} />
                                                         </button>
                                                     </div>
-                                                </td>
-                                            </tr>
+
+                                                    <div className="grid grid-cols-2 gap-2 mb-3 text-sm">
+                                                        <div>
+                                                            <label className="text-[10px] font-bold text-slate-700 dark:text-slate-300 block mb-1">Qty</label>
+                                                            <input
+                                                                type="number"
+                                                                min="1"
+                                                                value={item.quantity}
+                                                                onChange={(e) => updateItemQty(idx, e.target.value)}
+                                                                className="w-full h-8 px-2 text-center rounded-md border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white text-xs font-semibold focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-[10px] font-bold text-slate-700 dark:text-slate-300 block mb-1">Harga</label>
+                                                            <input
+                                                                type="number"
+                                                                min="0"
+                                                                value={item.unit_price}
+                                                                onChange={(e) => updateItemPrice(idx, e.target.value)}
+                                                                className="w-full h-8 px-2 text-right rounded-md border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white text-xs font-semibold focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                                            />
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="mb-3">
+                                                        <label className="text-[10px] font-bold text-slate-700 dark:text-slate-300 block mb-1">Diskon</label>
+                                                        <div className="flex items-center gap-1">
+                                                            <div className="inline-flex h-8 rounded-md border border-slate-300 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-800">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => updateItemDiscountType(idx, 'percent')}
+                                                                    className={`px-2 text-[10px] font-bold transition-all ${
+                                                                        (item.discount_type || 'percent') === 'percent'
+                                                                            ? 'bg-purple-600 text-white'
+                                                                            : 'bg-white text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                                                                    }`}
+                                                                >
+                                                                    %
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => updateItemDiscountType(idx, 'fixed')}
+                                                                    className={`px-2 text-[10px] font-bold transition-all ${
+                                                                        item.discount_type === 'fixed'
+                                                                            ? 'bg-emerald-600 text-white'
+                                                                            : 'bg-white text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                                                                    }`}
+                                                                >
+                                                                    Rp
+                                                                </button>
+                                                            </div>
+                                                            <div className="relative flex-1">
+                                                                {item.discount_type === 'fixed' && (
+                                                                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-500">Rp</span>
+                                                                )}
+                                                                {item.discount_type !== 'fixed' && (
+                                                                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-500">%</span>
+                                                                )}
+                                                                <input
+                                                                    type="number"
+                                                                    min="0"
+                                                                    value={item.discount_value || 0}
+                                                                    onChange={(e) => updateItemDiscountValue(idx, e.target.value)}
+                                                                    className={`w-full h-8 rounded-md border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white text-[11px] font-semibold focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-right ${
+                                                                        item.discount_type === 'fixed' ? 'pl-5 pr-2' : 'px-2 pr-5'
+                                                                    }`}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="pt-3 border-t border-slate-200 dark:border-slate-700">
+                                                        <div className="flex justify-between">
+                                                            <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Total:</span>
+                                                            <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(itemTotal)}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             );
                                         })}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
 
                     {/* Discount & Tax Section */}
-                    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm mb-6 overflow-hidden">
-                        <div className="bg-gradient-to-r from-purple-500 to-purple-600 px-6 py-4">
-                            <div className="flex items-center gap-3 text-white">
-                                <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center">
-                                    <IconPercentage size={20} />
+                    <div className="grid gap-6 lg:grid-cols-3 mb-6">
+                        {/* Discount & Tax */}
+                        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                            <div className="bg-gradient-to-r from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 px-6 py-4 border-b border-orange-200 dark:border-orange-700/30">
+                                <div className="flex items-center gap-3">
+                                    <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-orange-500 text-white shadow-lg shadow-orange-500/30">
+                                        <IconDiscount size={20} />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-bold text-slate-900 dark:text-white">Diskon & Pajak</h3>
+                                        <p className="text-sm text-slate-600 dark:text-slate-400">Potongan dan pajak transaksi</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <h2 className="font-semibold text-lg">Diskon & Pajak</h2>
-                                    <p className="text-sm text-white/80">Pengaturan diskon dan pajak pembelian</p>
+                            </div>
+                            <div className="p-4">
+                                <div className="grid gap-4 sm:grid-cols-2">
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-2">
+                                            <IconPercentage size={14} className="text-orange-500" />
+                                            Diskon
+                                        </label>
+                                        <div className="flex gap-2 items-start">
+                                            <div className="inline-flex h-9 rounded-lg border-2 border-slate-300 dark:border-slate-700 overflow-hidden">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleChange('discount_type', 'percent')}
+                                                    className={`px-3 text-[11px] font-bold transition-all ${
+                                                        formData.discount_type === 'percent'
+                                                            ? 'bg-orange-600 text-white'
+                                                            : 'bg-white text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                                                    }`}
+                                                >
+                                                    %
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleChange('discount_type', 'fixed')}
+                                                    className={`px-3 text-[11px] font-bold transition-all ${
+                                                        formData.discount_type === 'fixed'
+                                                            ? 'bg-orange-600 text-white'
+                                                            : 'bg-white text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                                                    }`}
+                                                >
+                                                    Rp
+                                                </button>
+                                            </div>
+                                            <div className="relative flex-1">
+                                                {formData.discount_type === 'fixed' && (
+                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">Rp</span>
+                                                )}
+                                                {formData.discount_type !== 'fixed' && (
+                                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">%</span>
+                                                )}
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    value={formData.discount_value}
+                                                    onChange={(e) => handleChange('discount_value', e.target.value)}
+                                                    className={`w-full h-9 px-3 text-xs rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-semibold focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-right ${
+                                                        formData.discount_type === 'fixed' ? 'pl-8 pr-3' : 'pl-3 pr-8'
+                                                    }`}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="mt-2 px-3 py-1.5 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-700/30">
+                                            <p className="text-xs text-orange-700 dark:text-orange-400 font-medium">Potongan</p>
+                                            <p className="text-base font-bold text-orange-600 dark:text-orange-400">{formatCurrency(transactionDiscount)}</p>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-2">
+                                            <IconReceipt size={14} className="text-green-500" />
+                                            Pajak
+                                        </label>
+                                        <div className="flex gap-2 items-start">
+                                            <div className="inline-flex h-9 rounded-lg border-2 border-slate-300 dark:border-slate-700 overflow-hidden">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleChange('tax_type', 'percent')}
+                                                    className={`px-3 text-[11px] font-bold transition-all ${
+                                                        formData.tax_type === 'percent'
+                                                            ? 'bg-green-600 text-white'
+                                                            : 'bg-white text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                                                    }`}
+                                                >
+                                                    %
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleChange('tax_type', 'fixed')}
+                                                    className={`px-3 text-[11px] font-bold transition-all ${
+                                                        formData.tax_type === 'fixed'
+                                                            ? 'bg-green-600 text-white'
+                                                            : 'bg-white text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                                                    }`}
+                                                >
+                                                    Rp
+                                                </button>
+                                            </div>
+                                            <div className="relative flex-1">
+                                                {formData.tax_type === 'fixed' && (
+                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">Rp</span>
+                                                )}
+                                                {formData.tax_type !== 'fixed' && (
+                                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">%</span>
+                                                )}
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    value={formData.tax_value}
+                                                    onChange={(e) => handleChange('tax_value', e.target.value)}
+                                                    className={`w-full h-9 px-3 text-xs rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-semibold focus:ring-2 focus:ring-green-500 focus:border-green-500 text-right ${
+                                                        formData.tax_type === 'fixed' ? 'pl-8 pr-3' : 'pl-3 pr-8'
+                                                    }`}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="mt-2 px-3 py-1.5 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-700/30">
+                                            <p className="text-xs text-green-700 dark:text-green-400 font-medium">Pajak</p>
+                                            <p className="text-base font-bold text-green-600 dark:text-green-400">{formatCurrency(taxAmount)}</p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="p-6 space-y-6">
-                            <div className="pb-6 border-b border-slate-200 dark:border-slate-800">
-                                {/* Transaction Discount */}
-                                <div className="mb-4">
-                                    <div className="grid grid-cols-12 gap-3 items-end">
-                                        <div className="col-span-4">
-                                            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">Diskon Transaksi</label>
-                                            <select
-                                                value={formData.discount_type}
-                                                onChange={(e) => handleChange('discount_type', e.target.value)}
-                                                className="w-full h-10 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                            >
-                                                <option value="none">Tidak Ada</option>
-                                                <option value="percent">Persen (%)</option>
-                                                <option value="fixed">Nilai Tetap</option>
-                                            </select>
-                                        </div>
-                                        {formData.discount_type !== 'none' && (
-                                            <div className="col-span-4">
-                                                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                                                    {formData.discount_type === 'percent' ? 'Nilai (%)' : 'Nilai (Rp)'}
-                                                </label>
-                                                <input
-                                                    type="number"
-                                                    value={formData.discount_value}
-                                                    onChange={(e) => handleChange('discount_value', e.target.value)}
-                                                    placeholder={formData.discount_type === 'percent' ? '0-100' : '0'}
-                                                    className="w-full h-10 px-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                                />
-                                            </div>
-                                        )}
-                                        <div className={`${formData.discount_type !== 'none' ? 'col-span-4' : 'col-span-8'} text-right`}>
-                                            {transactionDiscount > 0 && (
-                                                <span className="text-sm text-red-600 dark:text-red-400 font-semibold">-{formatCurrency(transactionDiscount)}</span>
-                                            )}
-                                        </div>
+                        {/* Summary Panel */}
+                        <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-800/20 rounded-2xl shadow-xl border-2 border-emerald-200 dark:border-emerald-700/30 overflow-hidden">
+                            <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 px-6 py-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm">
+                                        <IconCash size={20} className="text-white" />
                                     </div>
-                                </div>
-
-                                <div className="flex justify-between items-center text-sm bg-purple-50 dark:bg-purple-900/20 p-3 rounded-lg border border-purple-200 dark:border-purple-900/40">
-                                    <span className="text-purple-700 dark:text-purple-300">Setelah Diskon:</span>
-                                    <span className="font-semibold text-purple-900 dark:text-white text-base">{formatCurrency(afterDiscount)}</span>
+                                    <h3 className="text-lg font-bold text-white">Ringkasan</h3>
                                 </div>
                             </div>
-
-                            {/* Tax */}
-                            <div>
-                                <div className="grid grid-cols-12 gap-3 items-end">
-                                    <div className="col-span-4">
-                                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">Pajak</label>
-                                        <select
-                                            value={formData.tax_type}
-                                            onChange={(e) => handleChange('tax_type', e.target.value)}
-                                            className="w-full h-10 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                        >
-                                            <option value="none">Tidak Ada</option>
-                                            <option value="percent">Persen (%)</option>
-                                            <option value="fixed">Nilai Tetap</option>
-                                        </select>
+                            <div className="p-6 space-y-4">
+                                <div className="space-y-3 text-sm">
+                                    <div className="flex items-center justify-between pb-3 border-b border-emerald-200 dark:border-emerald-700/30">
+                                        <span className="text-slate-600 dark:text-slate-400 font-medium">Subtotal ({formData.items.length} items)</span>
+                                        <span className="font-bold text-slate-900 dark:text-white">{formatCurrency(itemsSubtotal)}</span>
                                     </div>
-                                    {formData.tax_type !== 'none' && (
-                                        <div className="col-span-4">
-                                            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                                                {formData.tax_type === 'percent' ? 'Nilai (%)' : 'Nilai (Rp)'}
-                                            </label>
-                                            <input
-                                                type="number"
-                                                value={formData.tax_value}
-                                                onChange={(e) => handleChange('tax_value', e.target.value)}
-                                                placeholder={formData.tax_type === 'percent' ? '0-100' : '0'}
-                                                className="w-full h-10 px-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                            />
+                                    {transactionDiscount > 0 && (
+                                        <div className="flex items-center justify-between pb-3 border-b border-emerald-200 dark:border-emerald-700/30">
+                                            <span className="text-slate-600 dark:text-slate-400 font-medium">Diskon</span>
+                                            <span className="font-bold text-red-600 dark:text-red-400">-{formatCurrency(transactionDiscount)}</span>
                                         </div>
                                     )}
-                                    <div className={`${formData.tax_type !== 'none' ? 'col-span-4' : 'col-span-8'} text-right`}>
-                                        {taxAmount > 0 && (
-                                            <span className="text-sm text-green-600 dark:text-green-400 font-semibold">+{formatCurrency(taxAmount)}</span>
-                                        )}
+                                    {taxAmount > 0 && (
+                                        <div className="flex items-center justify-between pb-3 border-b border-emerald-200 dark:border-emerald-700/30">
+                                            <span className="text-slate-600 dark:text-slate-400 font-medium">Pajak</span>
+                                            <span className="font-bold text-green-600 dark:text-green-400">+{formatCurrency(taxAmount)}</span>
+                                        </div>
+                                    )}
+                                    <div className="flex items-center justify-between pt-2">
+                                        <span className="text-base font-bold text-emerald-900 dark:text-white">Grand Total</span>
+                                        <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(grandTotal)}</span>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-
-                    {/* Total Summary */}
-                    <div className="rounded-2xl border border-emerald-200 dark:border-emerald-900/50 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950 dark:to-emerald-900 shadow-xl mb-6 p-6">
-                            <div className="space-y-3">
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-emerald-700 dark:text-emerald-300">Subtotal ({formData.items.length} items)</span>
-                                    <span className="font-semibold text-emerald-900 dark:text-white">{formatCurrency(itemsSubtotal)}</span>
-                                </div>
-                                {transactionDiscount > 0 && (
-                                    <div className="flex justify-between text-sm border-t border-emerald-200 dark:border-emerald-800 pt-3">
-                                        <span className="text-emerald-700 dark:text-emerald-300">Discount</span>
-                                        <span className="font-semibold text-red-600 dark:text-red-400">-{formatCurrency(transactionDiscount)}</span>
-                                    </div>
-                                )}
-                                {taxAmount > 0 && (
-                                    <div className="flex justify-between text-sm border-t border-emerald-200 dark:border-emerald-800 pt-3">
-                                        <span className="text-emerald-700 dark:text-emerald-300">Tax</span>
-                                        <span className="font-semibold text-green-600 dark:text-green-400">+{formatCurrency(taxAmount)}</span>
-                                    </div>
-                                )}
-                                <div className="flex justify-between border-t-2 border-emerald-300 dark:border-emerald-700 pt-3">
-                                    <span className="text-lg font-bold text-emerald-900 dark:text-white">Grand Total</span>
-                                    <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(grandTotal)}</span>
-                                </div>
-                            </div>
-                        </div>
 
                     {/* Action Buttons */}
                     <div className="flex flex-col sm:flex-row gap-4">

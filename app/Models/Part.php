@@ -36,6 +36,8 @@ class Part extends Model
         'stock' => 'integer',
         'reorder_level' => 'integer',
         'minimal_stock' => 'integer',
+        'buy_price' => 'integer',
+        'sell_price' => 'integer',
     ];
 
     public function category()

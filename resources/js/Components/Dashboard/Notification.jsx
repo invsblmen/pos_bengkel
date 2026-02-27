@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Menu, Transition } from '@headlessui/react'
 import { Link, usePage } from '@inertiajs/react'
-import { IconBell, IconDots, IconCircleCheck, IconPackage, IconCircleCheckFilled, IconAlertCircle } from '@tabler/icons-react'
+import { IconBell, IconDots, IconCircleCheck, IconCircleCheckFilled, IconAlertCircle, IconShoppingCart } from '@tabler/icons-react'
 export default function Notification() {
-    const { lowStockAlerts } = usePage().props;
+    const { lowStockAlerts, notifications } = usePage().props;
     const alerts = lowStockAlerts?.items || [];
-    const unreadCount = lowStockAlerts?.count || 0;
+    const purchaseNotifications = notifications?.items || [];
+    const unreadCount = (lowStockAlerts?.count || 0) + (notifications?.count || 0);
 
     // define state isMobile
     const [isMobile, setIsMobile] = useState(false);
@@ -71,8 +72,39 @@ export default function Notification() {
                             </div>
                             <div className='p-4'>
                                 <div className='flex flex-col gap-2 items-start h-60 overflow-y-auto'>
-                                    {/* If data is empty */}
-                                    {alerts.length === 0 && <div className='text-sm text-gray-500 dark:text-gray-400'>Tidak ada notifikasi</div>}
+                                    {purchaseNotifications.length === 0 && alerts.length === 0 && (
+                                        <div className='text-sm text-gray-500 dark:text-gray-400'>Tidak ada notifikasi</div>
+                                    )}
+                                    {purchaseNotifications.map((notification) => (
+                                        <Link
+                                            key={notification.id}
+                                            href={notification.purchase_id ? route('part-purchases.show', notification.purchase_id) : '#'}
+                                            className='flex items-center justify-between w-full p-4 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-900'
+                                        >
+                                            <div className='flex items-center gap-4'>
+                                                <IconShoppingCart size={20} className='text-amber-500' />
+                                                <div>
+                                                    <div className='font-semibold text-sm text-gray-700 dark:text-gray-200'>
+                                                        {notification.title}
+                                                        {notification.created_at && (
+                                                            <sup className='text-xs font-mono text-gray-400 ml-1'>{notification.created_at}</sup>
+                                                        )}
+                                                    </div>
+                                                    <div className='text-gray-500 text-sm'>
+                                                        {notification.message}
+                                                        {notification.reference && (
+                                                            <span className='text-gray-400'> · Ref: {notification.reference}</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {notification.read_at ? (
+                                                <IconCircleCheckFilled size={20} strokeWidth={1.5} className='text-gray-500 dark:text-gray-400' />
+                                            ) : (
+                                                <IconCircleCheck size={20} strokeWidth={1.5} className='text-gray-500 dark:text-gray-400' />
+                                            )}
+                                        </Link>
+                                    ))}
                                     {alerts.map((alert) => (
                                         <div className='flex items-center justify-between w-full p-4 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-900' key={alert.id}>
                                             <div className='flex items-center gap-4'>
@@ -118,7 +150,39 @@ export default function Notification() {
                         </div>
                         <div className='p-4'>
                             <div className='flex flex-col gap-2 items-start overflow-y-auto h-screen'>
-                                {alerts.length === 0 && <div className='text-sm text-gray-500 dark:text-gray-400'>Tidak ada notifikasi</div>}
+                                {purchaseNotifications.length === 0 && alerts.length === 0 && (
+                                    <div className='text-sm text-gray-500 dark:text-gray-400'>Tidak ada notifikasi</div>
+                                )}
+                                {purchaseNotifications.map((notification) => (
+                                    <Link
+                                        key={notification.id}
+                                        href={notification.purchase_id ? route('part-purchases.show', notification.purchase_id) : '#'}
+                                        className='flex items-center justify-between w-full p-4 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-900'
+                                    >
+                                        <div className='flex items-center gap-4'>
+                                            <IconShoppingCart size={18} className='text-amber-500' />
+                                            <div className='w-full'>
+                                                <div className='font-semibold text-sm line-clamp-1 text-gray-700 dark:text-gray-200'>
+                                                    {notification.title}
+                                                    {notification.created_at && (
+                                                        <sup className='text-xs font-mono text-gray-400 ml-1'>{notification.created_at}</sup>
+                                                    )}
+                                                </div>
+                                                <div className='text-gray-500 text-sm line-clamp-1 max-w-[155px]'>
+                                                    {notification.message}
+                                                    {notification.reference && (
+                                                        <span className='text-gray-400'> · Ref: {notification.reference}</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {notification.read_at ? (
+                                            <IconCircleCheckFilled size={20} strokeWidth={1.5} className='text-gray-500 dark:text-gray-400' />
+                                        ) : (
+                                            <IconCircleCheck size={20} strokeWidth={1.5} className='text-gray-500 dark:text-gray-400' />
+                                        )}
+                                    </Link>
+                                ))}
                                 {alerts.map((alert) => (
                                     <div className='flex items-center justify-between w-full p-4 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-900' key={alert.id}>
                                         <div className='flex items-center gap-4'>

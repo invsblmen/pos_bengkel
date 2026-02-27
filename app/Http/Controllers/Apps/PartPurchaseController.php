@@ -8,10 +8,13 @@ use App\Models\PartPurchase;
 use App\Models\PartPurchaseDetail;
 use App\Models\PartStockMovement;
 use App\Models\Supplier;
+use App\Models\User;
+use App\Notifications\PartPurchasePendingNotification;
 use App\Services\DiscountTaxService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 
 class PartPurchaseController extends Controller
 {
@@ -179,6 +182,8 @@ class PartPurchaseController extends Controller
 
             DB::commit();
 
+            $this->notifyPendingPurchase($purchase, 'created');
+
             return redirect()
                 ->route('part-purchases.show', $purchase->id)
                 ->with('success', 'Purchase created successfully with number: ' . $purchase->purchase_number);
@@ -324,6 +329,8 @@ class PartPurchaseController extends Controller
             $oldStatus = $purchase->status;
             $newStatus = $validated['status'];
 
+            $shouldNotifyPending = $newStatus === 'pending' && $oldStatus !== 'pending';
+
             // Update purchase status
             $purchase->status = $newStatus;
             if ($newStatus === 'received' && $request->filled('actual_delivery_date')) {
@@ -369,10 +376,28 @@ class PartPurchaseController extends Controller
 
             DB::commit();
 
+            if ($shouldNotifyPending) {
+                $this->notifyPendingPurchase($purchase, 'status-change');
+            }
+
             return back()->with('success', 'Purchase status updated to: ' . $newStatus);
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->withErrors(['error' => 'Failed to update status: ' . $e->getMessage()]);
         }
+    }
+
+    private function notifyPendingPurchase(PartPurchase $purchase, string $context): void
+    {
+        if ($purchase->status !== 'pending') {
+            return;
+        }
+
+        $recipients = User::role(['cashier', 'super-admin'])->get();
+        if ($recipients->isEmpty()) {
+            return;
+        }
+
+        Notification::send($recipients, new PartPurchasePendingNotification($purchase, $context));
     }
 }
