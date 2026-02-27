@@ -19,6 +19,13 @@ import toast from 'react-hot-toast';
 export default function Edit({ vehicle, customers }) {
     const [customersList, setCustomersList] = useState(customers);
 
+    // Helper to extract numeric value from cylinder volume (e.g., "150cc" -> "150")
+    const cleanCylinderVolume = (value) => {
+        if (!value) return '';
+        const numericValue = String(value).replace(/[^\d]/g, '');
+        return numericValue || '';
+    };
+
     const { data, setData, put, processing, errors } = useForm({
         customer_id: vehicle.customer_id || '',
         plate_number: vehicle.plate_number || '',
@@ -28,7 +35,7 @@ export default function Edit({ vehicle, customers }) {
         color: vehicle.color || '',
         engine_type: vehicle.engine_type || '',
         transmission_type: vehicle.transmission_type || '',
-        cylinder_volume: vehicle.cylinder_volume || '',
+        cylinder_volume: cleanCylinderVolume(vehicle.cylinder_volume),
         features: Array.isArray(vehicle.features) ? vehicle.features : [],
         notes: vehicle.notes || '',
         // STNK fields

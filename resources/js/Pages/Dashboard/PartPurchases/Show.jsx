@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Head, router, Link } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
-import axios from 'axios';
 import toast from 'react-hot-toast';
 import { IconArrowLeft, IconCalendar, IconTruck, IconUser, IconEdit, IconReceipt, IconPackage, IconCurrencyDollar, IconPrinter } from '@tabler/icons-react';
 import { toDisplayDate, todayLocalDate } from '@/Utils/datetime';
@@ -40,26 +39,34 @@ export default function Show({ purchase }) {
         return purchase.status !== 'cancelled' && purchase.status !== 'received';
     };
 
-    const updateStatus = async () => {
+    const updateStatus = () => {
         if (newStatus === purchase.status) {
             setShowStatusModal(false);
             return;
         }
 
         setUpdating(true);
-        try {
-            await axios.post(route('part-purchases.update-status', purchase.id), {
+        router.post(
+            route('part-purchases.update-status', purchase.id),
+            {
                 status: newStatus,
                 actual_delivery_date: newStatus === 'received' ? actualDeliveryDate : null,
-            });
-            toast.success('Status updated successfully');
-            setShowStatusModal(false);
-            window.location.reload();
-        } catch (err) {
-            toast.error(err?.response?.data?.message || 'Failed to update status');
-        } finally {
-            setUpdating(false);
-        }
+            },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    toast.success('Status updated successfully');
+                    setShowStatusModal(false);
+                    router.reload();
+                },
+                onError: (errors) => {
+                    toast.error(errors?.message || 'Failed to update status');
+                },
+                onFinish: () => {
+                    setUpdating(false);
+                },
+            }
+        );
     };
 
     const handlePrint = () => {
