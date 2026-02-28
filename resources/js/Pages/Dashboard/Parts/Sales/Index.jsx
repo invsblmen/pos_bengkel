@@ -250,10 +250,9 @@ export default function Index({ sales, filters, customers = [] }) {
                 )}
 
                 {/* Content */}
-                <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-                    {sales.data.length > 0 ? (
-                        viewMode === 'card' ? (
-                            <div className="grid gap-5 p-6 sm:grid-cols-2 xl:grid-cols-3">
+                {sales.data.length > 0 ? (
+                    viewMode === 'card' ? (
+                        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
                                 {sales.data.map((sale) => (
                                     <div key={sale.id} className="group rounded-2xl border-2 border-slate-200 dark:border-slate-800 bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-800 shadow-md hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] hover:border-emerald-300 dark:hover:border-emerald-700 overflow-hidden">
                                         <div className="bg-gradient-to-r from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-800/20 px-5 py-4 border-b-2 border-emerald-200 dark:border-emerald-700/30">
@@ -320,7 +319,8 @@ export default function Index({ sales, filters, customers = [] }) {
                                     </div>
                                 ))}
                             </div>
-                                        ) : (
+                    ) : (
+                        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
                             <div className="overflow-x-auto">
                                 <table className="w-full">
                                     <thead>
@@ -392,8 +392,10 @@ export default function Index({ sales, filters, customers = [] }) {
                                     </tbody>
                                 </table>
                             </div>
-                        )
-                    ) : (
+                        </div>
+                    )
+                ) : (
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
                         <div className="p-20 text-center">
                             <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 mb-6 shadow-inner">
                                 <IconDatabaseOff size={48} className="text-slate-400 dark:text-slate-600" />
@@ -411,8 +413,8 @@ export default function Index({ sales, filters, customers = [] }) {
                                 </Link>
                             )}
                         </div>
-                    )}
-                </div>
+                    </div>
+                )}
 
                 {/* Pagination */}
                 {sales.data.length > 0 && (

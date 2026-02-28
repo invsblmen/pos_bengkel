@@ -362,13 +362,9 @@ class PartSaleController extends Controller
 
         $newPaidAmount = $partSale->paid_amount + $request->payment_amount;
 
-        if ($newPaidAmount > $partSale->grand_total) {
-            return back()->withErrors(['error' => 'Jumlah pembayaran melebihi total']);
-        }
-
         $partSale->update([
             'paid_amount' => $newPaidAmount,
-            'remaining_amount' => $partSale->grand_total - $newPaidAmount,
+            'remaining_amount' => max(0, $partSale->grand_total - $newPaidAmount),
             'payment_status' => $newPaidAmount >= $partSale->grand_total ? 'paid' : ($newPaidAmount > 0 ? 'partial' : 'unpaid'),
         ]);
 

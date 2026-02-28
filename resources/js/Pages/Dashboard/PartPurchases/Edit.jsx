@@ -296,7 +296,7 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
     return (
         <>
             <Head title={`Edit Pembelian ${purchase.purchase_number}`} />
-            <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 -m-6 p-6">
+            <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 -m-6 p-4 sm:p-5 lg:p-6">
                 {/* Hero Header */}
                 <div className="bg-gradient-to-r from-amber-600 to-amber-700 dark:from-amber-700 dark:to-amber-800 rounded-2xl shadow-xl mb-6">
                     <div className="px-6 py-5">
@@ -329,7 +329,7 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
                     </div>
                 </div>
 
-                <div className="max-w-6xl mx-auto">
+                <div>
                 <form onSubmit={handleSubmit}>
                     {/* Warning for received purchases */}
                     {purchase.status === 'received' && (

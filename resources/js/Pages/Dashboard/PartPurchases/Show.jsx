@@ -75,8 +75,8 @@ export default function Show({ purchase }) {
     return (
         <>
             <div className="print:hidden">
-                <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 -m-6 p-6">
-                    <div className="max-w-6xl mx-auto space-y-6">
+                <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 -m-6 p-4 sm:p-5 lg:p-6">
+                    <div className="space-y-6">
 
                         {/* Header Card */}
                         <div className="bg-gradient-to-r from-amber-600 to-amber-700 dark:from-amber-700 dark:to-amber-800 rounded-2xl shadow-xl">
