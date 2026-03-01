@@ -209,11 +209,11 @@ export default function Edit({ sale, customers = [], parts = [] }) {
         <DashboardLayout>
             <Head title="Edit Penjualan Sparepart" />
 
-            <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
+            <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 -m-6 p-4 sm:p-5 lg:p-6">
                 {/* Hero Header */}
-                <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 dark:from-emerald-700 dark:to-emerald-800 shadow-xl">
-                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                        <div className="flex items-center justify-between">
+                <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 dark:from-emerald-700 dark:to-emerald-800 rounded-2xl shadow-xl mb-6">
+                    <div className="px-6 py-5">
+                        <div className="flex items-center justify-between gap-6">
                             <div className="flex items-center gap-4">
                                 <Link href={route('part-sales.index')}>
                                     <button className="flex items-center justify-center w-11 h-11 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all duration-200 backdrop-blur-sm hover:scale-105">
@@ -222,7 +222,7 @@ export default function Edit({ sale, customers = [], parts = [] }) {
                                 </Link>
                                 <div>
                                     <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-                                        <IconEdit size={32} className="text-white/90" />
+                                        <IconEdit size={28} className="text-white/90" />
                                         Edit Penjualan Sparepart
                                     </h1>
                                     <p className="text-emerald-100 mt-1">Perbarui transaksi {sale.sale_number}</p>
@@ -241,7 +241,7 @@ export default function Edit({ sale, customers = [], parts = [] }) {
                     </div>
                 </div>
 
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+                <div>
                     <form onSubmit={handleSubmit} className="space-y-6">
                         {/* Informasi Penjualan */}
                         <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
