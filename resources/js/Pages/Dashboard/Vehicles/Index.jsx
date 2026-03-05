@@ -29,7 +29,7 @@ export default function Index({ vehicles, filters }) {
     useEffect(() => {
         if (!window.Echo) return;
         const channel = window.Echo.channel('workshop.vehicles');
-        
+
         channel.listen('.vehicle.created', (event) => {
             const incoming = event?.vehicle;
             if (!incoming?.id) return;
@@ -38,7 +38,7 @@ export default function Index({ vehicles, filters }) {
                 return [incoming, ...prev];
             });
         });
-        
+
         channel.listen('.vehicle.updated', (event) => {
             const updated = event?.vehicle;
             if (!updated?.id) return;
@@ -50,13 +50,13 @@ export default function Index({ vehicles, filters }) {
                 return newArr;
             });
         });
-        
+
         channel.listen('.vehicle.deleted', (event) => {
             const id = event?.vehicleId;
             if (!id) return;
             setLiveItems(prev => prev.filter(i => i.id !== id));
         });
-        
+
         return () => window.Echo.leaveChannel('workshop.vehicles');
     }, []);
 

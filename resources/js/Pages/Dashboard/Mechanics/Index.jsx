@@ -68,7 +68,7 @@ export default function Index({ mechanics, filters }) {
     useEffect(() => {
         if (!window.Echo) return;
         const channel = window.Echo.channel('workshop.mechanics');
-        
+
         channel.listen('.mechanic.created', (event) => {
             const incoming = event?.mechanic;
             if (!incoming?.id) return;
@@ -77,7 +77,7 @@ export default function Index({ mechanics, filters }) {
                 return [incoming, ...prev];
             });
         });
-        
+
         channel.listen('.mechanic.updated', (event) => {
             const updated = event?.mechanic;
             if (!updated?.id) return;
@@ -89,13 +89,13 @@ export default function Index({ mechanics, filters }) {
                 return newArr;
             });
         });
-        
+
         channel.listen('.mechanic.deleted', (event) => {
             const id = event?.mechanicId;
             if (!id) return;
             setLiveItems(prev => prev.filter(i => i.id !== id));
         });
-        
+
         return () => window.Echo.leaveChannel('workshop.mechanics');
     }, []);
 

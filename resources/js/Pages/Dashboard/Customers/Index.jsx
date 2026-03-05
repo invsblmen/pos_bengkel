@@ -144,7 +144,7 @@ export default function Index({ customers }) {
     useEffect(() => {
         if (!window.Echo) return;
         const channel = window.Echo.channel('workshop.customers');
-        
+
         channel.listen('.customer.created', (event) => {
             const incoming = event?.customer;
             if (!incoming?.id) return;
@@ -153,7 +153,7 @@ export default function Index({ customers }) {
                 return [incoming, ...prev];
             });
         });
-        
+
         channel.listen('.customer.updated', (event) => {
             const updated = event?.customer;
             if (!updated?.id) return;
@@ -165,13 +165,13 @@ export default function Index({ customers }) {
                 return newArr;
             });
         });
-        
+
         channel.listen('.customer.deleted', (event) => {
             const id = event?.customerId;
             if (!id) return;
             setLiveItems(prev => prev.filter(i => i.id !== id));
         });
-        
+
         return () => window.Echo.leaveChannel('workshop.customers');
     }, []);
 

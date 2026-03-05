@@ -43,7 +43,7 @@ export default function Index({ purchases, suppliers, filters }) {
 
     useEffect(() => {
         const channel = window.Echo.channel('workshop.partpurchases');
-        
+
         channel.listen('.partpurchase.created', (data) => {
             setLiveItems((prevItems) => [data.purchase, ...prevItems]);
         });

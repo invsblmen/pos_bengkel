@@ -80,7 +80,7 @@ export default function Index({ parts, filters, categories, suppliers }) {
     useEffect(() => {
         if (!window.Echo) return;
         const channel = window.Echo.channel('workshop.parts');
-        
+
         channel.listen('.part.created', (event) => {
             const incoming = event?.part;
             if (!incoming?.id) return;
@@ -89,7 +89,7 @@ export default function Index({ parts, filters, categories, suppliers }) {
                 return [incoming, ...prev];
             });
         });
-        
+
         channel.listen('.part.updated', (event) => {
             const updated = event?.part;
             if (!updated?.id) return;
@@ -101,13 +101,13 @@ export default function Index({ parts, filters, categories, suppliers }) {
                 return newArr;
             });
         });
-        
+
         channel.listen('.part.deleted', (event) => {
             const id = event?.partId;
             if (!id) return;
             setLiveItems(prev => prev.filter(i => i.id !== id));
         });
-        
+
         return () => window.Echo.leaveChannel('workshop.parts');
     }, []);
 

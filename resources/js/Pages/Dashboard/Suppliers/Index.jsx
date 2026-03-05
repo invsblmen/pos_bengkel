@@ -44,7 +44,7 @@ export default function Index({ suppliers, filters }) {
     useEffect(() => {
         if (!window.Echo) return;
         const channel = window.Echo.channel('workshop.suppliers');
-        
+
         channel.listen('.supplier.created', (event) => {
             const incoming = event?.supplier;
             if (!incoming?.id) return;
@@ -53,7 +53,7 @@ export default function Index({ suppliers, filters }) {
                 return [incoming, ...prev];
             });
         });
-        
+
         channel.listen('.supplier.updated', (event) => {
             const updated = event?.supplier;
             if (!updated?.id) return;
@@ -65,13 +65,13 @@ export default function Index({ suppliers, filters }) {
                 return newArr;
             });
         });
-        
+
         channel.listen('.supplier.deleted', (event) => {
             const id = event?.supplierId;
             if (!id) return;
             setLiveItems(prev => prev.filter(i => i.id !== id));
         });
-        
+
         return () => window.Echo.leaveChannel('workshop.suppliers');
     }, []);
 
