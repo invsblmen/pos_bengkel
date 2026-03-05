@@ -36,8 +36,8 @@
 
 Untuk setup cepat setelah `git clone` di device baru, lihat panduan ini:
 
-- `ONBOARDING_DEVICE_BARU.md`
-- Fokus ke bagian `6. Setup Herd (Jika Pakai Herd)` untuk langkah cleanup `herd forget` agar domain underscore tidak bentrok.
+- `PROJECT_GUIDE.md`
+- Panduan ini sudah mencakup onboarding, setup Herd, troubleshooting Reverb/Vite, SOP development, dan testing cepat.
 
 ```bash
 git clone https://github.com/aryadwiputra/point-of-sales.git
