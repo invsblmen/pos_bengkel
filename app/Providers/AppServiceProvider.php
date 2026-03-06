@@ -2,7 +2,8 @@
 
 namespace App\Providers;
 
-use Illuminate\Database\Eloquent\Relations\Relation;
+use App\Models\PartSale;
+use App\Observers\PartSaleObserver;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Carbon;
 
@@ -21,6 +22,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        PartSale::observe(PartSaleObserver::class);
+
         // Ensure all Carbon dates serialize to a stable local string without timezone shifts
         Carbon::serializeUsing(function ($carbon) {
             return $carbon->format('Y-m-d H:i:s');

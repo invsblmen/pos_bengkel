@@ -4,8 +4,10 @@ import { Head, Link } from "@inertiajs/react";
 import { IconClock, IconAlertCircle } from "@tabler/icons-react";
 import { toDisplayDate } from "@/Utils/datetime";
 import { Card, CardBody, CardHeader, CardTitle } from "@/Components/Card";
+import { useRealtimeReportHistoryReload } from "@/Hooks/useRealtimeReportHistoryReload";
 
 export default function OutstandingPaymentsReport({ orders, summary }) {
+    useRealtimeReportHistoryReload();
     const paidStatusColors = {
         pending: "bg-yellow-100 text-yellow-700",
         partial: "bg-orange-100 text-orange-700",

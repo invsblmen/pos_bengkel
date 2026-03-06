@@ -13,7 +13,7 @@ class PartStockHistoryController extends Controller
 {
     public function index(Request $request)
     {
-        // Build query - exclude records with deleted model references to prevent errors
+        // Build query - only include references used by active workshop flows
         $query = PartStockMovement::query()
             ->where(function ($q) {
                 $q->whereIn('reference_type', [
@@ -55,7 +55,7 @@ class PartStockHistoryController extends Controller
                         $q2->where('name', 'like', "%{$search}%")
                             ->orWhere('part_number', 'like', "%{$search}%");
                     })
-                    // Only search in valid model types (exclude deleted PartSale, Purchase)
+                    // Only search in active model types (exclude legacy Transaction/Purchase references)
                     ->orWhereHasMorph('reference', [
                         \App\Models\PartPurchase::class,
                         \App\Models\PartSale::class,

@@ -7,6 +7,14 @@ import { toDisplayDate } from '@/Utils/datetime';
 
 const defaultFilters = { q: '', supplier_id: '', status: '', date_from: '', date_to: '' };
 
+const normalizeFilters = (incoming = {}) => ({
+    q: incoming?.q ?? '',
+    supplier_id: incoming?.supplier_id ?? '',
+    status: incoming?.status ?? '',
+    date_from: incoming?.date_from ?? '',
+    date_to: incoming?.date_to ?? '',
+});
+
 const statusColors = {
     pending: 'bg-yellow-100 text-yellow-700 border-yellow-200',
     ordered: 'bg-blue-100 text-blue-700 border-blue-200',
@@ -24,7 +32,7 @@ const statusLabels = {
 export default function Index({ purchases, suppliers, filters }) {
     const [filterData, setFilterData] = useState({
         ...defaultFilters,
-        ...(typeof filters !== 'undefined' ? filters : {}),
+        ...normalizeFilters(typeof filters !== 'undefined' ? filters : {}),
     });
     const [showFilters, setShowFilters] = useState(false);
     const [viewMode, setViewMode] = useState('card'); // 'card' or 'table'
@@ -33,7 +41,7 @@ export default function Index({ purchases, suppliers, filters }) {
     useEffect(() => {
         setFilterData({
             ...defaultFilters,
-            ...(typeof filters !== 'undefined' ? filters : {}),
+            ...normalizeFilters(typeof filters !== 'undefined' ? filters : {}),
         });
     }, [filters]);
 

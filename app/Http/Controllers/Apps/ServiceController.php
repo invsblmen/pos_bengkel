@@ -34,6 +34,7 @@ class ServiceController extends Controller
         $services->transform(function ($service) {
             return [
                 'id' => $service->id,
+                'code' => $service->code,
                 'name' => $service->title,
                 'description' => $service->description,
                 'price' => $service->price,
@@ -126,17 +127,8 @@ class ServiceController extends Controller
         $this->syncPricingAndIncentives($service, $validated);
 
         // Broadcast service created event
-        event(new ServiceCreated([
-            'id' => $service->id,
-            'name' => $service->title,
-            'description' => $service->description,
-            'price' => $service->price,
-            'duration' => $service->est_time_minutes,
-            'complexity_level' => $service->complexity_level,
-            'status' => $service->status,
-            'service_category_id' => $service->service_category_id,
-            'category' => $service->category,
-        ]));
+        $service->loadMissing('category');
+        event(new ServiceCreated($this->toRealtimePayload($service)));
 
         return redirect()->route('services.index')->with('success', 'Layanan berhasil ditambahkan');
     }
@@ -230,17 +222,8 @@ class ServiceController extends Controller
         $service->refresh();
 
         // Broadcast service updated event
-        event(new ServiceUpdated([
-            'id' => $service->id,
-            'name' => $service->title,
-            'description' => $service->description,
-            'price' => $service->price,
-            'duration' => $service->est_time_minutes,
-            'complexity_level' => $service->complexity_level,
-            'status' => $service->status,
-            'service_category_id' => $service->service_category_id,
-            'category' => $service->category,
-        ]));
+        $service->loadMissing('category');
+        event(new ServiceUpdated($this->toRealtimePayload($service)));
 
         return redirect()->route('services.index')->with('success', 'Layanan berhasil diperbarui');
     }
@@ -259,6 +242,69 @@ class ServiceController extends Controller
         event(new ServiceDeleted($serviceId));
 
         return back()->with('success', 'Service deleted successfully');
+    }
+
+    public function bulkStatus(Request $request)
+    {
+        $validated = $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer|exists:services,id',
+            'status' => 'required|in:active,inactive',
+        ]);
+
+        $services = Service::with('category')
+            ->whereIn('id', $validated['ids'])
+            ->get();
+
+        foreach ($services as $service) {
+            $service->update(['status' => $validated['status']]);
+            $service->refresh();
+            $service->loadMissing('category');
+            event(new ServiceUpdated($this->toRealtimePayload($service)));
+        }
+
+        $statusLabel = $validated['status'] === 'active' ? 'aktif' : 'nonaktif';
+
+        return back()->with('success', "{$services->count()} layanan berhasil diubah ke status {$statusLabel}.");
+    }
+
+    public function bulkDelete(Request $request)
+    {
+        $validated = $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer|exists:services,id',
+        ]);
+
+        $services = Service::whereIn('id', $validated['ids'])->get();
+
+        $blocked = $services
+            ->filter(fn (Service $service) => $service->serviceOrderDetails()->exists())
+            ->values();
+
+        $deletable = $services
+            ->reject(fn (Service $service) => $blocked->contains('id', $service->id))
+            ->values();
+
+        foreach ($deletable as $service) {
+            $serviceId = $service->id;
+            $service->delete();
+            event(new ServiceDeleted($serviceId));
+        }
+
+        $deletedCount = $deletable->count();
+        $blockedCount = $blocked->count();
+
+        if ($deletedCount > 0 && $blockedCount === 0) {
+            return back()->with('success', "{$deletedCount} layanan berhasil dihapus.");
+        }
+
+        if ($deletedCount > 0 && $blockedCount > 0) {
+            return back()->with('warning', "{$deletedCount} layanan dihapus, {$blockedCount} layanan tidak bisa dihapus karena sudah dipakai di service order.");
+        }
+
+        return back()->withErrors([
+            'error' => 'Tidak ada layanan yang dapat dihapus karena semua sudah dipakai di service order.',
+        ]);
     }
 
     /**
@@ -301,5 +347,21 @@ class ServiceController extends Controller
                 'incentive_percentage' => $incentive['incentive_percentage'],
             ]);
         }
+    }
+
+    private function toRealtimePayload(Service $service): array
+    {
+        return [
+            'id' => $service->id,
+            'code' => $service->code,
+            'name' => $service->title,
+            'description' => $service->description,
+            'price' => $service->price,
+            'duration' => $service->est_time_minutes,
+            'complexity_level' => $service->complexity_level,
+            'status' => $service->status,
+            'service_category_id' => $service->service_category_id,
+            'category' => $service->category,
+        ];
     }
 }

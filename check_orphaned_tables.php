@@ -6,13 +6,20 @@
  * This script checks and optionally drops orphaned database tables that no longer have
  * corresponding models or controllers after the cleanup process.
  *
- * Orphaned Tables:
+ * Legacy Retail Tables:
+ * - categories
+ * - products
+ * - transactions
+ * - transaction_details
+ * - carts
+ * - profits
  * - purchases
  * - purchase_details
  *
  * Usage:
  *   php check_orphaned_tables.php         # Check if tables have data
  *   php check_orphaned_tables.php --drop  # Drop the orphaned tables
+ *   php check_orphaned_tables.php --force-drop # Drop tables even if they contain data
  */
 
 require __DIR__ . '/vendor/autoload.php';
@@ -24,6 +31,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 $shouldDrop = in_array('--drop', $argv);
+$shouldForceDrop = in_array('--force-drop', $argv);
 
 echo "\n";
 echo "=================================================\n";
@@ -31,7 +39,16 @@ echo "  ORPHANED DATABASE TABLES CLEANUP SCRIPT\n";
 echo "=================================================\n";
 echo "\n";
 
-$orphanedTables = ['purchases', 'purchase_details'];
+$orphanedTables = [
+    'categories',
+    'products',
+    'transactions',
+    'transaction_details',
+    'carts',
+    'profits',
+    'purchases',
+    'purchase_details',
+];
 
 foreach ($orphanedTables as $table) {
     echo "Checking table: {$table}\n";
@@ -62,8 +79,8 @@ foreach ($orphanedTables as $table) {
             echo "✓ Table is empty\n";
         }
 
-        if ($shouldDrop) {
-            if ($count > 0) {
+        if ($shouldDrop || $shouldForceDrop) {
+            if ($count > 0 && !$shouldForceDrop) {
                 echo "\n❌ SKIPPING DROP: Table has data. Use --force-drop to override.\n";
             } else {
                 echo "\n🗑️  Dropping table '{$table}'...\n";
@@ -79,7 +96,7 @@ foreach ($orphanedTables as $table) {
     echo "\n";
 }
 
-if (!$shouldDrop) {
+if (!$shouldDrop && !$shouldForceDrop) {
     echo "\n";
     echo "=================================================\n";
     echo "  NO ACTION TAKEN (DRY RUN)\n";
@@ -102,8 +119,8 @@ if (!$shouldDrop) {
 }
 
 echo "Context:\n";
-echo "  These tables were created for the old Purchase/PartSale\n";
-echo "  system that has been removed. The active system now uses:\n";
+echo "  These tables were created for old retail modules that\n";
+echo "  have been removed. The active system now uses:\n";
 echo "  - PartPurchase / PartPurchaseDetail models\n";
 echo "  - PartSalesOrder / PartSalesOrderDetail models\n";
 echo "\n";

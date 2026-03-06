@@ -3,8 +3,10 @@ import DashboardLayout from "@/Layouts/DashboardLayout";
 import { Head, router } from "@inertiajs/react";
 import { IconAlertTriangle } from "@tabler/icons-react";
 import { Card, CardBody, CardHeader, CardTitle } from "@/Components/Card";
+import { useRealtimeReportHistoryReload } from "@/Hooks/useRealtimeReportHistoryReload";
 
 export default function PartsInventoryReport({ parts, filters, summary }) {
+    useRealtimeReportHistoryReload();
     const [selectedStatus, setSelectedStatus] = useState(filters.status);
 
     const handleStatusChange = (status) => {

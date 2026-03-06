@@ -9,8 +9,10 @@ import {
     IconFilter,
     IconX
 } from '@tabler/icons-react';
+import { useRealtimeReportHistoryReload } from '@/Hooks/useRealtimeReportHistoryReload';
 
 export default function PartSalesProfit({ sales, summary, topParts, filters }) {
+    useRealtimeReportHistoryReload();
     const [showFilters, setShowFilters] = useState(false);
     const [formFilters, setFormFilters] = useState({
         start_date: filters.start_date || '',

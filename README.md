@@ -1,144 +1,131 @@
-# Point of Sales – Laravel & Inertia
+# POS Bengkel (Laravel 12 + Inertia React)
 
-> Sistem kasir modern dengan alur transaksi cepat, dukungan laporan, dan mode cetak invoice yang rapi. Kalau kamu suka proyek ini, bantu dengan menekan ⭐ di atas – itu sangat membantu visibilitas repositori ini.
+`pos_bengkel` adalah aplikasi manajemen operasional bengkel yang mencakup alur service, penjualan sparepart, pembelian sparepart, stok, appointment, laporan, dan pengaturan bisnis.
 
-![Dashboard Preview](public/media/revamp-pos.png "Point of Sales Dashboard Preview")
-<sub>_Cuplikan antarmuka kasir revamp. Screenshot tambahan ada di bagian di bawah._</sub>
+Fokus repository saat ini adalah mode `workshop-only` (modul retail POS lama sudah dibersihkan dari codebase).
 
-## 🆕 What's New (Revamp 2.0)
+## Gambaran Fitur
 
--   **UI/UX Redesign** – Tampilan modern dengan tema slate/primary, gradient accents, dan dark mode ready
--   **Landing Page Baru** – Halaman depan profesional dengan preview & perbandingan V1 vs Revamp
--   **Hold Transaction** – Simpan keranjang sementara, lanjutkan nanti
--   **Customer History** – Lihat riwayat transaksi pelanggan langsung dari halaman kasir
--   **Add Customer Modal** – Tambah pelanggan baru tanpa meninggalkan halaman transaksi
--   **Keyboard Shortcuts** – `/` atau `F5` untuk search, `Esc` untuk clear, dan lainnya
--   **Thermal Receipt** – Dukungan print struk 58mm dan 80mm
--   **Sample Data Seeder** – Data contoh lengkap dengan gambar produk
+- Dashboard bengkel dengan ringkasan operasional harian.
+- Manajemen master data: customer, kendaraan, mekanik, supplier.
+- Manajemen layanan: service category dan services.
+- Manajemen sparepart: part category, parts, stok masuk/keluar manual, low stock alert.
+- Pembelian sparepart (`part-purchases`) dengan detail item dan status.
+- Penjualan sparepart langsung (`part-sales`) dengan invoice dan print.
+- Service order end-to-end (buat, edit, update status, print).
+- Appointment dan kalender booking.
+- Laporan: service revenue, mechanic productivity, mechanic payroll, parts inventory, outstanding payments, dan part sales profit.
+- Sistem role dan permission granular (Spatie Permission).
+- Notifikasi in-app dan dukungan realtime (Reverb/Echo).
 
-## ✨ Kenapa Menarik?
+## Tech Stack
 
--   **Kasir cepat & intuitif** – pencarian barcode, keranjang, ringkasan pembayaran, dan kalkulasi diskon otomatis.
--   **Invoice siap cetak & payment link** – setelah transaksi, kasir bisa melihat preview invoice elegan, membagikan link pembayaran Midtrans/Xendit, dan memilih kapan mau mencetaknya.
--   **Laporan lengkap** – dari penjualan, profit, sampai riwayat transaksi dengan filter multi parameter.
--   **Akses berbasis role** – integrasi Spatie Permissions bawaan untuk role, user, dan hak akses yang granular.
--   **Dark mode ready** – UI sudah disiapkan untuk mode gelap/terang tanpa konfigurasi tambahan.
+- PHP `^8.2`
+- Laravel `^12`
+- Inertia.js (Laravel + React)
+- React `^18`
+- Tailwind CSS `^3`
+- Vite `^6`
+- Spatie Laravel Permission
+- Laravel Reverb + Pusher protocol
 
-## 🔧 Teknologi Inti
+## Prasyarat
 
--   [Laravel 12](https://laravel.com) + [Inertia.js](https://inertiajs.com)
--   [React](https://react.dev) + [Tailwind CSS](https://tailwindcss.com)
--   [Spatie Laravel Permission](https://spatie.be/docs/laravel-permission)
--   [Tabler Icons](https://tabler-icons.io) untuk ikon kasir modern
--   Integrasi payment gateway Midtrans Snap & Xendit Invoice (opsional)
+- PHP 8.2+
+- Composer
+- Node.js 20+ dan npm
+- MySQL/MariaDB
 
-## 🚀 Cara Menjalankan
-
-Untuk setup cepat setelah `git clone` di device baru, lihat panduan ini:
-
-- `PROJECT_GUIDE.md`
-- Panduan ini sudah mencakup onboarding, setup Herd, troubleshooting Reverb/Vite, SOP development, dan testing cepat.
+## Instalasi
 
 ```bash
-git clone https://github.com/aryadwiputra/point-of-sales.git
-cd point-of-sales
+git clone <repo-url>
+cd pos_bengkel
 cp .env.example .env
-composer install && npm install
+composer install
+npm install
 php artisan key:generate
-php artisan migrate --seed
 php artisan storage:link
-npm run dev
-php artisan serve
 ```
 
-### Fitur Bengkel (baru)
-- Service Orders (antrian, assignment mekanik, detail layanan & parts)
-- Mechanics (tabel terpisah untuk data mekanik)
-- Parts (stok & harga terpisah dari produk toko)
-- Vehicles (kendaraan pelanggan, linked ke customer)
-- Appointments (booking jadwal service)
+## Konfigurasi Environment
 
-Untuk menyiapkan data contoh bengkel jalankan:
+Perbarui `.env` minimal pada bagian berikut:
+
+- `APP_NAME`, `APP_URL`
+- `DB_CONNECTION`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`
+- `BROADCAST_CONNECTION` (default: `reverb`)
+- `REVERB_*` dan `VITE_REVERB_*` jika realtime diaktifkan
+
+## Inisialisasi Database
 
 ```bash
+php artisan migrate --seed
+```
+
+Seeder default akan menyiapkan permission, role, user, workshop data, kategori service/part, supplier, kendaraan, dan data pendukung lainnya.
+
+## Akun Default
+
+- Super Admin: `arya@gmail.com` / `password`
+- Cashier: `cashier@gmail.com` / `password`
+
+## Menjalankan Aplikasi (Development)
+
+Jalankan di terminal terpisah:
+
+```bash
+php artisan serve
+npm run dev
+php artisan reverb:start
+```
+
+Jika memakai queue untuk proses async:
+
+```bash
+php artisan queue:work
+```
+
+## Perintah Penting
+
+```bash
+# Jalankan test
+php artisan test
+
+# Build asset production
+npm run build
+
+# Seed ulang data workshop (opsional)
 php artisan db:seed --class=WorkshopSeeder
 ```
 
-### Default Login
+## Catatan Migrasi Cleanup Legacy
 
--   **Admin**: `arya@gmail.com` / `password`
--   **Kasir**: `cashier@gmail.com` / `password`
+Repository ini sudah melakukan cleanup modul retail lama, termasuk migration drop tabel legacy melalui:
 
-> **Tip:** Jalankan `php artisan db:seed --class=SampleDataSeeder` untuk data contoh lengkap dengan gambar.
+- `database/migrations/2026_03_06_000001_drop_legacy_retail_tables.php`
 
-## 📊 Fitur Utama
-
--   **Dashboard**: ringkasan kategori, produk, transaksi, pendapatan, dan trend chart.
--   **Kelola Produk & Stok**: CRUD lengkap dengan kategori dan barcode unik.
--   **Modul Kasir**: pencarian barcode, keranjang multi item, diskon, hitung kembalian otomatis, dan pilihan gateway (tunai, Midtrans, Xendit).
--   **Hold Transaction**: Simpan keranjang sementara dan lanjutkan nanti.
--   **Customer History**: Lihat statistik dan riwayat transaksi pelanggan.
--   **Invoice / Payment Link**: tampilan siap cetak + tombol manual print dan tautan pembayaran yang bisa dibagikan ke pelanggan.
--   **Thermal Receipt**: Dukungan cetak struk thermal 58mm dan 80mm.
--   **Riwayat Transaksi**: filter per tanggal/invoice/kasir + export laporan.
--   **Laporan Profit & Penjualan**: pantau performa bisnis dalam sekali klik.
-
-## ⌨️ Keyboard Shortcuts
-
-| Shortcut      | Aksi                        |
-| ------------- | --------------------------- |
-| `/` atau `F5` | Fokus pencarian produk      |
-| `Escape`      | Clear search & tutup modal  |
-| `F1`          | Buka numpad                 |
-| `F2`          | Submit transaksi            |
-| `F4`          | Tampilkan bantuan shortcuts |
-
-## 📷 Cuplikan Layar
-
-### Versi Revamp 2.0
-
-| Modul     | Preview                                                |
-| --------- | ------------------------------------------------------ |
-| Dashboard | ![Dashboard Revamp](public/media/revamp-dashboard.png) |
-| Kasir/POS | ![POS Revamp](public/media/revamp-pos.png)             |
-
-### Versi 1.0 (Legacy)
-
-| Modul                  | Preview                                                    |
-| ---------------------- | ---------------------------------------------------------- |
-| Dashboard              | ![Dashboard Screenshot](public/media/readme-dashboard.png) |
-| Kasir / POS            | ![POS Screenshot](public/media/readme-pos.png)             |
-| Invoice Ready-to-Print | ![Invoice Screenshot](public/media/readme-invoice.png)     |
-
-<sub>_Tidak ada file? Silakan ganti dengan screenshot kamu sendiri di `public/media`._</sub>
-
-## 🧪 Pengujian
+Untuk environment lama, jalankan:
 
 ```bash
-php artisan test --filter=TransactionFlowTest
+php artisan migrate
 ```
 
-Pengujian ini mensimulasikan checkout lengkap: keranjang ➜ transaksi ➜ invoice, termasuk validasi stok, detail transaksi, profit, hitung stok, integrasi Midtrans (HTTP fake), dan render Inertia untuk halaman print.
+## Struktur Modul Utama
 
-## 🤝 Kontribusi
+- `app/Http/Controllers/Apps`: controller domain bengkel.
+- `app/Models`: model service order, parts, purchases, sales, vehicle, appointment, dll.
+- `resources/js/Pages/Dashboard`: halaman Inertia React per modul dashboard.
+- `routes/web.php`: route aplikasi (dashboard, master data, transaksi, laporan, settings).
+- `database/seeders`: seeder permission, role, user, dan data awal bengkel.
 
-1. Fork repo ini
-2. Buat branch fitur: `git checkout -b feature/namamu`
-3. Commit perubahanmu: `git commit -m "Tambah fitur X"`
-4. Push branch: `git push origin feature/namamu`
-5. Buka Pull Request
+## Kontribusi
 
-Ada bug atau ide fitur? Buat issue supaya kita bisa diskusi bareng.
+1. Buat branch baru dari `main`.
+2. Implement perubahan dan test lokal.
+3. Commit dengan pesan jelas.
+4. Buka pull request berisi ringkasan perubahan dan langkah verifikasi.
 
-## Authors
+## Lisensi
 
--   [Arya Dwi Putra](https://www.github.com/aryadwiputra)
--   Aplikasi ini menggunakan resource dari https://github.com/Raf-Taufiqurrahman/RILT-Starter dengan beberapa modifikasi yang saya lakukan terhadap komponen-komponen untuk mendukung aplikasi kasir
-
-## ⭐ Dukung Proyek Ini
-
-Kalau repositori ini membantumu membangun POS lebih cepat, klik **Star**. Dukungan kecil ini bikin proyek tetap aktif dan membantu developer lain menemukannya. Terima kasih! 🙌
-
----
-
-Made with ❤️ menggunakan Laravel + React oleh komunitas Point of Sales.
+Project ini mengikuti lisensi MIT sesuai basis Laravel.

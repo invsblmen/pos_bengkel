@@ -69,7 +69,6 @@ export default function Create({ parts = [], customers = [] }) {
                 toast.success('Penjualan berhasil dibuat');
             },
             onError: (errors) => {
-                console.error('Validation errors:', errors);
                 if (errors.error) {
                     toast.error(errors.error);
                 } else if (errors.items) {

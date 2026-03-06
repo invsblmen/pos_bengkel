@@ -26,20 +26,11 @@ class PermissionSeeder extends Seeder
             // permissions
             'permissions-access', 'permissions-create', 'permissions-update', 'permissions-delete',
 
-            // categories
-            'categories-access', 'categories-create', 'categories-edit', 'categories-delete',
-
-            // products
-            'products-access', 'products-create', 'products-edit', 'products-delete',
-
             // customers
             'customers-access', 'customers-create', 'customers-edit', 'customers-delete',
 
-            // transactions
-            'transactions-access',
-
             // reports
-            'reports-access', 'profits-access',
+            'reports-access',
 
             // payment settings
             'payment-settings-access',

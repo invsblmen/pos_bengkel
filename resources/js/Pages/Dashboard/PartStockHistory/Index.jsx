@@ -4,6 +4,7 @@ import DashboardLayout from '@/Layouts/DashboardLayout';
 import Pagination from '@/Components/Dashboard/Pagination';
 import { IconFilter, IconArrowUp, IconArrowDown, IconDatabaseOff, IconDownload } from '@tabler/icons-react';
 import { toDisplayDateTime, dateToLocalDateInput } from '@/Utils/datetime';
+import { useRealtimeReportHistoryReload } from '@/Hooks/useRealtimeReportHistoryReload';
 
 const defaultFilters = { q: '', part_id: '', type: '', date_from: '', date_to: '' };
 
@@ -45,6 +46,8 @@ export default function Index({ movements, parts, types, filters }) {
         ...(typeof filters !== 'undefined' ? filters : {}),
     });
     const [showFilters, setShowFilters] = useState(false);
+
+    useRealtimeReportHistoryReload();
 
     const formatDateInput = (dateObj) => dateToLocalDateInput(dateObj);
 

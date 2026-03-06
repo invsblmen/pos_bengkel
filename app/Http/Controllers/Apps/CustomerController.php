@@ -2,9 +2,10 @@
 namespace App\Http\Controllers\Apps;
 
 use App\Events\CustomerCreated;
+use App\Events\CustomerDeleted;
+use App\Events\CustomerUpdated;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
-use App\Models\Transaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
@@ -236,64 +237,6 @@ class CustomerController extends Controller
 
         //redirect
         return back();
-    }
-
-    /**
-     * Get customer purchase history
-     *
-     * @param  Customer $customer
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function getHistory(Customer $customer)
-    {
-        // Get transaction statistics
-        $stats = Transaction::where('customer_id', $customer->id)
-            ->selectRaw('
-                COUNT(*) as total_transactions,
-                SUM(grand_total) as total_spent,
-                MAX(created_at) as last_visit
-            ')
-            ->first();
-
-        // Get recent transactions (last 5)
-        $recentTransactions = Transaction::where('customer_id', $customer->id)
-            ->select('id', 'invoice', 'grand_total', 'payment_method', 'created_at')
-            ->orderByDesc('created_at')
-            ->limit(5)
-            ->get()
-            ->map(fn($t) => [
-                'id'             => $t->id,
-                'invoice'        => $t->invoice,
-                'total'          => $t->grand_total,
-                'payment_method' => $t->payment_method,
-                'date'           => \Carbon\Carbon::parse($t->created_at)->format('d M Y H:i'),
-            ]);
-
-        // Get frequently purchased products
-        $frequentProducts = Transaction::where('customer_id', $customer->id)
-            ->join('transaction_details', 'transactions.id', '=', 'transaction_details.transaction_id')
-            ->join('products', 'transaction_details.product_id', '=', 'products.id')
-            ->selectRaw('products.id, products.title, SUM(transaction_details.qty) as total_qty')
-            ->groupBy('products.id', 'products.title')
-            ->orderByDesc('total_qty')
-            ->limit(3)
-            ->get();
-
-        return response()->json([
-            'success'             => true,
-            'customer'            => [
-                'id'    => $customer->id,
-                'name'  => $customer->name,
-                'phone' => $customer->no_telp,
-            ],
-            'stats'               => [
-                'total_transactions' => (int) ($stats->total_transactions ?? 0),
-                'total_spent'        => (int) ($stats->total_spent ?? 0),
-                'last_visit'         => $stats->last_visit ? \Carbon\Carbon::parse($stats->last_visit)->format('d M Y') : null,
-            ],
-            'recent_transactions' => $recentTransactions,
-            'frequent_products'   => $frequentProducts,
-        ]);
     }
 
     /**

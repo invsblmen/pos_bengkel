@@ -10,39 +10,24 @@ class RoleSeeder extends Seeder
     /**
      * Run the database seeds.
      */
-    // Refactor the RoleSeeder to improve readability and avoid repetitive code
     public function run(): void
     {
-        $this->createRoleWithPermissions('users-access', '%users%');
-        $this->createRoleWithPermissions('roles-access', '%roles%');
-        $this->createRoleWithPermissions('permission-access', '%permissions%');
-        $this->createRoleWithPermissions('categories-access', '%categories%');
-        $this->createRoleWithPermissions('products-access', '%products%');
-        $this->createRoleWithPermissions('customers-access', '%customers%');
-        $this->createRoleWithPermissions('transactions-access', '%transactions%');
-        $this->createRoleWithPermissions('reports-access', '%reports%');
-        $this->createRoleWithPermissions('profits-access', '%profits%');
-        $this->createRoleWithPermissions('payment-settings-access', '%payment-settings%');
-
         $superRole = Role::firstOrCreate(['name' => 'super-admin']);
-        // give all permissions to super-admin
         $superRole->givePermissionTo(Permission::all());
 
-        // Create cashier role with basic permissions for public registration
-        $cashierRole        = Role::firstOrCreate(['name' => 'cashier']);
+        $cashierRole = Role::firstOrCreate(['name' => 'cashier']);
         $cashierPermissions = Permission::whereIn('name', [
             'dashboard-access',
-            'transactions-access',
             'customers-access',
             'customers-create',
+            'service-orders-access',
+            'service-orders-create',
+            'service-orders-update',
+            'part-sales-access',
+            'part-sales-create',
+            'part-sales-show',
+            'part-sales-edit',
         ])->get();
         $cashierRole->givePermissionTo($cashierPermissions);
-    }
-
-    private function createRoleWithPermissions($roleName, $permissionNamePattern)
-    {
-        $permissions = Permission::where('name', 'like', $permissionNamePattern)->get();
-        $role        = Role::firstOrCreate(['name' => $roleName]);
-        $role->givePermissionTo($permissions);
     }
 }

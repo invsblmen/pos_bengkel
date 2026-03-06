@@ -38,11 +38,6 @@ class Customer extends Model
         return $this->hasMany(Appointment::class);
     }
 
-    public function transactions()
-    {
-        return $this->hasMany(Transaction::class);
-    }
-
     public function getDisplayNameAttribute()
     {
         return "{$this->name} ({$this->phone})";

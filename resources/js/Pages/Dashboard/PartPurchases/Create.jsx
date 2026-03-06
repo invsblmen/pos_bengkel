@@ -69,7 +69,6 @@ export default function Create({ suppliers = [], parts = [], categories = [] }) 
                 toast.success('Pembelian berhasil dibuat');
             },
             onError: (errors) => {
-                console.error('Validation errors:', errors);
                 if (errors.error) {
                     toast.error(errors.error);
                 } else if (errors.items) {
@@ -293,7 +292,7 @@ export default function Create({ suppliers = [], parts = [], categories = [] }) 
                                 </div>
 
                                 {/* Details Grid */}
-                                <div className="grid gap-4 md:grid-cols-3">
+                                <div className="grid gap-4 md:grid-cols-2">
                                     {/* Tanggal Pembelian */}
                                     <div className="p-4 bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-900/20 dark:to-emerald-800/20 rounded-xl border border-emerald-200 dark:border-emerald-700/30">
                                         <label className="block text-xs font-bold text-emerald-700 dark:text-emerald-400 mb-2 uppercase tracking-wide">
@@ -304,19 +303,6 @@ export default function Create({ suppliers = [], parts = [], categories = [] }) 
                                             value={data.purchase_date}
                                             onChange={(e) => setData('purchase_date', e.target.value)}
                                             className="w-full h-10 px-3 rounded-lg border-2 border-emerald-300 dark:border-emerald-700 dark:bg-emerald-900/30 text-sm font-semibold focus:ring-emerald-500 focus:border-emerald-500 transition-all dark:text-white"
-                                        />
-                                    </div>
-
-                                    {/* Tanggal Pengiriman */}
-                                    <div className="p-4 bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl border border-blue-200 dark:border-blue-700/30">
-                                        <label className="block text-xs font-bold text-blue-700 dark:text-blue-400 mb-2 uppercase tracking-wide">
-                                            ✈️ Pengiriman
-                                        </label>
-                                        <input
-                                            type="date"
-                                            value={data.expected_delivery_date}
-                                            onChange={(e) => setData('expected_delivery_date', e.target.value)}
-                                            className="w-full h-10 px-3 rounded-lg border-2 border-blue-300 dark:border-blue-700 dark:bg-blue-900/30 text-sm font-semibold focus:ring-blue-500 focus:border-blue-500 transition-all dark:text-white"
                                         />
                                     </div>
 
@@ -333,6 +319,10 @@ export default function Create({ suppliers = [], parts = [], categories = [] }) 
                                             className="w-full h-10 px-3 rounded-lg border-2 border-orange-300 dark:border-orange-700 dark:bg-orange-900/30 text-sm font-medium focus:ring-orange-500 focus:border-orange-500 transition-all dark:text-white"
                                         />
                                     </div>
+                                </div>
+
+                                <div className="rounded-xl border border-blue-200 bg-blue-50/80 p-3 text-sm text-blue-800 dark:border-blue-800/50 dark:bg-blue-900/20 dark:text-blue-300">
+                                    ETA supplier tidak wajib saat buat pembelian. Anda bisa isi atau ubah tanggal perkiraan/diterima nanti dari halaman edit atau update status.
                                 </div>
                             </div>
                         </div>

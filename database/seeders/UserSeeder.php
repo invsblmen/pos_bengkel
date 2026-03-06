@@ -37,8 +37,19 @@ class UserSeeder extends Seeder
             ['name' => 'Cashier', 'password' => bcrypt('password')]
         );
 
-        $transactionsPermission = Permission::where('name', 'transactions-access')->first();
+        $cashierPermissions = Permission::whereIn('name', [
+            'dashboard-access',
+            'customers-access',
+            'customers-create',
+            'service-orders-access',
+            'service-orders-create',
+            'service-orders-update',
+            'part-sales-access',
+            'part-sales-create',
+            'part-sales-show',
+            'part-sales-edit',
+        ])->get();
 
-        $cashier->syncPermissions($transactionsPermission);
+        $cashier->syncPermissions($cashierPermissions);
     }
 }

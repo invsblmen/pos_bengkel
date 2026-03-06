@@ -3,12 +3,14 @@ import DashboardLayout from "@/Layouts/DashboardLayout";
 import { Head, router } from "@inertiajs/react";
 import { IconDownload } from "@tabler/icons-react";
 import { Card, CardBody, CardHeader, CardTitle } from "@/Components/Card";
+import { useRealtimeReportHistoryReload } from "@/Hooks/useRealtimeReportHistoryReload";
 
 export default function MechanicProductivityReport({
     mechanics,
     filters,
     summary,
 }) {
+    useRealtimeReportHistoryReload();
     const [formData, setFormData] = useState({
         start_date: filters.start_date,
         end_date: filters.end_date,

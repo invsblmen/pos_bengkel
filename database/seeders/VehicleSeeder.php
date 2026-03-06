@@ -25,7 +25,7 @@ class VehicleSeeder extends Seeder
         $customers = Customer::all();
 
         if ($customers->isEmpty()) {
-            $this->command->warn('No customers found. Please run SampleDataSeeder first.');
+            $this->command->warn('No customers found. Please run WorkshopSeeder first.');
             return;
         }
 

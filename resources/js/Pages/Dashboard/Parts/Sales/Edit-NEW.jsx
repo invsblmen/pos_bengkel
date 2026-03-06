@@ -76,7 +76,6 @@ export default function Edit({ sale, customers = [], parts = [] }) {
                 toast.success('Penjualan berhasil diupdate');
             },
             onError: (errors) => {
-                console.error('Validation errors:', errors);
                 if (errors.error) {
                     toast.error(errors.error);
                 } else if (errors.items) {

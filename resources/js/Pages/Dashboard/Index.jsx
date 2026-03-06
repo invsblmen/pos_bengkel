@@ -1,5 +1,5 @@
 import DashboardLayout from "@/Layouts/DashboardLayout";
-import { Head, Link } from "@inertiajs/react";
+import { Head, Link, usePage } from "@inertiajs/react";
 import { useEffect, useMemo, useRef } from "react";
 import Chart from "chart.js/auto";
 import {
@@ -138,24 +138,20 @@ function ListCard({ title, subtitle, icon: Icon, children, emptyMessage }) {
 }
 
 export default function Dashboard({
-    totalCategories,
-    totalProducts,
-    totalTransactions,
-    totalUsers,
     revenueTrend,
-    totalRevenue,
-    totalProfit,
-    averageOrder,
-    todayTransactions,
-    topProducts = [],
-    recentTransactions = [],
-    topCustomers = [],
     workshop = {},
 }) {
+    const { auth } = usePage().props;
+    const canSeeManagerial = Boolean(
+        auth?.super || auth?.permissions?.["reports-access"]
+    );
+
     const chartRef = useRef(null);
     const chartInstance = useRef(null);
 
     const chartData = useMemo(() => revenueTrend ?? [], [revenueTrend]);
+    const recentWorkshopOrders = workshop?.recentOrders ?? [];
+    const urgentLowStockParts = workshop?.urgentLowStockParts ?? [];
 
     // Setup chart
     useEffect(() => {
@@ -256,165 +252,97 @@ export default function Dashboard({
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
                         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-                            Dashboard
+                            Dashboard Bengkel
                         </h1>
                         <p className="text-sm text-slate-500 dark:text-slate-400">
-                            Ringkasan aktivitas bisnis Anda
+                            Fokus operasional harian: service, mekanik, dan sparepart
                         </p>
                     </div>
-                    <Link
-                        href={route("transactions.index")}
-                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium transition-colors shadow-lg shadow-primary-500/30"
-                    >
-                        <IconShoppingCart size={18} />
-                        <span>Transaksi Baru</span>
-                    </Link>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Link
+                            href={route("service-orders.create")}
+                            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium transition-colors shadow-lg shadow-primary-500/30"
+                        >
+                            <IconTool size={18} />
+                            <span>Service Order Baru</span>
+                        </Link>
+                        <Link
+                            href={route("part-purchases.create")}
+                            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium transition-colors"
+                        >
+                            <IconPackage size={18} />
+                            <span>Input Pembelian Part</span>
+                        </Link>
+                    </div>
                 </div>
 
                 {/* Main Stat Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <StatCard
-                        title="Total Pendapatan"
-                        value={formatCurrency(totalRevenue)}
-                        subtitle="Akumulasi semua transaksi"
+                        title="Pendapatan Service Hari Ini"
+                        value={formatCurrency(workshop.todayRevenue || 0)}
+                        subtitle="Order service yang selesai"
                         icon={IconCoin}
-                        gradient="from-primary-500 to-primary-700"
+                        gradient="from-emerald-500 to-emerald-700"
                     />
                     <StatCard
-                        title="Total Profit"
-                        value={formatCurrency(totalProfit)}
-                        subtitle="Profit bersih"
-                        icon={IconTrendingUp}
-                        gradient="from-success-500 to-success-700"
+                        title="Order Menunggu"
+                        value={workshop.pendingOrders || 0}
+                        subtitle="Belum mulai dikerjakan"
+                        icon={IconClock}
+                        gradient="from-amber-500 to-amber-600"
+                    />
+                    <StatCard
+                        title="Sedang Dikerjakan"
+                        value={workshop.inProgressOrders || 0}
+                        subtitle="Service order aktif"
+                        icon={IconTool}
+                        gradient="from-blue-500 to-blue-700"
+                    />
+                    <StatCard
+                        title="Selesai Hari Ini"
+                        value={workshop.completedOrdersToday || 0}
+                        subtitle="Order yang rampung"
+                        icon={IconReceipt}
+                        gradient="from-green-500 to-green-700"
                         trend="up"
                     />
-                    <StatCard
-                        title="Rata-Rata Order"
-                        value={formatCurrency(averageOrder)}
-                        subtitle="Per transaksi"
-                        icon={IconReceipt}
-                        gradient="from-accent-500 to-accent-700"
-                    />
-                    <StatCard
-                        title="Transaksi Hari Ini"
-                        value={todayTransactions}
-                        subtitle="Transaksi"
-                        icon={IconClock}
-                        gradient="from-warning-500 to-warning-600"
-                    />
                 </div>
 
-                {/* Secondary Stats */}
+                {/* Workshop Secondary Stats */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <InfoCard
-                        title="Total Kategori"
-                        value={totalCategories}
-                        icon={IconCategory}
+                        title="Total Service Order"
+                        value={workshop.totalServiceOrders || 0}
+                        subtitle="Semua waktu"
+                        icon={IconTool}
                     />
                     <InfoCard
-                        title="Total Produk"
-                        value={totalProducts}
-                        icon={IconBox}
+                        title="Mekanik Aktif"
+                        value={`${workshop.activeMechanics || 0}/${workshop.totalMechanics || 0}`}
+                        subtitle="Aktif / total"
+                        icon={IconUser}
                     />
                     <InfoCard
-                        title="Total Transaksi"
-                        value={totalTransactions}
-                        icon={IconMoneybag}
+                        title="Part Menunggu Stok"
+                        value={workshop.waitingStockSales || 0}
+                        subtitle="Penjualan status waiting stock"
+                        icon={IconAlertTriangle}
                     />
                     <InfoCard
-                        title="Total Pengguna"
-                        value={totalUsers}
-                        icon={IconUsers}
+                        title="Siap Diambil"
+                        value={workshop.readyPickupSales || 0}
+                        subtitle="ready_to_notify / waiting_pickup"
+                        icon={IconShoppingCart}
                     />
                 </div>
-
-                {/* Workshop Statistics Section */}
-                {workshop && Object.keys(workshop).length > 0 && (
-                    <>
-                        <div className="mt-8">
-                            <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-1">
-                                Statistik Bengkel
-                            </h2>
-                            <p className="text-sm text-slate-500 dark:text-slate-400">
-                                Ringkasan operasional bengkel motor
-                            </p>
-                        </div>
-
-                        {/* Workshop Main Stats */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                            <StatCard
-                                title="Pendapatan Hari Ini"
-                                value={formatCurrency(workshop.todayRevenue || 0)}
-                                subtitle="Dari service yang selesai"
-                                icon={IconCoin}
-                                gradient="from-emerald-500 to-emerald-700"
-                                trend="up"
-                            />
-                            <StatCard
-                                title="Order Menunggu"
-                                value={workshop.pendingOrders || 0}
-                                subtitle="Belum dikerjakan"
-                                icon={IconClock}
-                                gradient="from-amber-500 to-amber-600"
-                            />
-                            <StatCard
-                                title="Sedang Dikerjakan"
-                                value={workshop.inProgressOrders || 0}
-                                subtitle="Order dalam proses"
-                                icon={IconTool}
-                                gradient="from-blue-500 to-blue-700"
-                            />
-                            <StatCard
-                                title="Selesai Hari Ini"
-                                value={workshop.completedOrdersToday || 0}
-                                subtitle="Order yang rampung"
-                                icon={IconReceipt}
-                                gradient="from-green-500 to-green-700"
-                                trend="up"
-                            />
-                        </div>
-
-                        {/* Workshop Secondary Stats */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <InfoCard
-                                title="Total Service Order"
-                                value={workshop.totalServiceOrders || 0}
-                                subtitle="Semua waktu"
-                                icon={IconTool}
-                            />
-                            <InfoCard
-                                title="Mekanik Aktif"
-                                value={`${workshop.activeMechanics || 0}/${workshop.totalMechanics || 0}`}
-                                subtitle="Yang tersedia"
-                                icon={IconUser}
-                            />
-                            <InfoCard
-                                title="Stok Sparepart"
-                                value={workshop.totalParts || 0}
-                                subtitle="Part aktif"
-                                icon={IconPackage}
-                            />
-                            <Link
-                                href={route('parts.index', { filter: 'low_stock' })}
-                                className="block"
-                            >
-                                <InfoCard
-                                    title="Stok Menipis"
-                                    value={workshop.lowStockParts || 0}
-                                    subtitle="Perlu restock"
-                                    icon={IconAlertTriangle}
-                                />
-                            </Link>
-                        </div>
-                    </>
-                )}
 
                 {/* Charts and Lists Row */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Revenue Chart */}
                     <ListCard
-                        title="Tren Pendapatan"
-                        subtitle="12 data terakhir"
+                        title="Tren Pendapatan Service"
+                        subtitle="12 hari terakhir order selesai"
                         icon={IconChartBar}
                         emptyMessage="Belum ada data pendapatan"
                     >
@@ -425,16 +353,16 @@ export default function Dashboard({
                         )}
                     </ListCard>
 
-                    {/* Top Products */}
+                    {/* Recent Service Orders */}
                     <ListCard
-                        title="Produk Terlaris"
-                        subtitle="Berdasarkan penjualan"
-                        icon={IconBox}
-                        emptyMessage="Belum ada data produk"
+                        title="Service Order Terbaru"
+                        subtitle="Prioritas operasional saat ini"
+                        icon={IconTool}
+                        emptyMessage="Belum ada service order"
                     >
-                        {topProducts.length > 0 && (
+                        {recentWorkshopOrders.length > 0 && (
                             <ul className="space-y-3">
-                                {topProducts.map((product, index) => (
+                                {recentWorkshopOrders.map((order, index) => (
                                     <li
                                         key={index}
                                         className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
@@ -445,15 +373,15 @@ export default function Dashboard({
                                             </span>
                                             <div>
                                                 <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
-                                                    {product.name}
+                                                    {order.order_number}
                                                 </p>
                                                 <p className="text-xs text-slate-500">
-                                                    {product.qty} terjual
+                                                    {order.customer} • {order.vehicle}
                                                 </p>
                                             </div>
                                         </div>
                                         <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                                            {formatCurrency(product.total)}
+                                            {order.status}
                                         </p>
                                     </li>
                                 ))}
@@ -464,75 +392,67 @@ export default function Dashboard({
 
                 {/* Bottom Row */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Recent Transactions */}
+                    {/* Urgent Low Stock */}
                     <ListCard
-                        title="Transaksi Terbaru"
-                        subtitle="5 transaksi terakhir"
-                        icon={IconReceipt}
-                        emptyMessage="Belum ada transaksi"
+                        title="Sparepart Perlu Restock"
+                        subtitle="Top 5 yang paling mendesak"
+                        icon={IconAlertTriangle}
+                        emptyMessage="Semua stok sparepart aman"
                     >
-                        {recentTransactions.length > 0 && (
+                        {urgentLowStockParts.length > 0 && (
                             <div className="space-y-3">
-                                {recentTransactions.map((trx, index) => (
+                                {urgentLowStockParts.map((part, index) => (
                                     <div
                                         key={index}
                                         className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50"
                                     >
                                         <div>
                                             <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
-                                                {trx.invoice}
+                                                {part.name}
                                             </p>
                                             <p className="text-xs text-slate-500 mt-0.5">
-                                                {trx.date} • {trx.customer}
-                                            </p>
-                                            <p className="text-xs text-slate-400">
-                                                Kasir: {trx.cashier}
+                                                Stok: {part.stock} • Reorder: {part.reorder_level}
                                             </p>
                                         </div>
-                                        <p className="text-sm font-bold text-primary-600 dark:text-primary-400">
-                                            {formatCurrency(trx.total)}
-                                        </p>
+                                        <Link
+                                            href={route("parts.index", { filter: "low_stock", q: part.name })}
+                                            className="text-sm font-bold text-primary-600 dark:text-primary-400"
+                                        >
+                                            Buka
+                                        </Link>
                                     </div>
                                 ))}
                             </div>
                         )}
                     </ListCard>
 
-                    {/* Top Customers */}
-                    <ListCard
-                        title="Pelanggan Terbaik"
-                        subtitle="Berdasarkan nilai pembelian"
-                        icon={IconUsers}
-                        emptyMessage="Belum ada data pelanggan"
-                    >
-                        {topCustomers.length > 0 && (
-                            <ul className="space-y-3">
-                                {topCustomers.map((customer, index) => (
-                                    <li
-                                        key={index}
-                                        className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent-400 to-accent-600 flex items-center justify-center text-white text-sm font-bold">
-                                                {customer.name.charAt(0)}
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
-                                                    {customer.name}
-                                                </p>
-                                                <p className="text-xs text-slate-500">
-                                                    {customer.orders} transaksi
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                                            {formatCurrency(customer.total)}
-                                        </p>
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </ListCard>
+                    {canSeeManagerial && (
+                        <ListCard
+                            title="Monitoring Laporan Bengkel"
+                            subtitle="Akses cepat laporan yang relevan"
+                            icon={IconChartBar}
+                            emptyMessage=""
+                        >
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <Link href={route("reports.service-revenue.index")} className="rounded-xl border border-slate-200 dark:border-slate-700 p-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">Revenue Service</p>
+                                    <p className="text-xs text-slate-500">Analisis pendapatan layanan</p>
+                                </Link>
+                                <Link href={route("reports.mechanic-productivity.index")} className="rounded-xl border border-slate-200 dark:border-slate-700 p-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">Produktivitas Mekanik</p>
+                                    <p className="text-xs text-slate-500">Order, revenue, dan performa</p>
+                                </Link>
+                                <Link href={route("reports.mechanic-payroll.index")} className="rounded-xl border border-slate-200 dark:border-slate-700 p-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">Gaji Mekanik</p>
+                                    <p className="text-xs text-slate-500">Estimasi take-home pay</p>
+                                </Link>
+                                <Link href={route("reports.outstanding-payments.index")} className="rounded-xl border border-slate-200 dark:border-slate-700 p-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">Pembayaran Tertunda</p>
+                                    <p className="text-xs text-slate-500">Pantau tagihan service</p>
+                                </Link>
+                            </div>
+                        </ListCard>
+                    )}
                 </div>
             </div>
         </>

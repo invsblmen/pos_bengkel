@@ -3,8 +3,10 @@ import DashboardLayout from "@/Layouts/DashboardLayout";
 import { Head, router } from "@inertiajs/react";
 import { Card, CardBody, CardHeader, CardTitle } from "@/Components/Card";
 import { IconDownload } from "@tabler/icons-react";
+import { useRealtimeReportHistoryReload } from "@/Hooks/useRealtimeReportHistoryReload";
 
 export default function MechanicPayroll({ mechanics, filters, summary }) {
+    useRealtimeReportHistoryReload();
     const [formData, setFormData] = useState({
         start_date: filters.start_date,
         end_date: filters.end_date,

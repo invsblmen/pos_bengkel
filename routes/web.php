@@ -1,17 +1,12 @@
 <?php
 
-use App\Http\Controllers\Apps\CategoryController;
 use App\Http\Controllers\Apps\BusinessProfileController;
 use App\Http\Controllers\Apps\CustomerController;
 use App\Http\Controllers\Apps\PaymentSettingController;
-use App\Http\Controllers\Apps\ProductController;
-use App\Http\Controllers\Apps\TransactionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\Reports\ProfitReportController;
 use App\Http\Controllers\Reports\PartSalesProfitReportController;
-use App\Http\Controllers\Reports\SalesReportController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\UserController;
@@ -83,16 +78,6 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
         ->middlewareFor(['edit', 'update'], 'permission:users-update')
         ->middlewareFor('destroy', 'permission:users-delete');
 
-    Route::resource('categories', CategoryController::class)
-        ->middlewareFor(['index', 'show'], 'permission:categories-access')
-        ->middlewareFor(['create', 'store'], 'permission:categories-create')
-        ->middlewareFor(['edit', 'update'], 'permission:categories-edit')
-        ->middlewareFor('destroy', 'permission:categories-delete');
-    Route::resource('products', ProductController::class)
-        ->middlewareFor(['index', 'show'], 'permission:products-access')
-        ->middlewareFor(['create', 'store'], 'permission:products-create')
-        ->middlewareFor(['edit', 'update'], 'permission:products-edit')
-        ->middlewareFor('destroy', 'permission:products-delete');
     // customers search (AJAX) - MUST be before resource route to avoid conflict
     Route::get('/customers/search', [CustomerController::class, 'search'])->middleware('permission:customers-access')->name('customers.search');
 
@@ -147,6 +132,12 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
         ->middlewareFor(['create', 'store'], 'permission:services-create')
         ->middlewareFor(['edit', 'update'], 'permission:services-edit')
         ->middlewareFor('destroy', 'permission:services-delete');
+    Route::post('services/bulk-status', [ServiceController::class, 'bulkStatus'])
+        ->middleware('permission:services-edit')
+        ->name('services.bulk-status');
+    Route::post('services/bulk-delete', [ServiceController::class, 'bulkDelete'])
+        ->middleware('permission:services-delete')
+        ->name('services.bulk-delete');
     // mechanics management
     Route::get('/mechanics', [\App\Http\Controllers\Apps\MechanicController::class, 'index'])->middleware('permission:mechanics-access')->name('mechanics.index');
     Route::post('/mechanics', [\App\Http\Controllers\Apps\MechanicController::class, 'store'])->middleware('permission:mechanics-create')->name('mechanics.store');
@@ -232,37 +223,8 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
     Route::get('/mechanics/{id}/performance', [\App\Http\Controllers\Apps\MechanicPerformanceController::class, 'show'])->middleware('permission:mechanics-access')->name('mechanics.performance.show');
     Route::get('/mechanics/performance/export', [\App\Http\Controllers\Apps\MechanicPerformanceController::class, 'export'])->middleware('permission:mechanics-access')->name('mechanics.performance.export');
 
-    //route customer history
-    Route::get('/customers/{customer}/history', [CustomerController::class, 'getHistory'])->middleware('permission:transactions-access')->name('customers.history');
-
     //route customer store via AJAX (no redirect)
     Route::post('/customers/store-ajax', [CustomerController::class, 'storeAjax'])->middleware('permission:customers-create')->name('customers.storeAjax');
-
-    //route transaction
-    Route::get('/transactions', [TransactionController::class, 'index'])->middleware('permission:transactions-access')->name('transactions.index');
-
-    //route transaction searchProduct
-    Route::post('/transactions/searchProduct', [TransactionController::class, 'searchProduct'])->middleware('permission:transactions-access')->name('transactions.searchProduct');
-
-    //route transaction addToCart
-    Route::post('/transactions/addToCart', [TransactionController::class, 'addToCart'])->middleware('permission:transactions-access')->name('transactions.addToCart');
-
-    //route transaction destroyCart
-    Route::delete('/transactions/{cart_id}/destroyCart', [TransactionController::class, 'destroyCart'])->middleware('permission:transactions-access')->name('transactions.destroyCart');
-
-    //route transaction updateCart
-    Route::patch('/transactions/{cart_id}/updateCart', [TransactionController::class, 'updateCart'])->middleware('permission:transactions-access')->name('transactions.updateCart');
-
-    //route hold transaction
-    Route::post('/transactions/hold', [TransactionController::class, 'holdCart'])->middleware('permission:transactions-access')->name('transactions.hold');
-    Route::post('/transactions/{holdId}/resume', [TransactionController::class, 'resumeCart'])->middleware('permission:transactions-access')->name('transactions.resume');
-    Route::delete('/transactions/{holdId}/clearHold', [TransactionController::class, 'clearHold'])->middleware('permission:transactions-access')->name('transactions.clearHold');
-    Route::get('/transactions/held', [TransactionController::class, 'getHeldCarts'])->middleware('permission:transactions-access')->name('transactions.held');
-
-    //route transaction store
-    Route::post('/transactions/store', [TransactionController::class, 'store'])->middleware('permission:transactions-access')->name('transactions.store');
-    Route::get('/transactions/{invoice}/print', [TransactionController::class, 'print'])->middleware('permission:transactions-access')->name('transactions.print');
-    Route::get('/transactions/history', [TransactionController::class, 'history'])->middleware('permission:transactions-access')->name('transactions.history');
 
     // service orders
     Route::get('/service-orders', [\App\Http\Controllers\Apps\ServiceOrderController::class, 'index'])->middleware('permission:service-orders-access')->name('service-orders.index');
@@ -272,7 +234,6 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
     Route::get('/service-orders/{id}/edit', [\App\Http\Controllers\Apps\ServiceOrderController::class, 'edit'])->middleware('permission:service-orders-update')->name('service-orders.edit');
     Route::post('/service-orders', [\App\Http\Controllers\Apps\ServiceOrderController::class, 'store'])->middleware('permission:service-orders-create')->name('service-orders.store');
     Route::put('/service-orders/{id}', [\App\Http\Controllers\Apps\ServiceOrderController::class, 'update'])->middleware('permission:service-orders-update')->name('service-orders.update');
-    Route::post('/transactions/service-orders', [\App\Http\Controllers\Apps\ServiceOrderController::class, 'store'])->middleware('permission:transactions-access')->name('transactions.service-orders.store');
     Route::post('/service-orders/{id}/status', [\App\Http\Controllers\Apps\ServiceOrderController::class, 'updateStatus'])->middleware('permission:service-orders-update')->name('service-orders.update-status');
 
     //appointments
@@ -292,8 +253,6 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
     Route::put('/settings/business-profile', [BusinessProfileController::class, 'update'])->middleware('permission:payment-settings-access')->name('settings.business-profile.update');
 
     //reports
-    Route::get('/reports/sales', [SalesReportController::class, 'index'])->middleware('permission:reports-access')->name('reports.sales.index');
-    Route::get('/reports/profits', [ProfitReportController::class, 'index'])->middleware('permission:profits-access')->name('reports.profits.index');
     Route::get('/reports/part-sales-profit', [PartSalesProfitReportController::class, 'index'])->middleware('permission:reports-access')->name('reports.part-sales-profit.index');
     Route::get('/reports/part-sales-profit/by-supplier', [PartSalesProfitReportController::class, 'bySupplier'])->middleware('permission:reports-access')->name('reports.part-sales-profit.by-supplier');
 

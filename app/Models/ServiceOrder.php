@@ -61,11 +61,6 @@ class ServiceOrder extends Model
         return $this->belongsToMany(Tag::class, 'service_order_tags');
     }
 
-    public function transaction()
-    {
-        return $this->hasOne(Transaction::class);
-    }
-
     public function statusHistories()
     {
         return $this->hasMany(ServiceOrderStatusHistory::class)->orderByDesc('created_at');

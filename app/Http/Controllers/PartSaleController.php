@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\PartSaleCreated;
 use App\Models\BusinessProfile;
 use App\Models\PartSale;
 use App\Models\PartSaleDetail;
@@ -227,6 +228,15 @@ class PartSaleController extends Controller
             }
 
             DB::commit();
+
+            event(new PartSaleCreated([
+                'id' => $sale->id,
+                'sale_number' => $sale->sale_number,
+                'status' => $sale->status,
+                'payment_status' => $sale->payment_status,
+                'grand_total' => $sale->grand_total,
+                'created_at' => $sale->created_at?->toISOString(),
+            ]));
 
             return redirect()
                 ->route('part-sales.show', $sale)

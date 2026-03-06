@@ -8,12 +8,14 @@ import {
 } from "@tabler/icons-react";
 import { Card, CardBody, CardHeader, CardTitle } from "@/Components/Card";
 import { toDisplayDate } from "@/Utils/datetime";
+import { useRealtimeReportHistoryReload } from "@/Hooks/useRealtimeReportHistoryReload";
 
 export default function ServiceRevenueReport({
     report_data,
     filters,
     summary,
 }) {
+    useRealtimeReportHistoryReload();
     const [formData, setFormData] = useState({
         start_date: filters.start_date,
         end_date: filters.end_date,
