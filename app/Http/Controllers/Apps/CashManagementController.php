@@ -11,6 +11,7 @@ use App\Services\CashChangeSuggestionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class CashManagementController extends Controller
@@ -186,7 +187,9 @@ class CashManagementController extends Controller
 
                 if ($direction === 'out' && $quantity > $currentQty) {
                     $value = (int) CashDenomination::whereKey($denominationId)->value('value');
-                    abort(422, "Stok pecahan Rp " . number_format($value, 0, ',', '.') . " tidak mencukupi.");
+                    throw ValidationException::withMessages([
+                        'denominations' => ["Stok pecahan Rp " . number_format($value, 0, ',', '.') . " tidak mencukupi."],
+                    ]);
                 }
 
                 $value = (int) CashDenomination::whereKey($denominationId)->value('value');
@@ -229,7 +232,9 @@ class CashManagementController extends Controller
                     : ((int) $drawer->quantity - $quantity);
 
                 if ($newQty < 0) {
-                    abort(422, 'Stok kas tidak mencukupi untuk transaksi ini.');
+                    throw ValidationException::withMessages([
+                        'denominations' => ['Stok kas tidak mencukupi untuk transaksi ini.'],
+                    ]);
                 }
 
                 $drawer->update(['quantity' => $newQty]);
@@ -380,7 +385,9 @@ class CashManagementController extends Controller
 
             $suggestion = $service->suggest($changeAmount, $availableByValue);
             if (!$suggestion['exact']) {
-                abort(422, 'Stok kas tidak cukup untuk memberikan kembalian pas.');
+                throw ValidationException::withMessages([
+                    'received' => ['Stok kas tidak cukup untuk memberikan kembalian pas.'],
+                ]);
             }
 
             $valueToId = CashDenomination::query()
@@ -454,7 +461,9 @@ class CashManagementController extends Controller
 
                     $newQty = (int) $drawer->quantity - $qty;
                     if ($newQty < 0) {
-                        abort(422, 'Stok kas tidak mencukupi untuk pecahan kembalian.');
+                        throw ValidationException::withMessages([
+                            'received' => ['Stok kas tidak mencukupi untuk pecahan kembalian.'],
+                        ]);
                     }
 
                     $drawer->update(['quantity' => $newQty]);

@@ -9,6 +9,7 @@ import {
     IconPlus,
     IconRefresh,
 } from "@tabler/icons-react";
+import toast from "react-hot-toast";
 
 const formatCurrency = (value = 0) =>
     new Intl.NumberFormat("id-ID", {
@@ -95,6 +96,16 @@ export default function CashDrawer({ denominations = [], summary = {}, recentTra
             },
             {
                 preserveScroll: true,
+                onSuccess: () => {
+                    toast.success("Stok pecahan kas berhasil diperbarui.");
+                },
+                onError: (errors) => {
+                    const message =
+                        errors?.denominations ||
+                        errors?.error ||
+                        "Gagal memperbarui stok pecahan kas.";
+                    toast.error(message);
+                },
             }
         );
     };
@@ -112,12 +123,20 @@ export default function CashDrawer({ denominations = [], summary = {}, recentTra
             {
                 preserveScroll: true,
                 onSuccess: () => {
+                    toast.success("Transaksi kas berhasil dicatat.");
                     setTransactionDescription("");
                     const reset = {};
                     denominations.forEach((d) => {
                         reset[d.id] = 0;
                     });
                     setTransactionDenoms(reset);
+                },
+                onError: (errors) => {
+                    const message =
+                        errors?.denominations ||
+                        errors?.error ||
+                        "Gagal mencatat transaksi kas.";
+                    toast.error(message);
                 },
             }
         );
