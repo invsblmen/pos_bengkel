@@ -477,7 +477,7 @@ Artisan::command('benchmark:reports:compare {--report_key=} {--run-offset=0} {--
     $this->line('Comparing benchmark runs:');
     $this->line('Current : ' . $currentRecordedAt);
     $this->line('Previous: ' . $previousRecordedAt);
-    
+
     if ($thresholdPercent > 0) {
         $this->line('Threshold: ' . abs($thresholdPercent) . '% (alerts on regressions exceeding this)');
     }
@@ -519,7 +519,7 @@ Artisan::command('benchmark:reports:compare {--report_key=} {--run-offset=0} {--
 
 Artisan::command('verify:cache-invalidation {--report=overall}', function () {
     $report = $this->option('report');
-    
+
     $this->info("Verifying cache invalidation for: {$report}");
 
     // Set broadcast driver to null to avoid connection errors
@@ -528,10 +528,10 @@ Artisan::command('verify:cache-invalidation {--report=overall}', function () {
     // Test 1: Create and verify cache entry
     $cacheKey = 'reports:' . $report . ':' . sha1(json_encode(['test' => true, 'timestamp' => now()]));
     $testData = ['timestamp' => now(), 'test_data' => true];
-    
+
     \Illuminate\Support\Facades\Cache::put($cacheKey, $testData, 3600);
     $this->line("✓ Cache entry created: {$cacheKey}");
-    
+
     if (\Illuminate\Support\Facades\Cache::has($cacheKey)) {
         $this->line("✓ Cache entry verified");
     } else {
@@ -542,9 +542,9 @@ Artisan::command('verify:cache-invalidation {--report=overall}', function () {
     // Test 2: Dispatch event and verify cache invalidation
     $this->line("");
     $this->line("Dispatching ServiceOrderCreated event...");
-    
+
     \Illuminate\Support\Facades\Config::set('broadcasting.default', 'null');
-    
+
     try {
         \App\Events\ServiceOrderCreated::dispatch([
             'id' => 999,
@@ -555,7 +555,7 @@ Artisan::command('verify:cache-invalidation {--report=overall}', function () {
     } catch (\Exception $e) {
         $this->warn("⚠ Event dispatch error (non-critical): " . mb_strimwidth($e->getMessage(), 0, 100, '...'));
     }
-    
+
     usleep(100000);
 
     // Test 3: Check cache status after event
@@ -569,7 +569,7 @@ Artisan::command('verify:cache-invalidation {--report=overall}', function () {
     // Test 4: Show registered listeners
     $this->line("");
     $this->info("Registered Event Listeners:");
-    
+
     $listeners = \Illuminate\Support\Facades\Event::getRawListeners();
     $reportEvents = [
         \App\Events\ServiceOrderCreated::class,
@@ -597,7 +597,7 @@ Artisan::command('verify:cache-invalidation {--report=overall}', function () {
 
     $this->line("");
     $this->info("Total event listeners: {$listenerCount}");
-    
+
     if ($listenerCount === 0) {
         $this->warn("⚠ No event listeners registered! Cache invalidation will not work.");
         return 1;
