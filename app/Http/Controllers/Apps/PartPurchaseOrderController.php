@@ -9,12 +9,15 @@ use App\Models\PartPurchaseOrder;
 use App\Models\PartPurchaseOrderDetail;
 use App\Models\PartStockMovement;
 use App\Models\Supplier;
+use App\Support\DispatchesBroadcastSafely;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
 
 class PartPurchaseOrderController extends Controller
 {
+    use DispatchesBroadcastSafely;
+
     public function index(Request $request)
     {
         $query = PartPurchaseOrder::with(['supplier'])
@@ -106,7 +109,10 @@ class PartPurchaseOrderController extends Controller
 
             DB::commit();
 
-            PartPurchaseOrderCreated::dispatch($order->load(['supplier', 'details.part'])->toArray());
+            $this->dispatchBroadcastSafely(
+                fn () => PartPurchaseOrderCreated::dispatch($order->load(['supplier', 'details.part'])->toArray()),
+                'PartPurchaseOrderCreated'
+            );
 
             return redirect()->route('part-purchase-orders.show', $order->id)
                 ->with('success', 'Purchase order created successfully');

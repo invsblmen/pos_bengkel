@@ -1,5 +1,5 @@
 import React from 'react';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import {
     IconArrowLeft,
@@ -12,11 +12,13 @@ import {
     IconFileText,
     IconCircleCheck,
     IconCurrencyDollar,
-    IconPrinter
+    IconPrinter,
+    IconShieldCheck
 } from '@tabler/icons-react';
 import { toDisplayDateTime } from '@/Utils/datetime';
+import toast from 'react-hot-toast';
 
-export default function Show({ order }) {
+export default function Show({ order, warrantyRegistrations = {}, permissions = {} }) {
     const formatPrice = (price) => {
         return new Intl.NumberFormat('id-ID', {
             style: 'currency',
@@ -39,6 +41,96 @@ export default function Show({ order }) {
     };
 
     const statusBadge = getStatusBadge(order.status);
+    const totalItems = (order.details || []).reduce((sum, detail) => sum + (Number(detail.qty) || 0), 0);
+
+    const getWarrantyMeta = (detail) => {
+        const registration = warrantyRegistrations?.[detail.id];
+        if (!registration) {
+            return {
+                label: 'Tanpa Garansi',
+                badgeClass: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800/60 dark:text-slate-200',
+                canClaim: false,
+                periodDays: 0,
+                endDate: null,
+            };
+        }
+
+        const endDate = registration.warranty_end_date ? new Date(registration.warranty_end_date) : null;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (endDate) {
+            endDate.setHours(0, 0, 0, 0);
+        }
+
+        if (registration.claimed_at || registration.status === 'claimed') {
+            return {
+                label: 'Sudah Diklaim',
+                badgeClass: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/40 dark:text-blue-100',
+                canClaim: false,
+                periodDays: registration.warranty_period_days || 0,
+                endDate: registration.warranty_end_date,
+            };
+        }
+
+        if (!endDate || endDate < today) {
+            return {
+                label: 'Expired',
+                badgeClass: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/40 dark:text-red-100',
+                canClaim: false,
+                periodDays: registration.warranty_period_days || 0,
+                endDate: registration.warranty_end_date,
+            };
+        }
+
+        return {
+            label: 'Aktif',
+            badgeClass: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-100',
+            canClaim: true,
+            periodDays: registration.warranty_period_days || 0,
+            endDate: registration.warranty_end_date,
+        };
+    };
+
+    const warrantyActiveCount = (order.details || []).reduce((sum, detail) => {
+        const warranty = getWarrantyMeta(detail);
+        return warranty.label === 'Aktif' ? sum + 1 : sum;
+    }, 0);
+
+    const handleClaimWarranty = (detail) => {
+        const notes = window.prompt('Catatan klaim garansi (opsional):') || '';
+
+        router.post(route('service-orders.details.claim-warranty', { id: order.id, detailId: detail.id }), {
+            claim_notes: notes,
+        }, {
+            preserveScroll: true,
+            onSuccess: () => {
+                toast.success('Klaim garansi berhasil dicatat');
+            },
+            onError: (errors) => {
+                toast.error(errors?.error || 'Gagal mencatat klaim garansi');
+            },
+        });
+    };
+
+    const getMechanicHref = (mechanicId) => {
+        if (!mechanicId) return null;
+
+        if (route().has('mechanics.show')) {
+            return route('mechanics.show', mechanicId);
+        }
+
+        if (route().has('mechanics.performance.show')) {
+            return route('mechanics.performance.show', mechanicId);
+        }
+
+        if (route().has('mechanics.index')) {
+            return route('mechanics.index');
+        }
+
+        return null;
+    };
+
+    const mechanicHref = getMechanicHref(order.mechanic?.id);
 
     return (
         <>
@@ -87,6 +179,30 @@ export default function Show({ order }) {
                     </span>
                 </div>
 
+                {/* Quick Insights */}
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Total Item</p>
+                        <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">{totalItems}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Layanan + sparepart</p>
+                    </div>
+                    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Garansi Aktif</p>
+                        <p className="mt-1 text-2xl font-bold text-emerald-600 dark:text-emerald-400">{warrantyActiveCount}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Siap klaim jika diperlukan</p>
+                    </div>
+                    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Dibuat</p>
+                        <p className="mt-1 text-sm font-bold text-gray-900 dark:text-white">{formatDate(order.created_at)}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Waktu order masuk</p>
+                    </div>
+                    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Estimasi Selesai</p>
+                        <p className="mt-1 text-sm font-bold text-gray-900 dark:text-white">{formatDate(order.estimated_finish_at)}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Target pengerjaan</p>
+                    </div>
+                </div>
+
                 {/* Main Info Grid */}
                 <div className="grid gap-6 md:grid-cols-2">
                     {/* Customer Info */}
@@ -100,9 +216,18 @@ export default function Show({ order }) {
                         <div className="space-y-3">
                             <div>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">Nama</p>
-                                <p className="font-medium text-gray-900 dark:text-white">
-                                    {order.customer?.name || '-'}
-                                </p>
+                                {permissions?.can_view_customers && order.customer?.id ? (
+                                    <Link
+                                        href={route('customers.show', order.customer.id)}
+                                        className="font-medium text-primary-600 hover:underline dark:text-primary-400"
+                                    >
+                                        {order.customer?.name || '-'}
+                                    </Link>
+                                ) : (
+                                    <p className="font-medium text-gray-900 dark:text-white">
+                                        {order.customer?.name || '-'}
+                                    </p>
+                                )}
                             </div>
                             <div>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">Telepon</p>
@@ -132,9 +257,18 @@ export default function Show({ order }) {
                         <div className="space-y-3">
                             <div>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">Merek & Model</p>
-                                <p className="font-medium text-gray-900 dark:text-white">
-                                    {order.vehicle ? `${order.vehicle.brand} ${order.vehicle.model}` : '-'}
-                                </p>
+                                {permissions?.can_view_vehicles && order.vehicle?.id ? (
+                                    <Link
+                                        href={route('vehicles.show', order.vehicle.id)}
+                                        className="font-medium text-primary-600 hover:underline dark:text-primary-400"
+                                    >
+                                        {order.vehicle ? `${order.vehicle.brand} ${order.vehicle.model}` : '-'}
+                                    </Link>
+                                ) : (
+                                    <p className="font-medium text-gray-900 dark:text-white">
+                                        {order.vehicle ? `${order.vehicle.brand} ${order.vehicle.model}` : '-'}
+                                    </p>
+                                )}
                             </div>
                             <div>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">Plat Nomor</p>
@@ -164,9 +298,18 @@ export default function Show({ order }) {
                         <div className="space-y-3">
                             <div>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">Nama Mekanik</p>
-                                <p className="font-medium text-gray-900 dark:text-white">
-                                    {order.mechanic?.name || 'Belum ditentukan'}
-                                </p>
+                                {permissions?.can_view_mechanics && mechanicHref ? (
+                                    <Link
+                                        href={mechanicHref}
+                                        className="font-medium text-primary-600 hover:underline dark:text-primary-400"
+                                    >
+                                        {order.mechanic?.name || 'Belum ditentukan'}
+                                    </Link>
+                                ) : (
+                                    <p className="font-medium text-gray-900 dark:text-white">
+                                        {order.mechanic?.name || 'Belum ditentukan'}
+                                    </p>
+                                )}
                             </div>
                             {order.mechanic?.specialty && (
                                 <div>
@@ -268,7 +411,7 @@ export default function Show({ order }) {
                                 </div>
                                 <div className="flex-1">
                                     <p className="text-xs font-medium text-primary-700 dark:text-primary-300">Total</p>
-                                    {(order.discount_amount > 0 || order.tax_amount > 0) ? (
+                                    {(order.discount_amount > 0 || order.voucher_discount_amount > 0 || order.tax_amount > 0) ? (
                                         <div>
                                             <p className="text-sm line-through text-primary-700 dark:text-primary-400">{formatPrice(order.total || 0)}</p>
                                             <p className="text-xl font-bold text-primary-900 dark:text-primary-100">
@@ -276,6 +419,9 @@ export default function Show({ order }) {
                                             </p>
                                             {order.discount_amount > 0 && (
                                                 <p className="text-xs text-red-600">Diskon: -{formatPrice(order.discount_amount)}</p>
+                                            )}
+                                            {order.voucher_discount_amount > 0 && (
+                                                <p className="text-xs text-violet-600">Voucher {order.voucher_code ? `(${order.voucher_code})` : ''}: -{formatPrice(order.voucher_discount_amount)}</p>
                                             )}
                                             {order.tax_amount > 0 && (
                                                 <p className="text-xs text-green-600">Pajak: +{formatPrice(order.tax_amount)}</p>
@@ -294,10 +440,67 @@ export default function Show({ order }) {
 
                 {/* Items Detail */}
                 <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                    <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
-                        Detail Layanan & Sparepart
-                    </h2>
-                    <div className="overflow-x-auto">
+                    <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                            Detail Layanan & Sparepart
+                        </h2>
+                        <span className="inline-flex items-center rounded-full bg-primary-100 px-3 py-1 text-xs font-bold text-primary-700 dark:bg-primary-900/30 dark:text-primary-300">
+                            {totalItems} item
+                        </span>
+                    </div>
+
+                    <div className="space-y-3 md:hidden">
+                        {order.details?.map((detail) => {
+                            const warranty = getWarrantyMeta(detail);
+                            return (
+                                <div key={detail.id} className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div>
+                                            <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                                                {detail.service?.title || detail.part?.name || '-'}
+                                            </p>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                {detail.service ? 'Layanan Service' : detail.part ? 'Sparepart' : '-'}
+                                            </p>
+                                        </div>
+                                        <span className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-bold ${warranty.badgeClass}`}>
+                                            <IconShieldCheck size={12} /> {warranty.label}
+                                        </span>
+                                    </div>
+                                    <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                                        <div className="rounded-lg bg-gray-50 p-2 text-center dark:bg-gray-800">
+                                            <p className="text-gray-500 dark:text-gray-400">Qty</p>
+                                            <p className="font-semibold text-gray-900 dark:text-white">{detail.qty}</p>
+                                        </div>
+                                        <div className="rounded-lg bg-gray-50 p-2 text-center dark:bg-gray-800">
+                                            <p className="text-gray-500 dark:text-gray-400">Harga</p>
+                                            <p className="font-semibold text-gray-900 dark:text-white">{formatPrice(detail.price)}</p>
+                                        </div>
+                                        <div className="rounded-lg bg-gray-50 p-2 text-center dark:bg-gray-800">
+                                            <p className="text-gray-500 dark:text-gray-400">Subtotal</p>
+                                            <p className="font-semibold text-gray-900 dark:text-white">{formatPrice(detail.price * detail.qty)}</p>
+                                        </div>
+                                    </div>
+                                    {warranty.periodDays > 0 && (
+                                        <p className="mt-2 text-[11px] text-gray-500 dark:text-gray-400">
+                                            Garansi {warranty.periodDays} hari • s.d. {warranty.endDate ? formatDate(warranty.endDate) : '-'}
+                                        </p>
+                                    )}
+                                    {warranty.canClaim && (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleClaimWarranty(detail)}
+                                            className="mt-3 inline-flex items-center gap-1 rounded-md bg-blue-600 px-2.5 py-1.5 text-[11px] font-bold text-white hover:bg-blue-700"
+                                        >
+                                            Klaim
+                                        </button>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    <div className="hidden overflow-x-auto md:block">
                         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                             <thead className="bg-gray-50 dark:bg-gray-800">
                                 <tr>
@@ -310,14 +513,19 @@ export default function Show({ order }) {
                                     <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">
                                         Harga Satuan
                                     </th>
+                                    <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">
+                                        Garansi
+                                    </th>
                                     <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">
                                         Subtotal
                                     </th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
-                                {order.details?.map((detail) => (
-                                    <tr key={detail.id}>
+                                {order.details?.map((detail) => {
+                                    const warranty = getWarrantyMeta(detail);
+
+                                    return (<tr key={detail.id}>
                                         <td className="px-6 py-4">
                                             <div className="text-sm font-medium text-gray-900 dark:text-white">
                                                 {detail.service?.title || detail.part?.name || '-'}
@@ -339,15 +547,36 @@ export default function Show({ order }) {
                                         <td className="px-6 py-4 text-right text-sm text-gray-900 dark:text-white">
                                             {formatPrice(detail.price)}
                                         </td>
+                                        <td className="px-6 py-4 text-center">
+                                            <div className="flex flex-col items-center gap-2">
+                                                <span className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[11px] font-bold ${warranty.badgeClass}`}>
+                                                    <IconShieldCheck size={13} /> {warranty.label}
+                                                </span>
+                                                {warranty.periodDays > 0 && (
+                                                    <span className="text-[10px] text-gray-500 dark:text-gray-400">
+                                                        {warranty.periodDays} hari • s.d. {warranty.endDate ? formatDate(warranty.endDate) : '-'}
+                                                    </span>
+                                                )}
+                                                {warranty.canClaim && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleClaimWarranty(detail)}
+                                                        className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2 py-1 text-[11px] font-bold text-white hover:bg-blue-700"
+                                                    >
+                                                        Klaim
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </td>
                                         <td className="px-6 py-4 text-right text-sm font-medium text-gray-900 dark:text-white">
                                             {formatPrice(detail.price * detail.qty)}
                                         </td>
-                                    </tr>
-                                ))}
+                                    </tr>);
+                                })}
                             </tbody>
                             <tfoot className="bg-gray-50 dark:bg-gray-800">
                                 <tr>
-                                    <td colSpan="3" className="px-6 py-4 text-right text-sm text-gray-600 dark:text-gray-400">
+                                    <td colSpan="4" className="px-6 py-4 text-right text-sm text-gray-600 dark:text-gray-400">
                                         Subtotal
                                     </td>
                                     <td className="px-6 py-4 text-right text-sm font-medium text-gray-900 dark:text-white">
@@ -356,7 +585,7 @@ export default function Show({ order }) {
                                 </tr>
                                 {order.discount_amount > 0 && (
                                     <tr>
-                                        <td colSpan="3" className="px-6 py-4 text-right text-sm text-gray-600 dark:text-gray-400">
+                                        <td colSpan="4" className="px-6 py-4 text-right text-sm text-gray-600 dark:text-gray-400">
                                             Diskon {order.discount_type === 'percent' ? `(${order.discount_value}%)` : '(Fixed)'}
                                         </td>
                                         <td className="px-6 py-4 text-right text-sm font-medium text-red-600">
@@ -364,9 +593,19 @@ export default function Show({ order }) {
                                         </td>
                                     </tr>
                                 )}
+                                {order.voucher_discount_amount > 0 && (
+                                    <tr>
+                                        <td colSpan="4" className="px-6 py-4 text-right text-sm text-gray-600 dark:text-gray-400">
+                                            Voucher {order.voucher_code ? `(${order.voucher_code})` : ''}
+                                        </td>
+                                        <td className="px-6 py-4 text-right text-sm font-medium text-violet-600">
+                                            -{formatPrice(order.voucher_discount_amount)}
+                                        </td>
+                                    </tr>
+                                )}
                                 {order.tax_amount > 0 && (
                                     <tr>
-                                        <td colSpan="3" className="px-6 py-4 text-right text-sm text-gray-600 dark:text-gray-400">
+                                        <td colSpan="4" className="px-6 py-4 text-right text-sm text-gray-600 dark:text-gray-400">
                                             Pajak {order.tax_type === 'percent' ? `(${order.tax_value}%)` : '(Fixed)'}
                                         </td>
                                         <td className="px-6 py-4 text-right text-sm font-medium text-green-600">
@@ -375,7 +614,7 @@ export default function Show({ order }) {
                                     </tr>
                                 )}
                                 <tr className="border-t-2 border-gray-300 dark:border-gray-600">
-                                    <td colSpan="3" className="px-6 py-4 text-right text-sm font-semibold text-gray-900 dark:text-white">
+                                    <td colSpan="4" className="px-6 py-4 text-right text-sm font-semibold text-gray-900 dark:text-white">
                                         Total Akhir
                                     </td>
                                     <td className="px-6 py-4 text-right text-lg font-bold text-primary-600 dark:text-primary-400">

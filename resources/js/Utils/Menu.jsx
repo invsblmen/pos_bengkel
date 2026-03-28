@@ -24,6 +24,7 @@ import {
     IconBuildingStore,
     IconCash,
     IconShieldCheck,
+    IconTicket,
 } from "@tabler/icons-react";
 import hasAnyPermission from "./Permission";
 import React from "react";
@@ -91,6 +92,13 @@ export default function Menu() {
                     icon: <IconFileCertificate size={20} strokeWidth={1.5} />,
                     permissions: hasAnyPermission(["suppliers-access"]),
                 },
+                {
+                    title: "Voucher",
+                    href: route("vouchers.index"),
+                    active: url === "/dashboard/vouchers" || url.startsWith("/dashboard/vouchers"),
+                    icon: <IconTicket size={20} strokeWidth={1.5} />,
+                    permissions: hasAnyPermission(["vouchers-access"]),
+                },
             ],
         },
         {
@@ -118,7 +126,7 @@ export default function Menu() {
                     permissions: hasAnyPermission(["part-sales-access"]),
                 },
                 {
-                    title: "Garansi Sparepart",
+                    title: "Manajemen Garansi",
                     href: route("part-sales.warranties.index"),
                     active: url.startsWith("/dashboard/part-sales/warranties"),
                     icon: <IconShieldCheck size={20} strokeWidth={1.5} />,

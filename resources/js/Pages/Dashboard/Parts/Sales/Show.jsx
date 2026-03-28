@@ -123,8 +123,9 @@ export default function Show({ sale, businessProfile, cashDenominations = [] }) 
 
     const subtotal = sale.subtotal ?? sale.details.reduce((sum, detail) => sum + calculateItemTotal(detail), 0);
     const discountAmount = sale.discount_amount || 0;
+    const voucherDiscountAmount = sale.voucher_discount_amount || 0;
     const taxAmount = sale.tax_amount || 0;
-    const grandTotal = sale.grand_total ?? subtotal - discountAmount + taxAmount;
+    const grandTotal = sale.grand_total ?? subtotal - discountAmount - voucherDiscountAmount + taxAmount;
     const minimumDownPaymentReminder = Math.ceil(grandTotal * 0.5);
     const paidAmount = sale.paid_amount || 0;
     const remainingAmount = sale.remaining_amount ?? (grandTotal - paidAmount);
@@ -498,6 +499,12 @@ export default function Show({ sale, businessProfile, cashDenominations = [] }) 
                                             </span>
                                             <span className="font-bold text-red-600 dark:text-red-400">-{formatCurrency(discountAmount)}</span>
                                         </div>
+                                        {voucherDiscountAmount > 0 && (
+                                            <div className="flex items-center justify-between pb-3 border-b border-emerald-200 dark:border-emerald-700/30">
+                                                <span className="text-slate-600 dark:text-slate-400 font-medium">Voucher {sale.voucher_code ? `(${sale.voucher_code})` : ''}</span>
+                                                <span className="font-bold text-violet-600 dark:text-violet-400">-{formatCurrency(voucherDiscountAmount)}</span>
+                                            </div>
+                                        )}
                                         <div className="flex items-center justify-between pb-3 border-b border-emerald-200 dark:border-emerald-700/30">
                                             <span className="text-slate-600 dark:text-slate-400 font-medium">Pajak</span>
                                             <span className="font-bold text-green-600 dark:text-green-400">+{formatCurrency(taxAmount)}</span>
@@ -733,6 +740,7 @@ export default function Show({ sale, businessProfile, cashDenominations = [] }) 
                                 <div className="w-80 border border-slate-300 rounded-md p-3 space-y-2 text-sm">
                                     <div className="flex justify-between"><span>Subtotal</span><span>{formatCurrency(subtotal)}</span></div>
                                     <div className="flex justify-between"><span>Diskon</span><span>-{formatCurrency(discountAmount)}</span></div>
+                                    {voucherDiscountAmount > 0 && <div className="flex justify-between"><span>Voucher {sale.voucher_code ? `(${sale.voucher_code})` : ''}</span><span>-{formatCurrency(voucherDiscountAmount)}</span></div>}
                                     <div className="flex justify-between"><span>Pajak</span><span>+{formatCurrency(taxAmount)}</span></div>
                                     <div className="flex justify-between border-t border-slate-300 pt-2 font-semibold text-base"><span>Total</span><span>{formatCurrency(grandTotal)}</span></div>
                                 </div>
@@ -783,6 +791,7 @@ export default function Show({ sale, businessProfile, cashDenominations = [] }) 
                             <div className="py-2 space-y-1 border-b border-dashed border-black">
                                 <div className="flex justify-between"><span>Subtotal</span><span>{formatCurrency(subtotal)}</span></div>
                                 <div className="flex justify-between"><span>Diskon</span><span>-{formatCurrency(discountAmount)}</span></div>
+                                {voucherDiscountAmount > 0 && <div className="flex justify-between"><span>Voucher {sale.voucher_code ? `(${sale.voucher_code})` : ''}</span><span>-{formatCurrency(voucherDiscountAmount)}</span></div>}
                                 <div className="flex justify-between"><span>Pajak</span><span>+{formatCurrency(taxAmount)}</span></div>
                                 <div className="flex justify-between font-bold text-sm pt-1"><span>Total</span><span>{formatCurrency(grandTotal)}</span></div>
                                 <div className="flex justify-between"><span>Bayar</span><span>{formatCurrency(paidAmount)}</span></div>

@@ -9,6 +9,7 @@ use App\Models\PartSalesOrderDetail;
 use App\Models\Customer;
 use App\Models\Part;
 use App\Models\PartStockMovement;
+use App\Support\DispatchesBroadcastSafely;
 use App\Services\DiscountTaxService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -17,6 +18,8 @@ use Inertia\Inertia;
 
 class PartSalesOrderController extends Controller
 {
+    use DispatchesBroadcastSafely;
+
     public function index(Request $request)
     {
         $query = PartSalesOrder::with(['customer', 'details']);
@@ -117,7 +120,10 @@ class PartSalesOrderController extends Controller
 
             DB::commit();
 
-            PartSalesOrderCreated::dispatch($order->load(['customer', 'details.part'])->toArray());
+            $this->dispatchBroadcastSafely(
+                fn () => PartSalesOrderCreated::dispatch($order->load(['customer', 'details.part'])->toArray()),
+                'PartSalesOrderCreated'
+            );
 
             return redirect()->route('part-sales-orders.show', $order->id)
                 ->with('success', 'Sales order created successfully');

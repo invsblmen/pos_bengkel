@@ -16,6 +16,9 @@ function Edit({ auth, service, categories, mechanics, services }) {
             ? service.required_tools.join(', ')
             : service.required_tools || '',
         status: service.status || 'active',
+        has_warranty: !!service.has_warranty,
+        warranty_duration_days: service.warranty_duration_days ?? '',
+        warranty_terms: service.warranty_terms || '',
         incentive_mode: service.incentive_mode || 'same',
         default_incentive_percentage: service.default_incentive_percentage || 0,
         price_adjustments: service.price_adjustments || [],
@@ -318,6 +321,69 @@ function Edit({ auth, service, categories, mechanics, services }) {
                                     </select>
                                     {errors.status && (
                                         <p className="mt-1 text-sm text-red-500">{errors.status}</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="space-y-4 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                                <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Kebijakan Garansi</h3>
+                                <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                                    <input
+                                        type="checkbox"
+                                        checked={data.has_warranty}
+                                        onChange={(e) => {
+                                            const checked = e.target.checked;
+                                            setData('has_warranty', checked);
+                                            if (!checked) {
+                                                setData('warranty_duration_days', '');
+                                            }
+                                        }}
+                                        className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                                    />
+                                    <span>Layanan ini memiliki garansi</span>
+                                </label>
+
+                                <div>
+                                    <label htmlFor="warranty_duration_days" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                        Durasi Garansi (hari)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        id="warranty_duration_days"
+                                        value={data.warranty_duration_days}
+                                        onChange={(e) => setData('warranty_duration_days', e.target.value)}
+                                        className={`w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-primary-500 transition-colors ${
+                                            errors.warranty_duration_days
+                                                ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
+                                                : 'border-gray-200 dark:border-gray-700 focus:border-transparent'
+                                        } bg-white dark:bg-gray-900 text-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800`}
+                                        placeholder="Contoh: 30"
+                                        min="0"
+                                        disabled={!data.has_warranty}
+                                    />
+                                    {errors.warranty_duration_days && (
+                                        <p className="mt-1 text-sm text-red-500">{errors.warranty_duration_days}</p>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <label htmlFor="warranty_terms" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                        Syarat Garansi
+                                    </label>
+                                    <textarea
+                                        id="warranty_terms"
+                                        value={data.warranty_terms}
+                                        onChange={(e) => setData('warranty_terms', e.target.value)}
+                                        rows={3}
+                                        className={`w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-primary-500 transition-colors ${
+                                            errors.warranty_terms
+                                                ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
+                                                : 'border-gray-200 dark:border-gray-700 focus:border-transparent'
+                                        } bg-white dark:bg-gray-900 text-gray-900 dark:text-white`}
+                                        placeholder="Contoh: Garansi tidak berlaku untuk kerusakan akibat modifikasi tidak resmi."
+                                    />
+                                    {errors.warranty_terms && (
+                                        <p className="mt-1 text-sm text-red-500">{errors.warranty_terms}</p>
                                     )}
                                 </div>
                             </div>

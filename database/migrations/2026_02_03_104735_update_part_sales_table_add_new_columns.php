@@ -64,6 +64,12 @@ return new class extends Migration
 
             // Drop old columns if they exist
             if (Schema::hasColumn('part_sales', 'invoice')) {
+                // Drop indexes first if they reference the column
+                try {
+                    $table->dropUnique('part_sales_invoice_unique');
+                } catch (\Exception $e) {
+                    // Index may not exist
+                }
                 $table->dropColumn('invoice');
             }
             if (Schema::hasColumn('part_sales', 'total')) {

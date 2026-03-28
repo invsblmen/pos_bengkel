@@ -20,7 +20,7 @@ const formatCurrency = (value) => {
     }).format(value);
 };
 
-export default function Edit({ order, customers, mechanics, services, parts, vehicles, tags }) {
+export default function Edit({ order, customers, mechanics, services, parts, vehicles, tags, availableVouchers = [] }) {
     const { data, setData, put, processing, errors } = useForm({
         customer_id: order.customer_id || '',
         vehicle_id: order.vehicle_id || '',
@@ -30,6 +30,7 @@ export default function Edit({ order, customers, mechanics, services, parts, veh
         estimated_start_at: toInputValue(order.estimated_start_at) || '',
         estimated_finish_at: toInputValue(order.estimated_finish_at) || '',
         notes: order.notes || '',
+        voucher_code: order.voucher_code || '',
         maintenance_type: order.maintenance_type || '',
         next_service_km: order.next_service_km || '',
         next_service_date: extractDateFromISO(order.next_service_date) || '',
@@ -870,6 +871,24 @@ export default function Edit({ order, customers, mechanics, services, parts, veh
                                 <div className="flex justify-between text-sm">
                                     <span className="text-slate-600 dark:text-slate-400">Setelah Diskon:</span>
                                     <span className="font-medium">{formatCurrency(afterDiscount)}</span>
+                                </div>
+
+                                <div className="border-t border-slate-200 dark:border-slate-700 pt-2">
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Kode Voucher</label>
+                                    <input
+                                        type="text"
+                                        value={data.voucher_code || ''}
+                                        onChange={(e) => setData('voucher_code', e.target.value.toUpperCase())}
+                                        placeholder="Contoh: SERVICEHEMAT"
+                                        list="service-order-edit-voucher-options"
+                                        className="w-full h-11 px-3 rounded-xl border text-sm"
+                                    />
+                                    <datalist id="service-order-edit-voucher-options">
+                                        {availableVouchers.map((voucher) => (
+                                            <option key={voucher.id} value={voucher.code}>{voucher.name}</option>
+                                        ))}
+                                    </datalist>
+                                    {errors.voucher_code && <p className="mt-1 text-xs text-red-600">{errors.voucher_code}</p>}
                                 </div>
 
                                 {/* Tax */}

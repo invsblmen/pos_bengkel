@@ -1,72 +1,38 @@
 # Kanban Board - Next Implementation
 
-Gunakan board ini untuk tracking harian lintas device.
+Gunakan board ini untuk tracking eksekusi berikutnya lintas device.
 
 Aturan pakai singkat:
 
 - Pindahkan task antar kolom dengan cut/paste.
 - Simpan format checkbox agar progress mudah dibaca.
-- Gunakan tag: `[GARANSI]`, `[VOUCHER]`, `[SO-REF]`, `[TEST]`, `[INFRA]`.
+- Gunakan tag: `[GARANSI]`, `[VOUCHER]`, `[SO-REF]`, `[TEST]`, `[INFRA]`, `[UI]`.
 
 ## To Do
 
-- [ ] [GARANSI] Sprint 1: Tambah kolom `has_warranty`, `warranty_duration_days`, `warranty_terms` di master part.
-- [ ] [GARANSI] Sprint 1: Tambah kolom `has_warranty`, `warranty_duration_days`, `warranty_terms` di master service.
-- [ ] [GARANSI] Sprint 1: Validasi rule kombinasi `has_warranty` dan durasi (backend + frontend).
-- [ ] [GARANSI] Sprint 1: Update UI create/edit part dan service untuk policy garansi.
-
-- [ ] [GARANSI] Sprint 2: Buat tabel `warranty_registrations` (polymorphic item + sumber transaksi).
-- [ ] [GARANSI] Sprint 2: Implement service class registrasi garansi reusable.
-- [ ] [GARANSI] Sprint 2: Integrasikan auto-registrasi dari flow part sales.
-- [ ] [GARANSI] Sprint 2: Buat script backfill histori garansi lama.
-
-- [ ] [GARANSI] Sprint 3: Integrasikan registrasi garansi dari service order saat finalisasi.
-- [ ] [GARANSI] Sprint 3: Tampilkan badge/status garansi di detail service order.
-- [ ] [GARANSI] Sprint 3: Tambahkan klaim garansi dari konteks service order.
-- [ ] [INFRA] Sprint 3: Sinkronkan notifikasi expiry agar membaca sumber registri terpadu.
-
-- [ ] [GARANSI] Sprint 4: Bangun halaman unified warranty dashboard.
-- [ ] [GARANSI] Sprint 4: Tambah filter advanced (source, item type, customer, vehicle, mechanic, status, date).
-- [ ] [GARANSI] Sprint 4: Tambah export CSV dari dashboard unified.
-
-- [ ] [VOUCHER] Sprint 5: Buat modul master voucher (periode, kuota, limit customer, scope).
-- [ ] [VOUCHER] Sprint 5: Tambah relasi eligibilitas voucher ke part/service/category.
-- [ ] [VOUCHER] Sprint 5: Integrasikan validasi voucher ke part sales.
-- [ ] [VOUCHER] Sprint 5: Integrasikan validasi voucher ke service order.
-- [ ] [VOUCHER] Sprint 5: Tambah usage log + guard anti reuse abuse.
-
-- [ ] [SO-REF] Sprint 6: Jadikan customer di detail service order clickable ke detail customer.
-- [ ] [SO-REF] Sprint 6: Jadikan kendaraan di detail service order clickable ke detail kendaraan.
-- [ ] [SO-REF] Sprint 6: Jadikan mekanik di detail service order clickable ke detail mekanik/performance.
-- [ ] [SO-REF] Sprint 6: Tambah fallback UI jika permission akses tujuan tidak ada.
-
-- [ ] [TEST] Sprint 6: Feature test registrasi garansi dari part sales.
-- [ ] [TEST] Sprint 6: Feature test registrasi garansi dari service order.
-- [ ] [TEST] Sprint 6: Feature test klaim garansi valid/invalid/expired.
-- [ ] [TEST] Sprint 6: Feature test validasi voucher per scope.
-- [ ] [TEST] Sprint 6: Permission test klaim garansi dan kelola voucher.
-- [ ] [INFRA] Sprint 6: Review index DB dan benchmark query utama garansi/voucher.
+- [ ] [TEST] Tambahkan feature test untuk `customers.show` (akses valid, akses unauthorized, data relasi terbaca).
+- [ ] [TEST] Tambahkan test fallback route referensi mekanik pada detail service order.
+- [ ] [UI] Tambahkan sticky action bar pada detail service order (cetak, edit, kembali).
+- [ ] [UI] Tambahkan loading skeleton untuk section detail item pada service order show.
+- [ ] [INFRA] Tambahkan rotasi sederhana untuk log watchdog (`reverb-autostart.log`, `reverb-watchdog.log`) agar ukuran file terkendali.
+- [ ] [INFRA] Tambahkan command status ringkas untuk watchdog Reverb (cek proses + port + pid file).
+- [ ] [SO-REF] Lengkapi endpoint detail mekanik (`mechanics.show`) atau finalisasi keputusan tetap di performance page.
+- [ ] [VOUCHER] Tambahkan validasi edge-case kombinasi voucher + diskon fixed besar di service order.
+- [ ] [GARANSI] Tambahkan indikator visual item garansi yang sudah mendekati expired pada detail service order.
 
 ## In Progress
 
-- [ ] (Kosong)
+- [ ] [TEST] Konsolidasi dan stabilisasi test suite domain garansi + voucher + service-order references.
 
 ## Blocked
 
-- [ ] (Kosong)
-
-## Done
-
-- [x] [GARANSI] Manajemen garansi sparepart pada part sales (input, status, klaim).
-- [x] [GARANSI] Halaman manajemen garansi sparepart (filter, summary, pagination, realtime refresh).
-- [x] [GARANSI] Export CSV garansi sparepart berdasarkan filter aktif.
-- [x] [INFRA] Command notifikasi expiry garansi: `warranty:notify-expiring` + schedule harian.
-- [x] [INFRA] Permission khusus klaim garansi sparepart: `part-sales-warranty-claim`.
+- [ ] [INFRA] Otomatisasi startup berbasis Task Scheduler event Herd start (menunggu hak akses admin lokal).
 
 ## Catatan Operasional
 
-- Gunakan `ValidationException::withMessages` untuk business-rule failure pada flow Inertia.
-- Setelah perubahan route backend, jalankan regenerate Ziggy:
+- Setelah perubahan route backend, regenerate Ziggy:
   - `php artisan ziggy:generate resources/js/ziggy.js`
 - Untuk cek scheduler aktif:
   - `php artisan schedule:list`
+- Untuk cek health Reverb dari app runtime:
+  - `php artisan reverb:health-check`

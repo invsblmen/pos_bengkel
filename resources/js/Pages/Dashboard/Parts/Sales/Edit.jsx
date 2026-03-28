@@ -11,7 +11,7 @@ import {
 import toast from 'react-hot-toast';
 import { extractDateFromISO } from '@/Utils/datetime';
 
-export default function Edit({ sale, customers = [], parts = [] }) {
+export default function Edit({ sale, customers = [], parts = [], availableVouchers = [] }) {
     const [localCustomers, setLocalCustomers] = useState(customers);
     const { data, setData, put, processing, errors } = useForm({
         customer_id: sale.customer_id || '',
@@ -26,6 +26,7 @@ export default function Edit({ sale, customers = [], parts = [] }) {
             warranty_period_days: detail.warranty_period_days || 0,
         })),
         notes: sale.notes || '',
+        voucher_code: sale.voucher_code || '',
         discount_type: sale.discount_type || 'percent',
         discount_value: sale.discount_value || 0,
         tax_type: sale.tax_type || 'percent',
@@ -810,7 +811,29 @@ export default function Edit({ sale, customers = [], parts = [] }) {
                                         </div>
                                     </div>
                                 </div>
-                                <div className="p-4">
+                                <div className="p-4 space-y-4">
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-2">
+                                            Kode Voucher
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={data.voucher_code || ''}
+                                            onChange={(e) => setData('voucher_code', e.target.value.toUpperCase())}
+                                            placeholder="Contoh: RAMADAN2026"
+                                            className="w-full h-9 px-3 text-xs rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white font-semibold focus:ring-2 focus:ring-violet-500 focus:border-violet-500"
+                                            list="part-sale-voucher-options"
+                                        />
+                                        <datalist id="part-sale-voucher-options">
+                                            {availableVouchers.map((voucher) => (
+                                                <option key={voucher.id} value={voucher.code}>{voucher.name}</option>
+                                            ))}
+                                        </datalist>
+                                        {errors.voucher_code && (
+                                            <p className="mt-1 text-xs text-red-600">{errors.voucher_code}</p>
+                                        )}
+                                    </div>
+
                                     <div className="grid gap-4 sm:grid-cols-2">
                                         <div>
                                             <label className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-2">

@@ -13,7 +13,8 @@ class Service extends Model
     protected $fillable = [
         'code', 'title', 'description', 'est_time_minutes', 'price',
         'service_category_id', 'complexity_level', 'required_tools', 'status',
-        'incentive_mode', 'default_incentive_percentage'
+        'incentive_mode', 'default_incentive_percentage',
+        'has_warranty', 'warranty_duration_days', 'warranty_terms'
     ];
 
     protected $casts = [
@@ -21,6 +22,8 @@ class Service extends Model
         'est_time_minutes' => 'integer',
         'price' => 'integer',
         'default_incentive_percentage' => 'decimal:2',
+        'has_warranty' => 'boolean',
+        'warranty_duration_days' => 'integer',
     ];
 
     public function category()

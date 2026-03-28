@@ -15,6 +15,7 @@ import {
     IconMapPin,
     IconMail,
     IconCar,
+    IconEye,
     IconDots,
     IconX,
 } from "@tabler/icons-react";
@@ -102,22 +103,30 @@ function CustomerCard({ customer }) {
             )}
 
             {/* Actions */}
-            <div className="flex gap-2 pt-3.5 border-t border-slate-100 dark:border-slate-700">
+            <div className="flex items-center justify-end gap-1.5 pt-3.5 border-t border-slate-100 dark:border-slate-700">
+                <Link
+                    href={route("customers.show", customer.id)}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-emerald-700 transition-colors hover:bg-emerald-100 dark:text-emerald-300 dark:hover:bg-emerald-900/30"
+                    title="Detail"
+                >
+                    <IconEye size={14} />
+                </Link>
                 <Link
                     href={route("customers.edit", customer.id)}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/30 dark:to-cyan-900/30 text-blue-600 dark:text-blue-400 hover:from-blue-100 hover:to-cyan-100 dark:hover:from-blue-900/50 dark:hover:to-cyan-900/50 font-semibold transition-all duration-200 hover:shadow-md text-xs"
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-blue-600 transition-colors hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900/30"
+                    title="Edit"
                 >
                     <IconPencilCog size={14} />
-                    <span>Edit</span>
                 </Link>
                 <Button
                     type={"delete"}
-                    icon={<IconTrash size={14} />}
+                    icon={<IconTrash size={17} />}
                     className={
-                        "flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-gradient-to-r from-red-50 to-rose-50 dark:from-red-900/30 dark:to-rose-900/30 text-red-600 dark:text-red-400 hover:from-red-100 hover:to-rose-100 dark:hover:from-red-900/50 dark:hover:to-rose-900/50 font-semibold transition-all duration-200 hover:shadow-md text-xs"
+                        "inline-flex h-9 w-9 items-center justify-center rounded-lg text-red-600 transition-colors hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900/30"
                     }
                     url={route("customers.destroy", customer.id)}
-                    label="Hapus"
+                    label=""
+                    title="Hapus"
                 />
             </div>
         </div>
@@ -323,7 +332,7 @@ export default function Index({ customers }) {
                                         <Table.Th className="hidden lg:table-cell">Email</Table.Th>
                                         <Table.Th className="hidden xl:table-cell">Alamat</Table.Th>
                                         <Table.Th className="hidden sm:table-cell text-center">Kendaraan</Table.Th>
-                                        <Table.Th className="w-20 text-center">Aksi</Table.Th>
+                                        <Table.Th className="w-32 text-center">Aksi</Table.Th>
                                     </tr>
                                 </Table.Thead>
                                 <Table.Tbody>
@@ -379,6 +388,13 @@ export default function Index({ customers }) {
                                             </Table.Td>
                                             <Table.Td>
                                                 <div className="flex items-center justify-center gap-1">
+                                                    <Link
+                                                        href={route("customers.show", customer.id)}
+                                                        className="inline-flex items-center justify-center p-2 rounded-lg text-emerald-600 hover:bg-emerald-100 dark:text-emerald-400 dark:hover:bg-emerald-900/30 transition-colors"
+                                                        title="Detail"
+                                                    >
+                                                        <IconEye size={16} />
+                                                    </Link>
                                                     <Link
                                                         href={route("customers.edit", customer.id)}
                                                         className="inline-flex items-center justify-center p-2 rounded-lg text-warning-600 hover:bg-warning-100 dark:text-warning-400 dark:hover:bg-warning-900/30 transition-colors"

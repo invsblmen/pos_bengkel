@@ -29,7 +29,8 @@ class Part extends Model
 
     protected $fillable = [
         'part_number', 'barcode', 'name', 'description', 'buy_price', 'sell_price', 'stock', 'minimal_stock', 'rack_location',
-        'supplier_id', 'part_category_id', 'unit_measure', 'reorder_level', 'status'
+        'supplier_id', 'part_category_id', 'unit_measure', 'reorder_level', 'status',
+        'has_warranty', 'warranty_duration_days', 'warranty_terms'
     ];
 
     protected $casts = [
@@ -38,6 +39,8 @@ class Part extends Model
         'minimal_stock' => 'integer',
         'buy_price' => 'integer',
         'sell_price' => 'integer',
+        'has_warranty' => 'boolean',
+        'warranty_duration_days' => 'integer',
     ];
 
     public function category()

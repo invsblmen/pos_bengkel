@@ -13,11 +13,18 @@ use App\Models\PartSaleDetail;
 use App\Models\PartSalesOrder;
 use App\Models\Part;
 use App\Models\Customer;
+use App\Models\Service;
+use App\Models\ServiceOrder;
+use App\Models\WarrantyRegistration;
 use App\Models\PartStockMovement;
 use App\Models\User;
+use App\Models\Voucher;
 use App\Notifications\PartSaleOrderReadyNotification;
 use App\Services\CashChangeSuggestionService;
 use App\Services\DiscountTaxService;
+use App\Services\VoucherService;
+use App\Services\WarrantyRegistrationService;
+use App\Support\DispatchesBroadcastSafely;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -27,16 +34,24 @@ use Inertia\Inertia;
 
 class PartSaleController extends Controller
 {
+    use DispatchesBroadcastSafely;
+
     protected $discountTaxService;
     protected $cashChangeSuggestionService;
+    protected $warrantyRegistrationService;
+    protected $voucherService;
 
     public function __construct(
         DiscountTaxService $discountTaxService,
-        CashChangeSuggestionService $cashChangeSuggestionService
+        CashChangeSuggestionService $cashChangeSuggestionService,
+        WarrantyRegistrationService $warrantyRegistrationService,
+        VoucherService $voucherService
     )
     {
         $this->discountTaxService = $discountTaxService;
         $this->cashChangeSuggestionService = $cashChangeSuggestionService;
+        $this->warrantyRegistrationService = $warrantyRegistrationService;
+        $this->voucherService = $voucherService;
     }
 
     public function index(Request $request)
@@ -79,35 +94,117 @@ class PartSaleController extends Controller
     {
         $search = trim((string) $request->input('search', ''));
         $status = (string) $request->input('warranty_status', 'all');
+        $sourceType = (string) $request->input('source_type', 'all');
+        $itemType = (string) $request->input('item_type', 'all');
+        $customerId = $request->filled('customer_id') ? (int) $request->input('customer_id') : null;
+        $vehicleId = $request->filled('vehicle_id') ? (int) $request->input('vehicle_id') : null;
+        $mechanicId = $request->filled('mechanic_id') ? (int) $request->input('mechanic_id') : null;
+        $dateFrom = $request->input('date_from');
+        $dateTo = $request->input('date_to');
         $expiringIn = (int) $request->input('expiring_in_days', 30);
         $expiringIn = max(1, min($expiringIn, 365));
 
         $today = now()->startOfDay();
         $expiringDate = (clone $today)->addDays($expiringIn)->endOfDay();
 
-        $query = $this->applyWarrantyFilters(
-            PartSaleDetail::query()
-                ->with([
-                    'part:id,name,part_number',
-                    'partSale:id,sale_number,sale_date,customer_id,status,payment_status',
-                    'partSale.customer:id,name',
-                ]),
+        $query = $this->applyUnifiedWarrantyFilters(
+            WarrantyRegistration::query()->with(['customer:id,name', 'vehicle:id,plate_number,brand,model']),
             $search,
             $status,
+            $sourceType,
+            $itemType,
+            $customerId,
+            $vehicleId,
+            $mechanicId,
+            $dateFrom,
+            $dateTo,
             $today,
             $expiringDate
         );
 
         $warranties = $query
-            ->orderByRaw('CASE WHEN warranty_claimed_at IS NULL THEN 0 ELSE 1 END ASC')
+            ->orderByRaw('CASE WHEN claimed_at IS NULL THEN 0 ELSE 1 END ASC')
             ->orderBy('warranty_end_date')
             ->paginate(15)
             ->withQueryString();
 
-        $summaryBase = $this->applyWarrantyFilters(
-            PartSaleDetail::query(),
+        $sourceIdsByType = [
+            PartSale::class => [],
+            ServiceOrder::class => [],
+        ];
+
+        foreach ($warranties->items() as $registration) {
+            if (isset($sourceIdsByType[$registration->source_type])) {
+                $sourceIdsByType[$registration->source_type][] = (int) $registration->source_id;
+            }
+        }
+
+        $partSaleMap = PartSale::query()
+            ->whereIn('id', array_values(array_unique($sourceIdsByType[PartSale::class])))
+            ->with('customer:id,name')
+            ->get(['id', 'sale_number', 'sale_date', 'customer_id'])
+            ->keyBy('id');
+
+        $serviceOrderMap = ServiceOrder::query()
+            ->whereIn('id', array_values(array_unique($sourceIdsByType[ServiceOrder::class])))
+            ->with(['customer:id,name', 'mechanic:id,name'])
+            ->get(['id', 'order_number', 'customer_id', 'vehicle_id', 'mechanic_id', 'created_at'])
+            ->keyBy('id');
+
+        $warranties->getCollection()->transform(function (WarrantyRegistration $registration) use ($partSaleMap, $serviceOrderMap, $expiringIn) {
+            $source = null;
+            if ($registration->source_type === PartSale::class) {
+                $source = $partSaleMap->get((int) $registration->source_id);
+            } elseif ($registration->source_type === ServiceOrder::class) {
+                $source = $serviceOrderMap->get((int) $registration->source_id);
+            }
+
+            return [
+                'id' => $registration->id,
+                'source_type' => $registration->source_type,
+                'source_id' => (int) $registration->source_id,
+                'source_detail_id' => (int) $registration->source_detail_id,
+                'reference_number' => $registration->source_type === PartSale::class
+                    ? ($source->sale_number ?? '-')
+                    : ($source->order_number ?? '-'),
+                'source_date' => $registration->source_type === PartSale::class
+                    ? optional($source?->sale_date)?->toDateString()
+                    : optional($source?->created_at)?->toDateString(),
+                'source_label' => $registration->source_type === PartSale::class ? 'Part Sale' : 'Service Order',
+                'customer_name' => $registration->customer?->name
+                    ?? $source?->customer?->name
+                    ?? '-',
+                'vehicle_label' => $registration->vehicle
+                    ? trim(($registration->vehicle->plate_number ?? '-') . ' ' . ($registration->vehicle->brand ?? '') . ' ' . ($registration->vehicle->model ?? ''))
+                    : '-',
+                'mechanic_name' => $registration->source_type === ServiceOrder::class
+                    ? ($source?->mechanic?->name ?? '-')
+                    : '-',
+                'item_name' => $registration->metadata['item_name']
+                    ?? $registration->metadata['part_name']
+                    ?? '-',
+                'item_number' => $registration->metadata['part_number'] ?? '-',
+                'item_type' => $registration->warrantable_type === Service::class ? 'service' : 'part',
+                'warranty_period_days' => (int) $registration->warranty_period_days,
+                'warranty_start_date' => optional($registration->warranty_start_date)?->toDateString(),
+                'warranty_end_date' => optional($registration->warranty_end_date)?->toDateString(),
+                'claimed_at' => optional($registration->claimed_at)?->toISOString(),
+                'claim_notes' => $registration->claim_notes,
+                'resolved_status' => $this->resolveUnifiedWarrantyStatusLabel($registration, $expiringIn),
+            ];
+        });
+
+        $summaryBase = $this->applyUnifiedWarrantyFilters(
+            WarrantyRegistration::query(),
             $search,
             'all',
+            $sourceType,
+            $itemType,
+            $customerId,
+            $vehicleId,
+            $mechanicId,
+            $dateFrom,
+            $dateTo,
             $today,
             $expiringDate
         );
@@ -115,19 +212,19 @@ class PartSaleController extends Controller
         $summary = [
             'all' => (clone $summaryBase)->count(),
             'active' => (clone $summaryBase)
-                ->whereNull('warranty_claimed_at')
+                ->whereNull('claimed_at')
                 ->whereDate('warranty_end_date', '>=', $today)
                 ->count(),
             'expiring' => (clone $summaryBase)
-                ->whereNull('warranty_claimed_at')
+                ->whereNull('claimed_at')
                 ->whereBetween('warranty_end_date', [$today, $expiringDate])
                 ->count(),
             'expired' => (clone $summaryBase)
-                ->whereNull('warranty_claimed_at')
+                ->whereNull('claimed_at')
                 ->whereDate('warranty_end_date', '<', $today)
                 ->count(),
             'claimed' => (clone $summaryBase)
-                ->whereNotNull('warranty_claimed_at')
+                ->whereNotNull('claimed_at')
                 ->count(),
         ];
 
@@ -137,8 +234,18 @@ class PartSaleController extends Controller
             'filters' => [
                 'search' => $search,
                 'warranty_status' => $status,
+                'source_type' => $sourceType,
+                'item_type' => $itemType,
+                'customer_id' => $customerId,
+                'vehicle_id' => $vehicleId,
+                'mechanic_id' => $mechanicId,
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
                 'expiring_in_days' => $expiringIn,
             ],
+            'customers' => Customer::orderBy('name')->get(['id', 'name']),
+            'vehicles' => \App\Models\Vehicle::orderBy('plate_number')->get(['id', 'plate_number', 'brand', 'model']),
+            'mechanics' => \App\Models\Mechanic::orderBy('name')->get(['id', 'name']),
         ]);
     }
 
@@ -146,38 +253,74 @@ class PartSaleController extends Controller
     {
         $search = trim((string) $request->input('search', ''));
         $status = (string) $request->input('warranty_status', 'all');
+        $sourceType = (string) $request->input('source_type', 'all');
+        $itemType = (string) $request->input('item_type', 'all');
+        $customerId = $request->filled('customer_id') ? (int) $request->input('customer_id') : null;
+        $vehicleId = $request->filled('vehicle_id') ? (int) $request->input('vehicle_id') : null;
+        $mechanicId = $request->filled('mechanic_id') ? (int) $request->input('mechanic_id') : null;
+        $dateFrom = $request->input('date_from');
+        $dateTo = $request->input('date_to');
         $expiringIn = (int) $request->input('expiring_in_days', 30);
         $expiringIn = max(1, min($expiringIn, 365));
 
         $today = now()->startOfDay();
         $expiringDate = (clone $today)->addDays($expiringIn)->endOfDay();
 
-        $warranties = $this->applyWarrantyFilters(
-            PartSaleDetail::query()->with([
-                'part:id,name,part_number',
-                'partSale:id,sale_number,sale_date,customer_id,status,payment_status',
-                'partSale.customer:id,name',
-            ]),
+        $warranties = $this->applyUnifiedWarrantyFilters(
+            WarrantyRegistration::query()->with(['customer:id,name', 'vehicle:id,plate_number,brand,model']),
             $search,
             $status,
+            $sourceType,
+            $itemType,
+            $customerId,
+            $vehicleId,
+            $mechanicId,
+            $dateFrom,
+            $dateTo,
             $today,
             $expiringDate
         )
-            ->orderByRaw('CASE WHEN warranty_claimed_at IS NULL THEN 0 ELSE 1 END ASC')
+            ->orderByRaw('CASE WHEN claimed_at IS NULL THEN 0 ELSE 1 END ASC')
             ->orderBy('warranty_end_date')
             ->get();
 
-        $filename = 'sparepart-warranties-' . now()->format('Y-m-d-His') . '.csv';
+        $sourceIdsByType = [
+            PartSale::class => [],
+            ServiceOrder::class => [],
+        ];
 
-        return response()->streamDownload(function () use ($warranties, $expiringIn) {
+        foreach ($warranties as $registration) {
+            if (isset($sourceIdsByType[$registration->source_type])) {
+                $sourceIdsByType[$registration->source_type][] = (int) $registration->source_id;
+            }
+        }
+
+        $partSaleMap = PartSale::query()
+            ->whereIn('id', array_values(array_unique($sourceIdsByType[PartSale::class])))
+            ->with('customer:id,name')
+            ->get(['id', 'sale_number', 'sale_date', 'customer_id'])
+            ->keyBy('id');
+
+        $serviceOrderMap = ServiceOrder::query()
+            ->whereIn('id', array_values(array_unique($sourceIdsByType[ServiceOrder::class])))
+            ->with(['customer:id,name', 'mechanic:id,name'])
+            ->get(['id', 'order_number', 'customer_id', 'mechanic_id', 'created_at'])
+            ->keyBy('id');
+
+        $filename = 'unified-warranties-' . now()->format('Y-m-d-His') . '.csv';
+
+        return response()->streamDownload(function () use ($warranties, $expiringIn, $partSaleMap, $serviceOrderMap) {
             $file = fopen('php://output', 'w');
 
             fputcsv($file, [
-                'No Transaksi',
-                'Tanggal Transaksi',
+                'Sumber',
+                'No Referensi',
+                'Tanggal Referensi',
                 'Pelanggan',
-                'Sparepart',
-                'Nomor Part',
+                'Kendaraan',
+                'Mekanik',
+                'Item',
+                'Tipe Item',
                 'Periode Garansi (Hari)',
                 'Mulai Garansi',
                 'Akhir Garansi',
@@ -186,21 +329,44 @@ class PartSaleController extends Controller
                 'Catatan Klaim',
             ]);
 
-            foreach ($warranties as $item) {
-                $statusLabel = $this->resolveWarrantyStatusLabel($item, $expiringIn);
+            foreach ($warranties as $registration) {
+                $source = $registration->source_type === PartSale::class
+                    ? $partSaleMap->get((int) $registration->source_id)
+                    : $serviceOrderMap->get((int) $registration->source_id);
+
+                $statusLabel = $this->resolveUnifiedWarrantyStatusLabel($registration, $expiringIn);
+                $sourceLabel = $registration->source_type === PartSale::class ? 'Part Sale' : 'Service Order';
+                $referenceNumber = $registration->source_type === PartSale::class
+                    ? ($source?->sale_number ?? '-')
+                    : ($source?->order_number ?? '-');
+                $referenceDate = $registration->source_type === PartSale::class
+                    ? (optional($source?->sale_date)->format('Y-m-d') ?? '-')
+                    : (optional($source?->created_at)->format('Y-m-d') ?? '-');
+                $customerName = $registration->customer?->name ?? $source?->customer?->name ?? '-';
+                $vehicleLabel = $registration->vehicle
+                    ? trim(($registration->vehicle->plate_number ?? '-') . ' ' . ($registration->vehicle->brand ?? '') . ' ' . ($registration->vehicle->model ?? ''))
+                    : '-';
+                $mechanicName = $registration->source_type === ServiceOrder::class
+                    ? ($source?->mechanic?->name ?? '-')
+                    : '-';
+                $itemName = $registration->metadata['item_name'] ?? $registration->metadata['part_name'] ?? '-';
+                $itemType = $registration->warrantable_type === Service::class ? 'Service' : 'Sparepart';
 
                 fputcsv($file, [
-                    $item->partSale?->sale_number ?? '-',
-                    optional($item->partSale?->sale_date)->format('Y-m-d') ?? ($item->partSale?->sale_date ?? '-'),
-                    $item->partSale?->customer?->name ?? '-',
-                    $item->part?->name ?? '-',
-                    $item->part?->part_number ?? '-',
-                    (int) ($item->warranty_period_days ?? 0),
-                    optional($item->warranty_start_date)->format('Y-m-d') ?? '-',
-                    optional($item->warranty_end_date)->format('Y-m-d') ?? '-',
+                    $sourceLabel,
+                    $referenceNumber,
+                    $referenceDate,
+                    $customerName,
+                    $vehicleLabel,
+                    $mechanicName,
+                    $itemName,
+                    $itemType,
+                    (int) ($registration->warranty_period_days ?? 0),
+                    optional($registration->warranty_start_date)->format('Y-m-d') ?? '-',
+                    optional($registration->warranty_end_date)->format('Y-m-d') ?? '-',
                     $statusLabel,
-                    optional($item->warranty_claimed_at)->format('Y-m-d H:i:s') ?? '-',
-                    $item->warranty_claim_notes ?? '-',
+                    optional($registration->claimed_at)->format('Y-m-d H:i:s') ?? '-',
+                    $registration->claim_notes ?? '-',
                 ]);
             }
 
@@ -226,6 +392,10 @@ class PartSaleController extends Controller
             'customers' => $customers,
             'parts' => $parts,
             'salesOrder' => $salesOrder,
+            'availableVouchers' => Voucher::query()
+                ->where('is_active', true)
+                ->orderBy('code')
+                ->get(['id', 'code', 'name', 'scope']),
         ]);
     }
 
@@ -249,6 +419,7 @@ class PartSaleController extends Controller
             'status' => 'nullable|in:draft,confirmed,waiting_stock,ready_to_notify,waiting_pickup,completed,cancelled',
             'notes' => 'nullable|string',
             'part_sales_order_id' => 'nullable|exists:part_sales_orders,id',
+            'voucher_code' => 'nullable|string|max:50',
         ]);
 
         DB::beginTransaction();
@@ -282,6 +453,10 @@ class PartSaleController extends Controller
             ]);
 
             // Create sale details and update stock
+            $partIdsForVoucher = [];
+            $partCategoryIdsForVoucher = [];
+            $subtotalForVoucher = 0;
+
             foreach ($request->items as $item) {
                 $part = Part::findOrFail($item['part_id']);
 
@@ -301,7 +476,12 @@ class PartSaleController extends Controller
                 }
 
                 $finalAmount = $subtotal - $discountAmount;
-                $warrantyData = $this->buildWarrantyData($item, $request->sale_date);
+                $subtotalForVoucher += max(0, (int) $finalAmount);
+                $partIdsForVoucher[] = (int) $part->id;
+                if (!empty($part->part_category_id)) {
+                    $partCategoryIdsForVoucher[] = (int) $part->part_category_id;
+                }
+                $warrantyData = $this->buildWarrantyData($item, $request->sale_date, $part);
 
                 // Reserve stock based on unified status flow
                 $reservedQty = 0;
@@ -345,7 +525,7 @@ class PartSaleController extends Controller
                 }
 
                 // Create detail
-                PartSaleDetail::create([
+                $detail = PartSaleDetail::create([
                     'part_sale_id' => $sale->id,
                     'part_id' => $part->id,
                     'quantity' => $item['quantity'],
@@ -365,10 +545,45 @@ class PartSaleController extends Controller
                     'warranty_claim_notes' => null,
                 ]);
 
+                $this->warrantyRegistrationService->registerFromPartSaleDetail($sale, $detail, $part);
+
             }
+
+            $voucherResult = $this->voucherService->validateForTransaction($request->voucher_code, [
+                'customer_id' => (int) $request->customer_id,
+                'subtotal' => $subtotalForVoucher,
+                'part_ids' => array_values(array_unique($partIdsForVoucher)),
+                'part_category_ids' => array_values(array_unique($partCategoryIdsForVoucher)),
+                'service_ids' => [],
+                'service_category_ids' => [],
+                'transaction_discount_type' => $request->discount_type ?? 'none',
+                'transaction_discount_value' => $request->discount_value ?? 0,
+            ]);
+
+            $voucher = $voucherResult['voucher'];
+            $voucherDiscountAmount = (int) ($voucherResult['discount_amount'] ?? 0);
+
+            $sale->update([
+                'voucher_id' => $voucher?->id,
+                'voucher_code' => $voucher?->code,
+                'voucher_discount_amount' => $voucher ? $voucherDiscountAmount : 0,
+            ]);
 
             // Recalculate totals
             $sale->recalculateTotals()->save();
+
+            if ($voucher) {
+                $this->voucherService->markUsed(
+                    $voucher,
+                    PartSale::class,
+                    (int) $sale->id,
+                    (int) $sale->customer_id,
+                    $voucherDiscountAmount,
+                    [
+                        'sale_number' => $sale->sale_number,
+                    ]
+                );
+            }
 
             if ($sale->status === 'waiting_stock') {
                 $this->tryFulfillWaitingStock($sale);
@@ -382,14 +597,17 @@ class PartSaleController extends Controller
 
             DB::commit();
 
-            event(new PartSaleCreated([
-                'id' => $sale->id,
-                'sale_number' => $sale->sale_number,
-                'status' => $sale->status,
-                'payment_status' => $sale->payment_status,
-                'grand_total' => $sale->grand_total,
-                'created_at' => $sale->created_at?->toISOString(),
-            ]));
+            $this->dispatchBroadcastSafely(
+                fn () => event(new PartSaleCreated([
+                    'id' => $sale->id,
+                    'sale_number' => $sale->sale_number,
+                    'status' => $sale->status,
+                    'payment_status' => $sale->payment_status,
+                    'grand_total' => $sale->grand_total,
+                    'created_at' => $sale->created_at?->toISOString(),
+                ])),
+                'PartSaleCreated'
+            );
 
             return redirect()
                 ->route('part-sales.show', $sale)
@@ -465,6 +683,10 @@ class PartSaleController extends Controller
             'sale' => $partSale,
             'customers' => $customers,
             'parts' => $parts,
+            'availableVouchers' => Voucher::query()
+                ->where('is_active', true)
+                ->orderBy('code')
+                ->get(['id', 'code', 'name', 'scope']),
         ]);
     }
 
@@ -492,10 +714,14 @@ class PartSaleController extends Controller
             'paid_amount' => 'nullable|integer|min:0',
             'status' => 'nullable|in:draft,confirmed,waiting_stock,ready_to_notify,waiting_pickup,completed,cancelled',
             'notes' => 'nullable|string',
+            'voucher_code' => 'nullable|string|max:50',
         ]);
 
         DB::beginTransaction();
         try {
+            $this->warrantyRegistrationService->removeByPartSale($partSale->id);
+            $this->voucherService->clearUsageBySource(PartSale::class, (int) $partSale->id);
+
             // Delete old details
             $partSale->details()->delete();
 
@@ -514,6 +740,10 @@ class PartSaleController extends Controller
             ]);
 
             // Create new details
+            $partIdsForVoucher = [];
+            $partCategoryIdsForVoucher = [];
+            $subtotalForVoucher = 0;
+
             foreach ($request->items as $item) {
                 $subtotal = $item['quantity'] * $item['unit_price'];
 
@@ -530,9 +760,17 @@ class PartSaleController extends Controller
                 }
 
                 $finalAmount = $subtotal - $discountAmount;
-                $warrantyData = $this->buildWarrantyData($item, $request->sale_date);
+                $subtotalForVoucher += max(0, (int) $finalAmount);
+                $part = Part::find($item['part_id']);
+                if ($part) {
+                    $partIdsForVoucher[] = (int) $part->id;
+                    if (!empty($part->part_category_id)) {
+                        $partCategoryIdsForVoucher[] = (int) $part->part_category_id;
+                    }
+                }
+                $warrantyData = $this->buildWarrantyData($item, $request->sale_date, $part);
 
-                PartSaleDetail::create([
+                $detail = PartSaleDetail::create([
                     'part_sale_id' => $partSale->id,
                     'part_id' => $item['part_id'],
                     'quantity' => $item['quantity'],
@@ -543,7 +781,7 @@ class PartSaleController extends Controller
                     'discount_value' => $discountValue,
                     'discount_amount' => $discountAmount,
                     'final_amount' => $finalAmount,
-                    'cost_price' => Part::find($item['part_id'])?->buy_price ?? 0,
+                    'cost_price' => $part?->buy_price ?? 0,
                     'selling_price' => $item['unit_price'],
                     'warranty_period_days' => $warrantyData['warranty_period_days'],
                     'warranty_start_date' => $warrantyData['warranty_start_date'],
@@ -551,10 +789,45 @@ class PartSaleController extends Controller
                     'warranty_claimed_at' => null,
                     'warranty_claim_notes' => null,
                 ]);
+
+                $this->warrantyRegistrationService->registerFromPartSaleDetail($partSale, $detail, $part);
             }
+
+            $voucherResult = $this->voucherService->validateForTransaction($request->voucher_code, [
+                'customer_id' => (int) $request->customer_id,
+                'subtotal' => $subtotalForVoucher,
+                'part_ids' => array_values(array_unique($partIdsForVoucher)),
+                'part_category_ids' => array_values(array_unique($partCategoryIdsForVoucher)),
+                'service_ids' => [],
+                'service_category_ids' => [],
+                'transaction_discount_type' => $request->discount_type ?? 'none',
+                'transaction_discount_value' => $request->discount_value ?? 0,
+            ]);
+
+            $voucher = $voucherResult['voucher'];
+            $voucherDiscountAmount = (int) ($voucherResult['discount_amount'] ?? 0);
+
+            $partSale->update([
+                'voucher_id' => $voucher?->id,
+                'voucher_code' => $voucher?->code,
+                'voucher_discount_amount' => $voucher ? $voucherDiscountAmount : 0,
+            ]);
 
             // Recalculate totals
             $partSale->recalculateTotals()->save();
+
+            if ($voucher) {
+                $this->voucherService->markUsed(
+                    $voucher,
+                    PartSale::class,
+                    (int) $partSale->id,
+                    (int) $partSale->customer_id,
+                    $voucherDiscountAmount,
+                    [
+                        'sale_number' => $partSale->sale_number,
+                    ]
+                );
+            }
 
             if (in_array($status, ['confirmed', 'ready_to_notify', 'waiting_pickup', 'completed'], true)) {
                 $this->reserveAllDetailsOrFail($partSale, "Konfirmasi Penjualan #{$partSale->sale_number}");
@@ -585,6 +858,9 @@ class PartSaleController extends Controller
 
         DB::beginTransaction();
         try {
+            $this->warrantyRegistrationService->removeByPartSale($partSale->id);
+            $this->voucherService->clearUsageBySource(PartSale::class, (int) $partSale->id);
+
             $partSale->details()->delete();
             $partSale->delete();
 
@@ -1031,51 +1307,102 @@ class PartSaleController extends Controller
             'warranty_claim_notes' => $validated['warranty_claim_notes'] ?? null,
         ]);
 
+        $this->warrantyRegistrationService->markClaimedFromPartSaleDetail($detail, Auth::id());
+
         return back()->with('success', 'Klaim garansi berhasil dicatat');
     }
 
-    private function applyWarrantyFilters($query, string $search, string $status, Carbon $today, Carbon $expiringDate)
+    private function applyUnifiedWarrantyFilters(
+        $query,
+        string $search,
+        string $status,
+        string $sourceType,
+        string $itemType,
+        ?int $customerId,
+        ?int $vehicleId,
+        ?int $mechanicId,
+        ?string $dateFrom,
+        ?string $dateTo,
+        Carbon $today,
+        Carbon $expiringDate
+    )
     {
         $query->where('warranty_period_days', '>', 0);
 
+        if ($sourceType === 'part_sale') {
+            $query->where('source_type', PartSale::class);
+        } elseif ($sourceType === 'service_order') {
+            $query->where('source_type', ServiceOrder::class);
+        }
+
+        if ($itemType === 'part') {
+            $query->where('warrantable_type', Part::class);
+        } elseif ($itemType === 'service') {
+            $query->where('warrantable_type', Service::class);
+        }
+
+        if ($customerId) {
+            $query->where('customer_id', $customerId);
+        }
+
+        if ($vehicleId) {
+            $query->where('vehicle_id', $vehicleId);
+        }
+
+        if ($mechanicId) {
+            $serviceOrderIds = ServiceOrder::query()
+                ->where('mechanic_id', $mechanicId)
+                ->pluck('id');
+
+            $query->where('source_type', ServiceOrder::class)
+                ->whereIn('source_id', $serviceOrderIds);
+        }
+
+        if (!empty($dateFrom)) {
+            $query->whereDate('warranty_start_date', '>=', $dateFrom);
+        }
+
+        if (!empty($dateTo)) {
+            $query->whereDate('warranty_start_date', '<=', $dateTo);
+        }
+
         if ($search !== '') {
             $query->where(function ($q) use ($search) {
-                $q->whereHas('part', function ($partQuery) use ($search) {
-                    $partQuery->where('name', 'like', '%' . $search . '%')
-                        ->orWhere('part_number', 'like', '%' . $search . '%');
-                })->orWhereHas('partSale', function ($saleQuery) use ($search) {
-                    $saleQuery->where('sale_number', 'like', '%' . $search . '%')
-                        ->orWhereHas('customer', function ($customerQuery) use ($search) {
-                            $customerQuery->where('name', 'like', '%' . $search . '%');
-                        });
-                });
+                $q->where('metadata->item_name', 'like', '%' . $search . '%')
+                    ->orWhere('metadata->part_name', 'like', '%' . $search . '%')
+                    ->orWhere('metadata->part_number', 'like', '%' . $search . '%')
+                    ->orWhere('metadata->part_sale_number', 'like', '%' . $search . '%')
+                    ->orWhere('metadata->service_order_number', 'like', '%' . $search . '%')
+                    ->orWhereHas('customer', function ($customerQuery) use ($search) {
+                        $customerQuery->where('name', 'like', '%' . $search . '%');
+                    });
             });
         }
 
         if ($status === 'active') {
-            $query->whereNull('warranty_claimed_at')
+            $query->whereNull('claimed_at')
                 ->whereDate('warranty_end_date', '>=', $today);
         } elseif ($status === 'expiring') {
-            $query->whereNull('warranty_claimed_at')
+            $query->whereNull('claimed_at')
                 ->whereBetween('warranty_end_date', [$today, $expiringDate]);
         } elseif ($status === 'expired') {
-            $query->whereNull('warranty_claimed_at')
+            $query->whereNull('claimed_at')
                 ->whereDate('warranty_end_date', '<', $today);
         } elseif ($status === 'claimed') {
-            $query->whereNotNull('warranty_claimed_at');
+            $query->whereNotNull('claimed_at');
         }
 
         return $query;
     }
 
-    private function resolveWarrantyStatusLabel(PartSaleDetail $detail, int $expiringInDays): string
+    private function resolveUnifiedWarrantyStatusLabel(WarrantyRegistration $registration, int $expiringInDays): string
     {
-        if (!empty($detail->warranty_claimed_at)) {
+        if (!empty($registration->claimed_at)) {
             return 'Sudah Diklaim';
         }
 
         $today = now()->startOfDay();
-        $endDate = $detail->warranty_end_date ? Carbon::parse($detail->warranty_end_date)->startOfDay() : null;
+        $endDate = $registration->warranty_end_date ? Carbon::parse($registration->warranty_end_date)->startOfDay() : null;
 
         if (!$endDate || $endDate->lt($today)) {
             return 'Expired';
@@ -1089,9 +1416,14 @@ class PartSaleController extends Controller
         return 'Aktif';
     }
 
-    private function buildWarrantyData(array $item, string $saleDate): array
+    private function buildWarrantyData(array $item, string $saleDate, ?Part $part = null): array
     {
         $periodDays = (int) ($item['warranty_period_days'] ?? 0);
+
+        if ($periodDays <= 0 && $part && $part->has_warranty) {
+            $periodDays = (int) ($part->warranty_duration_days ?? 0);
+        }
+
         if ($periodDays <= 0) {
             return [
                 'warranty_period_days' => 0,

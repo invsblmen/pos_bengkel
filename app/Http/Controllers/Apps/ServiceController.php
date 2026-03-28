@@ -9,12 +9,16 @@ use App\Http\Controllers\Controller;
 use App\Models\Mechanic;
 use App\Models\Service;
 use App\Models\ServiceCategory;
+use App\Support\DispatchesBroadcastSafely;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Illuminate\Support\Str;
 
 class ServiceController extends Controller
 {
+    use DispatchesBroadcastSafely;
+
     public function index(Request $request)
     {
         $q = $request->query('q', '');
@@ -44,6 +48,9 @@ class ServiceController extends Controller
                 'service_category_id' => $service->service_category_id,
                 'category' => $service->category,
                 'required_tools' => $service->required_tools,
+                'has_warranty' => (bool) $service->has_warranty,
+                'warranty_duration_days' => $service->warranty_duration_days,
+                'warranty_terms' => $service->warranty_terms,
                 'incentive_mode' => $service->incentive_mode ?? 'same',
                 'default_incentive_percentage' => (float) ($service->default_incentive_percentage ?? 0),
                 'price_adjustments' => $service->priceAdjustments->map(function ($adjustment) {
@@ -97,6 +104,9 @@ class ServiceController extends Controller
             'complexity_level' => 'required|in:simple,medium,complex',
             'required_tools' => 'nullable|array',
             'status' => 'required|in:active,inactive',
+            'has_warranty' => 'nullable|boolean',
+            'warranty_duration_days' => 'nullable|integer|min:0',
+            'warranty_terms' => 'nullable|string',
             'incentive_mode' => 'required|in:same,by_mechanic',
             'default_incentive_percentage' => 'nullable|numeric|min:0|max:100',
             'price_adjustments' => 'nullable|array',
@@ -108,6 +118,19 @@ class ServiceController extends Controller
             'mechanic_incentives.*.incentive_percentage' => 'required|numeric|min:0|max:100',
         ]);
 
+        $hasWarranty = (bool) ($validated['has_warranty'] ?? false);
+        $warrantyDurationDays = isset($validated['warranty_duration_days']) ? (int) $validated['warranty_duration_days'] : null;
+
+        if (!$hasWarranty) {
+            $warrantyDurationDays = null;
+        }
+
+        if ($hasWarranty && (($warrantyDurationDays ?? 0) <= 0)) {
+            throw ValidationException::withMessages([
+                'warranty_duration_days' => 'Durasi garansi wajib lebih dari 0 hari saat garansi aktif.',
+            ]);
+        }
+
         // Map form fields to database columns
         $data = [
             'service_category_id' => $validated['service_category_id'],
@@ -118,6 +141,9 @@ class ServiceController extends Controller
             'complexity_level' => $this->mapComplexityLevel($validated['complexity_level']),
             'required_tools' => $validated['required_tools'] ?? null,
             'status' => $validated['status'],
+            'has_warranty' => $hasWarranty,
+            'warranty_duration_days' => $warrantyDurationDays,
+            'warranty_terms' => $validated['warranty_terms'] ?? null,
             'incentive_mode' => $validated['incentive_mode'],
             'default_incentive_percentage' => $validated['default_incentive_percentage'] ?? 0,
             'code' => 'SVC-' . strtoupper(Str::random(8)),
@@ -128,7 +154,10 @@ class ServiceController extends Controller
 
         // Broadcast service created event
         $service->loadMissing('category');
-        event(new ServiceCreated($this->toRealtimePayload($service)));
+        $this->dispatchBroadcastSafely(
+            fn () => event(new ServiceCreated($this->toRealtimePayload($service))),
+            'ServiceCreated'
+        );
 
         return redirect()->route('services.index')->with('success', 'Layanan berhasil ditambahkan');
     }
@@ -146,6 +175,9 @@ class ServiceController extends Controller
             'status' => $service->status,
             'service_category_id' => $service->service_category_id,
             'required_tools' => $service->required_tools,
+            'has_warranty' => (bool) $service->has_warranty,
+            'warranty_duration_days' => $service->warranty_duration_days,
+            'warranty_terms' => $service->warranty_terms,
             'incentive_mode' => $service->incentive_mode ?? 'same',
             'default_incentive_percentage' => (float) ($service->default_incentive_percentage ?? 0),
             'price_adjustments' => $service->priceAdjustments()->with('triggerService:id,title')->get()->map(function ($adjustment) {
@@ -190,6 +222,9 @@ class ServiceController extends Controller
             'complexity_level' => 'required|in:simple,medium,complex',
             'required_tools' => 'nullable|array',
             'status' => 'required|in:active,inactive',
+            'has_warranty' => 'nullable|boolean',
+            'warranty_duration_days' => 'nullable|integer|min:0',
+            'warranty_terms' => 'nullable|string',
             'incentive_mode' => 'required|in:same,by_mechanic',
             'default_incentive_percentage' => 'nullable|numeric|min:0|max:100',
             'price_adjustments' => 'nullable|array',
@@ -201,6 +236,19 @@ class ServiceController extends Controller
             'mechanic_incentives.*.incentive_percentage' => 'required|numeric|min:0|max:100',
         ]);
 
+        $hasWarranty = (bool) ($validated['has_warranty'] ?? false);
+        $warrantyDurationDays = isset($validated['warranty_duration_days']) ? (int) $validated['warranty_duration_days'] : null;
+
+        if (!$hasWarranty) {
+            $warrantyDurationDays = null;
+        }
+
+        if ($hasWarranty && (($warrantyDurationDays ?? 0) <= 0)) {
+            throw ValidationException::withMessages([
+                'warranty_duration_days' => 'Durasi garansi wajib lebih dari 0 hari saat garansi aktif.',
+            ]);
+        }
+
         // Map form fields to database columns
         $data = [
             'service_category_id' => $validated['service_category_id'],
@@ -211,6 +259,9 @@ class ServiceController extends Controller
             'complexity_level' => $this->mapComplexityLevel($validated['complexity_level']),
             'required_tools' => $validated['required_tools'] ?? null,
             'status' => $validated['status'],
+            'has_warranty' => $hasWarranty,
+            'warranty_duration_days' => $warrantyDurationDays,
+            'warranty_terms' => $validated['warranty_terms'] ?? null,
             'incentive_mode' => $validated['incentive_mode'],
             'default_incentive_percentage' => $validated['default_incentive_percentage'] ?? 0,
         ];
@@ -223,7 +274,10 @@ class ServiceController extends Controller
 
         // Broadcast service updated event
         $service->loadMissing('category');
-        event(new ServiceUpdated($this->toRealtimePayload($service)));
+        $this->dispatchBroadcastSafely(
+            fn () => event(new ServiceUpdated($this->toRealtimePayload($service))),
+            'ServiceUpdated'
+        );
 
         return redirect()->route('services.index')->with('success', 'Layanan berhasil diperbarui');
     }
@@ -239,7 +293,10 @@ class ServiceController extends Controller
         $service->delete();
 
         // Broadcast service deleted event
-        event(new ServiceDeleted($serviceId));
+        $this->dispatchBroadcastSafely(
+            fn () => event(new ServiceDeleted($serviceId)),
+            'ServiceDeleted'
+        );
 
         return back()->with('success', 'Service deleted successfully');
     }
@@ -260,7 +317,10 @@ class ServiceController extends Controller
             $service->update(['status' => $validated['status']]);
             $service->refresh();
             $service->loadMissing('category');
-            event(new ServiceUpdated($this->toRealtimePayload($service)));
+            $this->dispatchBroadcastSafely(
+                fn () => event(new ServiceUpdated($this->toRealtimePayload($service))),
+                'ServiceUpdated'
+            );
         }
 
         $statusLabel = $validated['status'] === 'active' ? 'aktif' : 'nonaktif';
@@ -288,7 +348,10 @@ class ServiceController extends Controller
         foreach ($deletable as $service) {
             $serviceId = $service->id;
             $service->delete();
-            event(new ServiceDeleted($serviceId));
+            $this->dispatchBroadcastSafely(
+                fn () => event(new ServiceDeleted($serviceId)),
+                'ServiceDeleted'
+            );
         }
 
         $deletedCount = $deletable->count();
@@ -362,6 +425,9 @@ class ServiceController extends Controller
             'status' => $service->status,
             'service_category_id' => $service->service_category_id,
             'category' => $service->category,
+            'has_warranty' => (bool) $service->has_warranty,
+            'warranty_duration_days' => $service->warranty_duration_days,
+            'warranty_terms' => $service->warranty_terms,
         ];
     }
 }

@@ -3,15 +3,21 @@
 use App\Models\LowStockAlert;
 use App\Models\Part;
 use App\Models\PartSaleDetail;
+use App\Models\WarrantyRegistration;
 use App\Models\User;
 use App\Notifications\PartSaleWarrantyExpiringNotification;
+use App\Notifications\ReverbHealthAlertNotification;
+use App\Services\WarrantyRegistrationService;
 use App\Http\Controllers\Apps\ServiceReportController;
 use App\Http\Controllers\Reports\PartSalesProfitReportController;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schedule;
+use Illuminate\Support\Facades\Schema;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -36,45 +42,47 @@ Artisan::command('low-stock:sync', function () {
 })->purpose('Sync low stock alerts based on minimal stock');
 
 Artisan::command('warranty:notify-expiring {--days=7}', function () {
+    if (!Schema::hasTable('warranty_registrations')) {
+        $this->warn('Table warranty_registrations not found. Run migrations first.');
+        return;
+    }
+
     $days = max(1, min((int) $this->option('days'), 60));
 
     $today = now()->startOfDay();
     $endDate = (clone $today)->addDays($days)->endOfDay();
 
-    $details = PartSaleDetail::query()
-        ->with([
-            'part:id,name,part_number',
-            'partSale:id,sale_number,customer_id,sale_date',
-            'partSale.customer:id,name',
-        ])
+    $registrations = WarrantyRegistration::query()
         ->where('warranty_period_days', '>', 0)
-        ->whereNull('warranty_claimed_at')
+        ->whereIn('status', ['active', 'expiring'])
         ->whereBetween('warranty_end_date', [$today, $endDate])
         ->get();
 
-    if ($details->isEmpty()) {
+    if ($registrations->isEmpty()) {
         $this->info('No expiring warranties found.');
         return;
     }
 
-    $recipients = User::permission('part-sales-access')->get();
+    $recipients = User::all()->filter(function (User $user) {
+        return $user->can('part-sales-access') || $user->can('service-orders-access');
+    })->values();
 
     if ($recipients->isEmpty()) {
-        $this->warn('No recipient with permission part-sales-access found.');
+        $this->warn('No recipient with permission part-sales-access/service-orders-access found.');
         return;
     }
 
     $sent = 0;
     $skipped = 0;
 
-    foreach ($details as $detail) {
-        $daysLeft = max(0, now()->startOfDay()->diffInDays($detail->warranty_end_date, false));
+    foreach ($registrations as $registration) {
+        $daysLeft = max(0, now()->startOfDay()->diffInDays($registration->warranty_end_date, false));
 
         foreach ($recipients as $recipient) {
             $alreadySentToday = $recipient->notifications()
                 ->where('type', PartSaleWarrantyExpiringNotification::class)
                 ->whereDate('created_at', now()->toDateString())
-                ->where('data->part_sale_detail_id', $detail->id)
+                ->where('data->warranty_registration_id', $registration->id)
                 ->exists();
 
             if ($alreadySentToday) {
@@ -82,7 +90,7 @@ Artisan::command('warranty:notify-expiring {--days=7}', function () {
                 continue;
             }
 
-            $recipient->notify(new PartSaleWarrantyExpiringNotification($detail, $daysLeft));
+            $recipient->notify(new PartSaleWarrantyExpiringNotification($registration, $daysLeft));
             $sent++;
         }
     }
@@ -90,8 +98,136 @@ Artisan::command('warranty:notify-expiring {--days=7}', function () {
     $this->info("Expiring warranty notifications sent: {$sent}, skipped: {$skipped}");
 })->purpose('Notify users about sparepart warranties that are nearing expiration');
 
+Artisan::command('warranty:backfill-registrations {--chunk=200} {--dry-run}', function () {
+    $chunk = max(50, min((int) $this->option('chunk'), 2000));
+    $dryRun = (bool) $this->option('dry-run');
+    $service = app(WarrantyRegistrationService::class);
+
+    $query = PartSaleDetail::query()
+        ->with([
+            'part:id,name,part_number,has_warranty,warranty_duration_days,warranty_terms',
+            'partSale:id,sale_number,customer_id,sale_date',
+        ])
+        ->where('warranty_period_days', '>', 0)
+        ->orderBy('id');
+
+    $total = (clone $query)->count();
+    if ($total === 0) {
+        $this->info('No historical part sale warranties found to backfill.');
+        return;
+    }
+
+    $this->info("Backfill warranty registrations started. Total candidates: {$total}");
+    if ($dryRun) {
+        $this->warn('Dry-run mode enabled. No database write will be performed.');
+    }
+
+    $processed = 0;
+    $createdOrUpdated = 0;
+    $skipped = 0;
+
+    $query->chunkById($chunk, function ($details) use (&$processed, &$createdOrUpdated, &$skipped, $dryRun, $service) {
+        foreach ($details as $detail) {
+            $processed++;
+
+            if (!$detail->partSale || !$detail->part) {
+                $skipped++;
+                continue;
+            }
+
+            if ($dryRun) {
+                $createdOrUpdated++;
+                continue;
+            }
+
+            $service->registerFromPartSaleDetail($detail->partSale, $detail, $detail->part);
+            $createdOrUpdated++;
+        }
+    });
+
+    $this->info("Backfill finished. processed={$processed}, upserted={$createdOrUpdated}, skipped={$skipped}");
+})->purpose('Backfill unified warranty registrations from historical part sale details');
+
+Artisan::command('reverb:health-check {--threshold=3}', function () {
+    $host = (string) config('broadcasting.connections.reverb.options.host', '127.0.0.1');
+    $port = (int) config('broadcasting.connections.reverb.options.port', 8080);
+    $threshold = max(1, (int) $this->option('threshold'));
+    $timeoutSeconds = 2;
+    $startedAt = microtime(true);
+    $cacheScope = md5("{$host}:{$port}");
+    $countKey = "reverb:health:fail-count:{$cacheScope}";
+    $alertOpenKey = "reverb:health:alert-open:{$cacheScope}";
+
+    $errno = 0;
+    $errstr = '';
+    $socket = @fsockopen($host, $port, $errno, $errstr, $timeoutSeconds);
+
+    if (!$socket) {
+        $failureCount = (int) Cache::increment($countKey);
+        Cache::put($countKey, $failureCount, now()->addDay());
+
+        Log::warning('Reverb health check failed.', [
+            'host' => $host,
+            'port' => $port,
+            'errno' => $errno,
+            'error' => $errstr,
+            'failure_count' => $failureCount,
+            'threshold' => $threshold,
+        ]);
+
+        $alertAlreadyOpen = (bool) Cache::get($alertOpenKey, false);
+        if ($failureCount >= $threshold && !$alertAlreadyOpen && Schema::hasTable('notifications')) {
+            $recipients = User::query()
+                ->get()
+                ->filter(fn (User $user) => $user->hasRole('super-admin') || $user->can('service-orders-access'))
+                ->values();
+
+            foreach ($recipients as $recipient) {
+                $recipient->notify(new ReverbHealthAlertNotification(
+                    status: 'down',
+                    host: $host,
+                    port: $port,
+                    failureCount: $failureCount,
+                    error: "({$errno}) {$errstr}"
+                ));
+            }
+
+            Cache::put($alertOpenKey, true, now()->addDay());
+        }
+
+        $this->warn("Reverb DOWN at {$host}:{$port} ({$errno}) {$errstr} | failure={$failureCount}/{$threshold}");
+        return 1;
+    }
+
+    fclose($socket);
+
+    $alertWasOpen = (bool) Cache::get($alertOpenKey, false);
+    if ($alertWasOpen && Schema::hasTable('notifications')) {
+        $recipients = User::query()
+            ->get()
+            ->filter(fn (User $user) => $user->hasRole('super-admin') || $user->can('service-orders-access'))
+            ->values();
+
+        foreach ($recipients as $recipient) {
+            $recipient->notify(new ReverbHealthAlertNotification(
+                status: 'recovered',
+                host: $host,
+                port: $port
+            ));
+        }
+    }
+
+    Cache::forget($countKey);
+    Cache::forget($alertOpenKey);
+
+    $latencyMs = (int) round((microtime(true) - $startedAt) * 1000);
+    $this->info("Reverb UP at {$host}:{$port} ({$latencyMs}ms)");
+    return 0;
+})->purpose('Check whether Reverb host/port is reachable from the app runtime');
+
 Schedule::command('low-stock:sync')->hourly();
 Schedule::command('warranty:notify-expiring --days=7')->dailyAt('07:30');
+Schedule::command('reverb:health-check')->everyMinute()->withoutOverlapping();
 Schedule::command('benchmark:reports --iterations=2 --warmup=1 --save-history')->dailyAt('02:30');
 
 Artisan::command('benchmark:reports {--iterations=3} {--warmup=1} {--start_date=} {--end_date=} {--save-history}', function () {

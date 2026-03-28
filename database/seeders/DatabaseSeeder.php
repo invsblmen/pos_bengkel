@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             PermissionSeeder::class,
+            AddVoucherPermissionsSeeder::class,
             AddMissingPermissionsSeeder::class,
             \Database\Seeders\AddPartPermissionsSeeder::class,
             \Database\Seeders\AddPartStockPermissionsSeeder::class,

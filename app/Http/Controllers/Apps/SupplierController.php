@@ -7,10 +7,13 @@ use App\Models\Supplier;
 use App\Events\SupplierCreated;
 use App\Events\SupplierUpdated;
 use App\Events\SupplierDeleted;
+use App\Support\DispatchesBroadcastSafely;
 use Illuminate\Http\Request;
 
 class SupplierController extends Controller
 {
+    use DispatchesBroadcastSafely;
+
     public function index(Request $request)
     {
         $q = $request->query('q', '');
@@ -50,14 +53,17 @@ class SupplierController extends Controller
 
         $supplier = Supplier::create($data);
 
-        event(new SupplierCreated([
-            'id' => $supplier->id,
-            'name' => $supplier->name,
-            'phone' => $supplier->phone,
-            'email' => $supplier->email,
-            'address' => $supplier->address,
-            'contact_person' => $supplier->contact_person,
-        ]));
+        $this->dispatchBroadcastSafely(
+            fn () => event(new SupplierCreated([
+                'id' => $supplier->id,
+                'name' => $supplier->name,
+                'phone' => $supplier->phone,
+                'email' => $supplier->email,
+                'address' => $supplier->address,
+                'contact_person' => $supplier->contact_person,
+            ])),
+            'SupplierCreated'
+        );
 
         return redirect()->route('suppliers.index')->with([
             'success' => 'Supplier created successfully.',
@@ -88,14 +94,17 @@ class SupplierController extends Controller
 
         $supplier->update($data);
 
-        event(new SupplierUpdated([
-            'id' => $supplier->id,
-            'name' => $supplier->name,
-            'phone' => $supplier->phone,
-            'email' => $supplier->email,
-            'address' => $supplier->address,
-            'contact_person' => $supplier->contact_person,
-        ]));
+        $this->dispatchBroadcastSafely(
+            fn () => event(new SupplierUpdated([
+                'id' => $supplier->id,
+                'name' => $supplier->name,
+                'phone' => $supplier->phone,
+                'email' => $supplier->email,
+                'address' => $supplier->address,
+                'contact_person' => $supplier->contact_person,
+            ])),
+            'SupplierUpdated'
+        );
 
         return redirect()->route('suppliers.index')->with([
             'success' => 'Supplier updated successfully.',
@@ -109,7 +118,10 @@ class SupplierController extends Controller
         $supplierId = $supplier->id;
         $supplier->delete();
 
-        event(new SupplierDeleted($supplierId));
+        $this->dispatchBroadcastSafely(
+            fn () => event(new SupplierDeleted($supplierId)),
+            'SupplierDeleted'
+        );
 
         return redirect()->back()->with('success', 'Supplier deleted successfully.');
     }

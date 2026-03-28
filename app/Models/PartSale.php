@@ -19,6 +19,9 @@ class PartSale extends Model
         'discount_type',
         'discount_value',
         'discount_amount',
+        'voucher_id',
+        'voucher_code',
+        'voucher_discount_amount',
         'tax_type',
         'tax_value',
         'tax_amount',
@@ -36,6 +39,8 @@ class PartSale extends Model
         'subtotal' => 'integer',
         'discount_value' => 'float',
         'discount_amount' => 'integer',
+        'voucher_id' => 'integer',
+        'voucher_discount_amount' => 'integer',
         'tax_value' => 'float',
         'tax_amount' => 'integer',
         'grand_total' => 'integer',
@@ -74,6 +79,11 @@ class PartSale extends Model
         return $this->morphMany(PartStockMovement::class, 'reference');
     }
 
+    public function voucher()
+    {
+        return $this->belongsTo(Voucher::class);
+    }
+
     // Methods
     public function recalculateTotals()
     {
@@ -91,7 +101,8 @@ class PartSale extends Model
             $this->discount_value ?? 0
         );
 
-        $amountAfterDiscount = $subtotal - $this->discount_amount;
+        $voucherDiscountAmount = max(0, (int) ($this->voucher_discount_amount ?? 0));
+        $amountAfterDiscount = max(0, $subtotal - $this->discount_amount - $voucherDiscountAmount);
 
         // Apply transaction-level tax
         $this->tax_amount = DiscountTaxService::calculateTax(

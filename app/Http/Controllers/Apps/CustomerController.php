@@ -6,12 +6,15 @@ use App\Events\CustomerDeleted;
 use App\Events\CustomerUpdated;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
+use App\Support\DispatchesBroadcastSafely;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class CustomerController extends Controller
 {
+    use DispatchesBroadcastSafely;
+
     /**
      * Display a listing of the resource.
      *
@@ -72,13 +75,16 @@ class CustomerController extends Controller
             'address' => $validated['address'] ?? null,
         ]);
 
-        event(new CustomerCreated([
-            'id' => $customer->id,
-            'name' => $customer->name,
-            'phone' => $customer->phone,
-            'email' => $customer->email,
-            'address' => $customer->address,
-        ]));
+        $this->dispatchBroadcastSafely(
+            fn () => event(new CustomerCreated([
+                'id' => $customer->id,
+                'name' => $customer->name,
+                'phone' => $customer->phone,
+                'email' => $customer->email,
+                'address' => $customer->address,
+            ])),
+            'CustomerCreated'
+        );
 
         //redirect with flash data
         return to_route('customers.index')->with('flash', [
@@ -129,13 +135,16 @@ class CustomerController extends Controller
                 'address' => $validated['address'] ?? null,
             ]);
 
-            event(new CustomerCreated([
-                'id' => $customer->id,
-                'name' => $customer->name,
-                'phone' => $customer->phone,
-                'email' => $customer->email,
-                'address' => $customer->address,
-            ]));
+            $this->dispatchBroadcastSafely(
+                fn () => event(new CustomerCreated([
+                    'id' => $customer->id,
+                    'name' => $customer->name,
+                    'phone' => $customer->phone,
+                    'email' => $customer->email,
+                    'address' => $customer->address,
+                ])),
+                'CustomerCreated'
+            );
 
             return response()->json([
                 'success'  => true,
@@ -177,6 +186,30 @@ class CustomerController extends Controller
     }
 
     /**
+     * Display the specified customer.
+     *
+     * @param  \App\Models\Customer  $customer
+     * @return \Illuminate\Http\Response
+     */
+    public function show(Customer $customer)
+    {
+        $customer->load([
+            'vehicles' => function ($query) {
+                $query->orderByDesc('created_at');
+            },
+            'serviceOrders' => function ($query) {
+                $query->with(['vehicle:id,plate_number,brand,model', 'mechanic:id,name'])
+                    ->orderByDesc('created_at')
+                    ->limit(20);
+            },
+        ]);
+
+        return Inertia::render('Dashboard/Customers/Show', [
+            'customer' => $customer,
+        ]);
+    }
+
+    /**
      * Update the specified resource in storage.
      *
      * @param  \Illuminate\Http\Request  $request
@@ -204,13 +237,16 @@ class CustomerController extends Controller
         ]);
 
         // Broadcast customer updated event
-        event(new CustomerUpdated([
-            'id' => $customer->id,
-            'name' => $customer->name,
-            'phone' => $customer->phone,
-            'email' => $customer->email,
-            'address' => $customer->address,
-        ]));
+        $this->dispatchBroadcastSafely(
+            fn () => event(new CustomerUpdated([
+                'id' => $customer->id,
+                'name' => $customer->name,
+                'phone' => $customer->phone,
+                'email' => $customer->email,
+                'address' => $customer->address,
+            ])),
+            'CustomerUpdated'
+        );
 
         //redirect
         return to_route('customers.index');
@@ -233,7 +269,10 @@ class CustomerController extends Controller
         $customer->delete();
 
         // Broadcast customer deleted event
-        event(new CustomerDeleted($customerId));
+        $this->dispatchBroadcastSafely(
+            fn () => event(new CustomerDeleted($customerId)),
+            'CustomerDeleted'
+        );
 
         //redirect
         return back();

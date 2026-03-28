@@ -7,11 +7,14 @@ use App\Events\ServiceCategoryUpdated;
 use App\Events\ServiceCategoryDeleted;
 use App\Http\Controllers\Controller;
 use App\Models\ServiceCategory;
+use App\Support\DispatchesBroadcastSafely;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class ServiceCategoryController extends Controller
 {
+    use DispatchesBroadcastSafely;
+
     public function index(Request $request)
     {
         $q = $request->query('q', '');
@@ -46,7 +49,10 @@ class ServiceCategoryController extends Controller
 
         $category = ServiceCategory::create($data);
 
-        ServiceCategoryCreated::dispatch($category->toArray());
+        $this->dispatchBroadcastSafely(
+            fn () => ServiceCategoryCreated::dispatch($category->toArray()),
+            'ServiceCategoryCreated'
+        );
 
         return redirect()->route('service-categories.index')->with('success', 'Service category created successfully');
     }
@@ -69,7 +75,10 @@ class ServiceCategoryController extends Controller
 
         $serviceCategory->update($data);
 
-        ServiceCategoryUpdated::dispatch($serviceCategory->toArray());
+        $this->dispatchBroadcastSafely(
+            fn () => ServiceCategoryUpdated::dispatch($serviceCategory->toArray()),
+            'ServiceCategoryUpdated'
+        );
 
         return redirect()->route('service-categories.index')->with('success', 'Service category updated successfully');
     }
@@ -84,7 +93,10 @@ class ServiceCategoryController extends Controller
         $categoryId = $serviceCategory->id;
         $serviceCategory->delete();
 
-        ServiceCategoryDeleted::dispatch($categoryId);
+        $this->dispatchBroadcastSafely(
+            fn () => ServiceCategoryDeleted::dispatch($categoryId),
+            'ServiceCategoryDeleted'
+        );
 
         return back()->with('success', 'Service category deleted successfully');
     }

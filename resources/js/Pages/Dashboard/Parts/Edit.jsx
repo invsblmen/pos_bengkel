@@ -28,6 +28,9 @@ export default function Edit({ part, suppliers: initialSuppliers, categories: in
         minimal_stock: part.minimal_stock || 0,
         rack_location: part.rack_location || '',
         description: part.description || '',
+        has_warranty: !!part.has_warranty,
+        warranty_duration_days: part.warranty_duration_days ?? '',
+        warranty_terms: part.warranty_terms || '',
     });
 
     // Live Preview Data
@@ -52,7 +55,10 @@ export default function Edit({ part, suppliers: initialSuppliers, categories: in
             data.supplier_id !== part.supplier_id ||
             data.minimal_stock !== part.minimal_stock ||
             data.rack_location !== part.rack_location ||
-            data.description !== part.description;
+            data.description !== part.description ||
+            data.has_warranty !== !!part.has_warranty ||
+            data.warranty_duration_days !== (part.warranty_duration_days ?? '') ||
+            data.warranty_terms !== (part.warranty_terms || '');
 
         return {
             category: selectedCategory,
@@ -261,6 +267,51 @@ export default function Edit({ part, suppliers: initialSuppliers, categories: in
                                 <p className="text-xs text-amber-700 dark:text-amber-300">
                                     Anda akan mendapat notifikasi jika stok mencapai atau di bawah nilai minimal. Isi 0 jika tidak ingin notifikasi stok minimal.
                                 </p>
+                            </div>
+                        </div>
+
+                        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6">
+                            <div className="mb-4">
+                                <h2 className="text-base font-semibold text-slate-900 dark:text-white">Kebijakan Garansi</h2>
+                                <p className="text-xs text-slate-500 dark:text-slate-400">Perbarui policy garansi default untuk sparepart ini.</p>
+                            </div>
+                            <div className="space-y-4">
+                                <label className="inline-flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+                                    <input
+                                        type="checkbox"
+                                        checked={data.has_warranty}
+                                        onChange={(e) => {
+                                            const checked = e.target.checked;
+                                            setData('has_warranty', checked);
+                                            if (!checked) {
+                                                setData('warranty_duration_days', '');
+                                            }
+                                        }}
+                                        className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                                    />
+                                    <span>Part ini memiliki garansi</span>
+                                </label>
+
+                                <div className="grid gap-4 md:grid-cols-2">
+                                    <Input
+                                        type="number"
+                                        label="Durasi Garansi (hari)"
+                                        placeholder="Contoh: 30"
+                                        value={data.warranty_duration_days}
+                                        onChange={(e) => setData('warranty_duration_days', e.target.value)}
+                                        errors={errors.warranty_duration_days}
+                                        disabled={!data.has_warranty}
+                                    />
+                                </div>
+
+                                <Textarea
+                                    label="Syarat Garansi"
+                                    placeholder="Contoh: Garansi tidak berlaku untuk kerusakan akibat pemasangan tidak sesuai prosedur."
+                                    value={data.warranty_terms}
+                                    onChange={(e) => setData('warranty_terms', e.target.value)}
+                                    errors={errors.warranty_terms}
+                                    rows={3}
+                                />
                             </div>
                         </div>
 

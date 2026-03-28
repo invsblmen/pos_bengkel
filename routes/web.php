@@ -25,6 +25,7 @@ use App\Http\Controllers\Apps\PartPurchaseOrderController;
 use App\Http\Controllers\Apps\PartStockHistoryController;
 use App\Http\Controllers\Apps\LowStockAlertController;
 use App\Http\Controllers\Apps\CashManagementController;
+use App\Http\Controllers\Apps\VoucherController;
 use Illuminate\Http\Request;
 
 // Include authentication routes
@@ -140,6 +141,15 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
         ->middlewareFor(['create', 'store'], 'permission:services-create')
         ->middlewareFor(['edit', 'update'], 'permission:services-edit')
         ->middlewareFor('destroy', 'permission:services-delete');
+
+    // Vouchers Management
+    Route::resource('vouchers', VoucherController::class)
+        ->except(['show'])
+        ->middlewareFor(['index'], 'permission:vouchers-access')
+        ->middlewareFor(['create', 'store'], 'permission:vouchers-create')
+        ->middlewareFor(['edit', 'update'], 'permission:vouchers-edit')
+        ->middlewareFor('destroy', 'permission:vouchers-delete');
+
     Route::post('services/bulk-status', [ServiceController::class, 'bulkStatus'])
         ->middleware('permission:services-edit')
         ->name('services.bulk-status');
@@ -248,6 +258,7 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
     Route::post('/service-orders', [\App\Http\Controllers\Apps\ServiceOrderController::class, 'store'])->middleware('permission:service-orders-create')->name('service-orders.store');
     Route::put('/service-orders/{id}', [\App\Http\Controllers\Apps\ServiceOrderController::class, 'update'])->middleware('permission:service-orders-update')->name('service-orders.update');
     Route::post('/service-orders/{id}/status', [\App\Http\Controllers\Apps\ServiceOrderController::class, 'updateStatus'])->middleware('permission:service-orders-update')->name('service-orders.update-status');
+    Route::post('/service-orders/{id}/details/{detailId}/claim-warranty', [\App\Http\Controllers\Apps\ServiceOrderController::class, 'claimWarranty'])->middleware('permission:service-orders-update')->name('service-orders.details.claim-warranty');
 
     //appointments
     Route::get('/appointments', [\App\Http\Controllers\Apps\AppointmentController::class, 'index'])->middleware('permission:appointments-access')->name('appointments.index');

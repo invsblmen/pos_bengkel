@@ -7,11 +7,14 @@ use App\Events\PartCategoryUpdated;
 use App\Events\PartCategoryDeleted;
 use App\Http\Controllers\Controller;
 use App\Models\PartCategory;
+use App\Support\DispatchesBroadcastSafely;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class PartCategoryController extends Controller
 {
+    use DispatchesBroadcastSafely;
+
     public function index(Request $request)
     {
         $q = $request->query('q', '');
@@ -45,7 +48,10 @@ class PartCategoryController extends Controller
 
         $category = PartCategory::create($data);
 
-        PartCategoryCreated::dispatch($category->toArray());
+        $this->dispatchBroadcastSafely(
+            fn () => PartCategoryCreated::dispatch($category->toArray()),
+            'PartCategoryCreated'
+        );
 
         return redirect()->route('part-categories.index')->with('success', 'Part category created successfully');
     }
@@ -67,7 +73,10 @@ class PartCategoryController extends Controller
 
         $partCategory->update($data);
 
-        PartCategoryUpdated::dispatch($partCategory->toArray());
+        $this->dispatchBroadcastSafely(
+            fn () => PartCategoryUpdated::dispatch($partCategory->toArray()),
+            'PartCategoryUpdated'
+        );
 
         return redirect()->route('part-categories.index')->with('success', 'Part category updated successfully');
     }
@@ -82,7 +91,10 @@ class PartCategoryController extends Controller
         $categoryId = $partCategory->id;
         $partCategory->delete();
 
-        PartCategoryDeleted::dispatch($categoryId);
+        $this->dispatchBroadcastSafely(
+            fn () => PartCategoryDeleted::dispatch($categoryId),
+            'PartCategoryDeleted'
+        );
 
         return back()->with('success', 'Part category deleted successfully');
     }

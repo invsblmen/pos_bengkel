@@ -8,17 +8,32 @@ use App\Events\ServiceOrderDeleted;
 use App\Http\Controllers\Controller;
 use App\Models\BusinessProfile;
 use App\Models\Mechanic;
+use App\Models\WarrantyRegistration;
 use App\Models\ServiceOrder;
 use App\Models\ServiceOrderDetail;
 use App\Models\ServiceOrderStatusHistory;
+use App\Models\Voucher;
 use App\Services\DiscountTaxService;
+use App\Services\VoucherService;
+use App\Services\WarrantyRegistrationService;
 use App\Services\WorkshopPricingService;
+use App\Support\DispatchesBroadcastSafely;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 
 class ServiceOrderController extends Controller
 {
+    use DispatchesBroadcastSafely;
+
+    public function __construct(
+        private WarrantyRegistrationService $warrantyRegistrationService,
+        private VoucherService $voucherService
+    ) {
+    }
+
     public function index(Request $request)
     {
         $query = ServiceOrder::with('customer', 'vehicle', 'mechanic', 'details.service', 'details.part');
@@ -89,6 +104,10 @@ class ServiceOrderController extends Controller
             'parts' => \App\Models\Part::with('category')->get(),
             'tags' => \App\Models\Tag::all(),
             'activeServiceOrders' => $activeServiceOrders,
+            'availableVouchers' => Voucher::query()
+                ->where('is_active', true)
+                ->orderBy('code')
+                ->get(['id', 'code', 'name', 'scope']),
         ]);
     }
 
@@ -112,6 +131,10 @@ class ServiceOrderController extends Controller
             'services' => \App\Models\Service::all(),
             'parts' => \App\Models\Part::with('category')->get(),
             'tags' => \App\Models\Tag::all(),
+            'availableVouchers' => Voucher::query()
+                ->where('is_active', true)
+                ->orderBy('code')
+                ->get(['id', 'code', 'name', 'scope']),
         ]);
     }
 
@@ -120,8 +143,36 @@ class ServiceOrderController extends Controller
         $order = ServiceOrder::with('customer', 'vehicle', 'mechanic', 'details.service', 'details.part')
             ->findOrFail($id);
 
+        $warrantyRegistrations = WarrantyRegistration::query()
+            ->where('source_type', ServiceOrder::class)
+            ->where('source_id', $order->id)
+            ->get()
+            ->keyBy('source_detail_id');
+
+        $warrantyMap = $warrantyRegistrations->map(function (WarrantyRegistration $registration) {
+            return [
+                'id' => $registration->id,
+                'status' => $registration->status,
+                'warranty_period_days' => $registration->warranty_period_days,
+                'warranty_start_date' => optional($registration->warranty_start_date)?->toDateString(),
+                'warranty_end_date' => optional($registration->warranty_end_date)?->toDateString(),
+                'claimed_at' => optional($registration->claimed_at)?->toISOString(),
+                'claim_notes' => $registration->claim_notes,
+            ];
+        });
+
+        // Gather permission context for SO-REF links (customer, vehicle, mechanic detail access)
+        $user = Auth::user();
+        $permissions = [
+            'can_view_customers' => $user->can('customers-access'),
+            'can_view_vehicles' => $user->can('vehicles-access'),
+            'can_view_mechanics' => $user->can('mechanics-access'),
+        ];
+
         return inertia('Dashboard/ServiceOrders/Show', [
             'order' => $order,
+            'warrantyRegistrations' => $warrantyMap,
+            'permissions' => $permissions,
         ]);
     }
 
@@ -168,6 +219,7 @@ class ServiceOrderController extends Controller
             'discount_value' => 'nullable|numeric|min:0',
             'tax_type' => 'nullable|in:none,percent,fixed',
             'tax_value' => 'nullable|numeric|min:0',
+            'voucher_code' => 'nullable|string|max:50',
         ]);
 
         $orderNumber = 'SO-' . strtoupper(Str::random(8));
@@ -189,6 +241,9 @@ class ServiceOrderController extends Controller
             'total' => 0,
             'discount_type' => $request->discount_type ?? 'none',
             'discount_value' => $request->discount_value ?? 0,
+            'voucher_id' => null,
+            'voucher_code' => null,
+            'voucher_discount_amount' => 0,
             'tax_type' => $request->tax_type ?? 'none',
             'tax_value' => $request->tax_value ?? 0,
         ]);
@@ -211,13 +266,18 @@ class ServiceOrderController extends Controller
         }
 
         $this->calculateServiceOrderCosts($order, $request->items);
+        $this->applyVoucherToServiceOrder($order, $request->voucher_code);
 
         // If created with completed or paid status, deduct parts from inventory
         if (in_array($order->status, ['completed', 'paid'])) {
             $this->deductPartsFromInventory($order);
+            $this->syncWarrantyRegistrationsForFinalizedOrder($order);
         }
 
-        ServiceOrderCreated::dispatch($order->load(['customer', 'vehicle', 'mechanic', 'details.service', 'details.part'])->toArray());
+        $this->dispatchBroadcastSafely(
+            fn () => ServiceOrderCreated::dispatch($order->load(['customer', 'vehicle', 'mechanic', 'details.service', 'details.part'])->toArray()),
+            'ServiceOrderCreated'
+        );
 
         return redirect()->route('service-orders.index')->with('success', 'Service order created.');
     }
@@ -292,12 +352,18 @@ class ServiceOrderController extends Controller
             'discount_value' => 0,
             'tax_type' => 'none',
             'tax_value' => 0,
+            'voucher_id' => null,
+            'voucher_code' => null,
+            'voucher_discount_amount' => 0,
             'labor_cost' => 0,
             'material_cost' => 0,
             'grand_total' => 0,
         ]);
 
-        ServiceOrderCreated::dispatch($order->load(['customer', 'vehicle', 'mechanic'])->toArray());
+        $this->dispatchBroadcastSafely(
+            fn () => ServiceOrderCreated::dispatch($order->load(['customer', 'vehicle', 'mechanic'])->toArray()),
+            'ServiceOrderCreated'
+        );
 
         $submitMode = $validated['submit_mode'] ?? 'view_detail';
 
@@ -342,9 +408,12 @@ class ServiceOrderController extends Controller
             'discount_value' => 'nullable|numeric|min:0',
             'tax_type' => 'nullable|in:none,percent,fixed',
             'tax_value' => 'nullable|numeric|min:0',
+            'voucher_code' => 'nullable|string|max:50',
         ]);
 
         $order = ServiceOrder::findOrFail($id);
+        $this->voucherService->clearUsageBySource(ServiceOrder::class, (int) $order->id);
+
         $order->update([
             'customer_id' => $request->customer_id,
             'vehicle_id' => $request->vehicle_id,
@@ -359,6 +428,9 @@ class ServiceOrderController extends Controller
             'next_service_date' => $request->next_service_date,
             'discount_type' => $request->discount_type ?? 'none',
             'discount_value' => $request->discount_value ?? 0,
+            'voucher_id' => null,
+            'voucher_code' => null,
+            'voucher_discount_amount' => 0,
             'tax_type' => $request->tax_type ?? 'none',
             'tax_value' => $request->tax_value ?? 0,
         ]);
@@ -385,8 +457,12 @@ class ServiceOrderController extends Controller
         $order->details()->delete();
 
         $this->calculateServiceOrderCosts($order, $request->items);
+        $this->applyVoucherToServiceOrder($order, $request->voucher_code);
 
-        ServiceOrderUpdated::dispatch($order->load(['customer', 'vehicle', 'mechanic', 'details.service', 'details.part'])->toArray());
+        $this->dispatchBroadcastSafely(
+            fn () => ServiceOrderUpdated::dispatch($order->load(['customer', 'vehicle', 'mechanic', 'details.service', 'details.part'])->toArray()),
+            'ServiceOrderUpdated'
+        );
 
         return redirect()->route('service-orders.show', $order->id)->with('success', 'Service order updated.');
     }
@@ -440,16 +516,78 @@ class ServiceOrderController extends Controller
             'notes' => $request->notes ?? null,
         ]);
 
+        if (!in_array($oldStatus, ['completed', 'paid']) && in_array($request->status, ['completed', 'paid'])) {
+            $this->syncWarrantyRegistrationsForFinalizedOrder($order);
+        }
+
+        if (in_array($oldStatus, ['completed', 'paid']) && !in_array($request->status, ['completed', 'paid'])) {
+            $this->warrantyRegistrationService->removeByServiceOrder($order->id);
+        }
+
         return back()->with('success', 'Status updated.');
+    }
+
+    public function claimWarranty(Request $request, $id, $detailId)
+    {
+        $order = ServiceOrder::findOrFail($id);
+        $detail = ServiceOrderDetail::with(['service', 'part'])->findOrFail($detailId);
+
+        if ((int) $detail->service_order_id !== (int) $order->id) {
+            throw ValidationException::withMessages([
+                'error' => ['Detail garansi tidak valid untuk service order ini.'],
+            ]);
+        }
+
+        $validated = $request->validate([
+            'claim_notes' => 'nullable|string|max:1000',
+        ]);
+
+        $registration = WarrantyRegistration::query()
+            ->where('source_type', ServiceOrder::class)
+            ->where('source_id', $order->id)
+            ->where('source_detail_id', $detail->id)
+            ->first();
+
+        if (!$registration) {
+            throw ValidationException::withMessages([
+                'error' => ['Item ini tidak memiliki registri garansi.'],
+            ]);
+        }
+
+        if (!empty($registration->claimed_at) || $registration->status === 'claimed') {
+            throw ValidationException::withMessages([
+                'error' => ['Garansi item ini sudah pernah diklaim.'],
+            ]);
+        }
+
+        $endDate = Carbon::parse($registration->warranty_end_date)->startOfDay();
+        if (now()->startOfDay()->gt($endDate)) {
+            throw ValidationException::withMessages([
+                'error' => ['Masa garansi item ini sudah berakhir.'],
+            ]);
+        }
+
+        $registration->update([
+            'status' => 'claimed',
+            'claimed_at' => now(),
+            'claimed_by' => Auth::id(),
+            'claim_notes' => $validated['claim_notes'] ?? null,
+        ]);
+
+        return back()->with('success', 'Klaim garansi berhasil dicatat');
     }
 
     public function destroy($id)
     {
         $order = ServiceOrder::findOrFail($id);
         $orderId = $order->id;
+        $this->voucherService->clearUsageBySource(ServiceOrder::class, (int) $order->id);
         $order->delete();
 
-        ServiceOrderDeleted::dispatch($orderId);
+        $this->dispatchBroadcastSafely(
+            fn () => ServiceOrderDeleted::dispatch($orderId),
+            'ServiceOrderDeleted'
+        );
 
         return redirect()->route('service-orders.index')->with('success', 'Service order deleted.');
     }
@@ -461,7 +599,6 @@ class ServiceOrderController extends Controller
     {
         $laborCost = 0;
         $materialCost = 0;
-        $itemDiscountTotal = 0;
 
         $selectedServiceIds = collect($items)
             ->pluck('service_id')
@@ -528,7 +665,6 @@ class ServiceOrderController extends Controller
                 $detail->calculateFinalAmount()->save();
 
                 $laborCost += $serviceFinal;
-                $itemDiscountTotal += $serviceDiscountAmount;
             }
 
             // Add parts if exists
@@ -567,27 +703,13 @@ class ServiceOrderController extends Controller
                     $detail->calculateFinalAmount()->save();
 
                     $materialCost += $partFinal;
-                    $itemDiscountTotal += $partDiscountAmount;
                 }
             }
         }
 
-        $subtotal = $laborCost + $materialCost;
-        $totals = DiscountTaxService::calculateTotal(
-            $subtotal,
-            $order->discount_type ?? 'none',
-            $order->discount_value ?? 0,
-            $order->tax_type ?? 'none',
-            $order->tax_value ?? 0
-        );
-
         $order->labor_cost = $laborCost;
         $order->material_cost = $materialCost;
-        $order->total = $subtotal;
-        $order->discount_amount = ($totals['discount_amount'] ?? 0) + $itemDiscountTotal;
-        $order->tax_amount = $totals['tax_amount'] ?? 0;
-        $order->grand_total = ($subtotal - ($totals['discount_amount'] ?? 0)) + ($totals['tax_amount'] ?? 0);
-        $order->save();
+        $order->recalculateTotals()->save();
     }
 
     /**
@@ -620,4 +742,87 @@ class ServiceOrderController extends Controller
         }
     }
 
+    private function syncWarrantyRegistrationsForFinalizedOrder(ServiceOrder $order): void
+    {
+        $order->loadMissing('details.service', 'details.part');
+
+        foreach ($order->details as $detail) {
+            $this->warrantyRegistrationService->registerFromServiceOrderDetail($order, $detail);
+        }
+    }
+
+    private function applyVoucherToServiceOrder(ServiceOrder $order, ?string $voucherCode): void
+    {
+        $context = $this->collectServiceOrderVoucherContext($order);
+
+        $voucherResult = $this->voucherService->validateForTransaction($voucherCode, [
+            'customer_id' => (int) ($order->customer_id ?? 0),
+            'subtotal' => (int) ($order->total ?? 0),
+            'part_ids' => $context['part_ids'],
+            'part_category_ids' => $context['part_category_ids'],
+            'service_ids' => $context['service_ids'],
+            'service_category_ids' => $context['service_category_ids'],
+            'transaction_discount_type' => $order->discount_type ?? 'none',
+            'transaction_discount_value' => $order->discount_value ?? 0,
+        ]);
+
+        $voucher = $voucherResult['voucher'];
+        $voucherDiscountAmount = (int) ($voucherResult['discount_amount'] ?? 0);
+
+        $order->update([
+            'voucher_id' => $voucher?->id,
+            'voucher_code' => $voucher?->code,
+            'voucher_discount_amount' => $voucher ? $voucherDiscountAmount : 0,
+        ]);
+
+        $order->recalculateTotals()->save();
+
+        if ($voucher) {
+            $this->voucherService->markUsed(
+                $voucher,
+                ServiceOrder::class,
+                (int) $order->id,
+                (int) ($order->customer_id ?? 0),
+                $voucherDiscountAmount,
+                [
+                    'order_number' => $order->order_number,
+                ]
+            );
+        }
+    }
+
+    private function collectServiceOrderVoucherContext(ServiceOrder $order): array
+    {
+        $order->loadMissing('details.service.category', 'details.part.category');
+
+        $serviceIds = [];
+        $serviceCategoryIds = [];
+        $partIds = [];
+        $partCategoryIds = [];
+
+        foreach ($order->details as $detail) {
+            if ($detail->service_id) {
+                $serviceIds[] = (int) $detail->service_id;
+                if ($detail->service && $detail->service->service_category_id) {
+                    $serviceCategoryIds[] = (int) $detail->service->service_category_id;
+                }
+            }
+
+            if ($detail->part_id) {
+                $partIds[] = (int) $detail->part_id;
+                if ($detail->part && $detail->part->part_category_id) {
+                    $partCategoryIds[] = (int) $detail->part->part_category_id;
+                }
+            }
+        }
+
+        return [
+            'service_ids' => array_values(array_unique($serviceIds)),
+            'service_category_ids' => array_values(array_unique($serviceCategoryIds)),
+            'part_ids' => array_values(array_unique($partIds)),
+            'part_category_ids' => array_values(array_unique($partCategoryIds)),
+        ];
+    }
+
 }
+

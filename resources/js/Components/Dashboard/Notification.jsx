@@ -25,6 +25,14 @@ export default function Notification() {
             };
         }
 
+        if (notification.service_order_id) {
+            return {
+                label: 'Lihat Service Order',
+                href: route('service-orders.show', notification.service_order_id),
+                className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+            };
+        }
+
         return null;
     };
 

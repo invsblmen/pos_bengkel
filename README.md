@@ -99,7 +99,35 @@ npm run build
 php artisan db:seed --class=WorkshopSeeder
 ```
 
-## Update Terbaru (2026-03-27)
+## Update Terbaru
+
+### 2026-03-28
+
+Perubahan stabilisasi dan UX yang baru ditambahkan:
+
+- Hardening realtime event dispatch agar transaksi inti tidak gagal saat broadcaster (Reverb) tidak tersedia sementara.
+- Penambahan command health check Reverb: `php artisan reverb:health-check`.
+- Penambahan alert notifikasi in-app untuk kondisi Reverb down beruntun + recovery.
+- Penambahan konfigurasi host khusus backend broadcast: `REVERB_BROADCAST_HOST`.
+- Otomatisasi startup Reverb lokal (Windows startup + watchdog script) agar tidak perlu menjalankan perintah manual setiap kali login.
+- Perbaikan route link referensi di detail service order agar aman terhadap route yang tidak tersedia.
+- Penambahan halaman detail pelanggan (`customers.show`) beserta akses dari daftar pelanggan.
+- Penyempurnaan UI daftar pelanggan (aksi detail/edit/hapus lebih ringkas).
+- Penyempurnaan UI halaman detail service order (quick insights + mode mobile cards untuk detail item).
+
+Perintah operasional tambahan:
+
+```bash
+# Cek konektivitas Reverb dari runtime aplikasi
+php artisan reverb:health-check
+```
+
+Script lokal (Windows) yang digunakan untuk auto-start watchdog Reverb:
+
+- `scripts/start-reverb-if-needed.ps1`
+- `scripts/watch-reverb.ps1`
+
+### 2026-03-27
 
 Perubahan enterprise yang baru ditambahkan:
 

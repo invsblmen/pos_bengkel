@@ -18,6 +18,7 @@ class ServiceOrder extends Model
         'total', 'labor_cost', 'material_cost', 'warranty_period', 'notes',
         'maintenance_type', 'next_service_km', 'next_service_date',
         'discount_type', 'discount_value', 'discount_amount',
+        'voucher_id', 'voucher_code', 'voucher_discount_amount',
         'tax_type', 'tax_value', 'tax_amount', 'grand_total'
     ];
 
@@ -32,6 +33,8 @@ class ServiceOrder extends Model
         'warranty_period' => 'integer',
         'odometer_km' => 'integer',
         'discount_amount' => 'integer',
+        'voucher_id' => 'integer',
+        'voucher_discount_amount' => 'integer',
         'tax_amount' => 'integer',
         'grand_total' => 'integer',
     ];
@@ -66,6 +69,11 @@ class ServiceOrder extends Model
         return $this->hasMany(ServiceOrderStatusHistory::class)->orderByDesc('created_at');
     }
 
+    public function voucher()
+    {
+        return $this->belongsTo(Voucher::class);
+    }
+
     /**
      * Calculate and update the service order totals
      */
@@ -78,18 +86,24 @@ class ServiceOrder extends Model
         $subtotal = $finalSum;
         $itemDiscount = max(0, $amountSum - $finalSum);
 
-        $totals = DiscountTaxService::calculateTotal(
+        $transactionDiscount = DiscountTaxService::calculateDiscount(
             $subtotal,
             $this->discount_type ?? 'none',
-            $this->discount_value ?? 0,
+            $this->discount_value ?? 0
+        );
+
+        $voucherDiscount = max(0, (int) ($this->voucher_discount_amount ?? 0));
+        $taxBase = max(0, $subtotal - $transactionDiscount - $voucherDiscount);
+        $taxAmount = DiscountTaxService::calculateTax(
+            $taxBase,
             $this->tax_type ?? 'none',
             $this->tax_value ?? 0
         );
 
         $this->total = $subtotal;
-        $this->discount_amount = $itemDiscount + ($totals['discount_amount'] ?? 0);
-        $this->tax_amount = $totals['tax_amount'] ?? 0;
-        $this->grand_total = ($subtotal - ($totals['discount_amount'] ?? 0)) + ($totals['tax_amount'] ?? 0);
+        $this->discount_amount = $itemDiscount + $transactionDiscount;
+        $this->tax_amount = $taxAmount;
+        $this->grand_total = $taxBase + $taxAmount;
 
         return $this;
     }

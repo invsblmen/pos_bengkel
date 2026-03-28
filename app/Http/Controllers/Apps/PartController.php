@@ -8,11 +8,15 @@ use App\Models\Supplier;
 use App\Events\PartCreated;
 use App\Events\PartUpdated;
 use App\Events\PartDeleted;
+use App\Support\DispatchesBroadcastSafely;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class PartController extends Controller
 {
+    use DispatchesBroadcastSafely;
+
     public function index(Request $request)
     {
         $q = $request->query('q', '');
@@ -130,7 +134,23 @@ class PartController extends Controller
             'minimal_stock' => 'nullable|integer|min:0',
             'rack_location' => 'nullable|string|max:50',
             'description' => 'nullable|string',
+            'has_warranty' => 'nullable|boolean',
+            'warranty_duration_days' => 'nullable|integer|min:0',
+            'warranty_terms' => 'nullable|string',
         ]);
+
+        $data['has_warranty'] = (bool) ($data['has_warranty'] ?? false);
+        $data['warranty_duration_days'] = isset($data['warranty_duration_days']) ? (int) $data['warranty_duration_days'] : null;
+
+        if (!$data['has_warranty']) {
+            $data['warranty_duration_days'] = null;
+        }
+
+        if ($data['has_warranty'] && (($data['warranty_duration_days'] ?? 0) <= 0)) {
+            throw ValidationException::withMessages([
+                'warranty_duration_days' => 'Durasi garansi wajib lebih dari 0 hari saat garansi aktif.',
+            ]);
+        }
 
         // Set default stock if not provided
         if (!isset($data['stock'])) {
@@ -140,19 +160,25 @@ class PartController extends Controller
         $part = Part::create($data);
         $part->load('supplier', 'category');
 
-        event(new PartCreated([
-            'id' => $part->id,
-            'name' => $part->name,
-            'part_number' => $part->part_number,
-            'barcode' => $part->barcode,
-            'part_category_id' => $part->part_category_id,
-            'supplier_id' => $part->supplier_id,
-            'buy_price' => $part->buy_price,
-            'sell_price' => $part->sell_price,
-            'stock' => $part->stock,
-            'minimal_stock' => $part->minimal_stock,
-            'rack_location' => $part->rack_location,
-        ]));
+        $this->dispatchBroadcastSafely(
+            fn () => event(new PartCreated([
+                'id' => $part->id,
+                'name' => $part->name,
+                'part_number' => $part->part_number,
+                'barcode' => $part->barcode,
+                'part_category_id' => $part->part_category_id,
+                'supplier_id' => $part->supplier_id,
+                'buy_price' => $part->buy_price,
+                'sell_price' => $part->sell_price,
+                'stock' => $part->stock,
+                'minimal_stock' => $part->minimal_stock,
+                'rack_location' => $part->rack_location,
+                'has_warranty' => $part->has_warranty,
+                'warranty_duration_days' => $part->warranty_duration_days,
+                'warranty_terms' => $part->warranty_terms,
+            ])),
+            'PartCreated'
+        );
 
         // Return JSON response dengan part data
         return response()->json([
@@ -178,23 +204,45 @@ class PartController extends Controller
             'sell_price' => 'nullable|numeric|min:0',
             'stock' => 'nullable|integer|min:0',
             'description' => 'nullable|string',
+            'has_warranty' => 'nullable|boolean',
+            'warranty_duration_days' => 'nullable|integer|min:0',
+            'warranty_terms' => 'nullable|string',
         ]);
+
+        $data['has_warranty'] = (bool) ($data['has_warranty'] ?? false);
+        $data['warranty_duration_days'] = isset($data['warranty_duration_days']) ? (int) $data['warranty_duration_days'] : null;
+
+        if (!$data['has_warranty']) {
+            $data['warranty_duration_days'] = null;
+        }
+
+        if ($data['has_warranty'] && (($data['warranty_duration_days'] ?? 0) <= 0)) {
+            throw ValidationException::withMessages([
+                'warranty_duration_days' => 'Durasi garansi wajib lebih dari 0 hari saat garansi aktif.',
+            ]);
+        }
 
         $part->update($data);
 
-        event(new PartUpdated([
-            'id' => $part->id,
-            'name' => $part->name,
-            'part_number' => $part->part_number,
-            'barcode' => $part->barcode,
-            'part_category_id' => $part->part_category_id,
-            'supplier_id' => $part->supplier_id,
-            'buy_price' => $part->buy_price,
-            'sell_price' => $part->sell_price,
-            'stock' => $part->stock,
-            'minimal_stock' => $part->minimal_stock,
-            'rack_location' => $part->rack_location,
-        ]));
+        $this->dispatchBroadcastSafely(
+            fn () => event(new PartUpdated([
+                'id' => $part->id,
+                'name' => $part->name,
+                'part_number' => $part->part_number,
+                'barcode' => $part->barcode,
+                'part_category_id' => $part->part_category_id,
+                'supplier_id' => $part->supplier_id,
+                'buy_price' => $part->buy_price,
+                'sell_price' => $part->sell_price,
+                'stock' => $part->stock,
+                'minimal_stock' => $part->minimal_stock,
+                'rack_location' => $part->rack_location,
+                'has_warranty' => $part->has_warranty,
+                'warranty_duration_days' => $part->warranty_duration_days,
+                'warranty_terms' => $part->warranty_terms,
+            ])),
+            'PartUpdated'
+        );
 
         return redirect()->back()->with([
             'success' => 'Part updated successfully.',
@@ -224,7 +272,10 @@ class PartController extends Controller
         $partId = $part->id;
         $part->delete();
 
-        event(new PartDeleted($partId));
+        $this->dispatchBroadcastSafely(
+            fn () => event(new PartDeleted($partId)),
+            'PartDeleted'
+        );
 
         return redirect()->back()->with('success', 'Part deleted successfully.');
     }

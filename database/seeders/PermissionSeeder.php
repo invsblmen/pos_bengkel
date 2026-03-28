@@ -47,6 +47,9 @@ class PermissionSeeder extends Seeder
             // services
             'services-access', 'services-create', 'services-edit', 'services-delete',
 
+            // vouchers
+            'vouchers-access', 'vouchers-create', 'vouchers-edit', 'vouchers-delete',
+
             // service orders
             'service-orders-access', 'service-orders-create', 'service-orders-update', 'service-orders-delete',
 

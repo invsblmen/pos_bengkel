@@ -8,11 +8,14 @@ use App\Events\VehicleDeleted;
 use App\Http\Controllers\Controller;
 use App\Models\Vehicle;
 use App\Models\Customer;
+use App\Support\DispatchesBroadcastSafely;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class VehicleController extends Controller
 {
+    use DispatchesBroadcastSafely;
+
     public function index()
     {
         $sortBy = request('sort_by', 'created_at');
@@ -145,15 +148,18 @@ class VehicleController extends Controller
             'previous_owner' => $request->previous_owner,
         ]);
 
-        event(new VehicleCreated([
-            'id' => $vehicle->id,
-            'customer_id' => $vehicle->customer_id,
-            'plate_number' => $vehicle->plate_number,
-            'brand' => $vehicle->brand,
-            'model' => $vehicle->model,
-            'year' => $vehicle->year,
-            'color' => $vehicle->color,
-        ]));
+        $this->dispatchBroadcastSafely(
+            fn () => event(new VehicleCreated([
+                'id' => $vehicle->id,
+                'customer_id' => $vehicle->customer_id,
+                'plate_number' => $vehicle->plate_number,
+                'brand' => $vehicle->brand,
+                'model' => $vehicle->model,
+                'year' => $vehicle->year,
+                'color' => $vehicle->color,
+            ])),
+            'VehicleCreated'
+        );
 
         // For AJAX/modal requests, return JSON
         if ($request->expectsJson()) {
@@ -308,15 +314,18 @@ class VehicleController extends Controller
         ]);
 
         // Broadcast vehicle updated event
-        event(new VehicleUpdated([
-            'id' => $vehicle->id,
-            'customer_id' => $vehicle->customer_id,
-            'plate_number' => $vehicle->plate_number,
-            'brand' => $vehicle->brand,
-            'model' => $vehicle->model,
-            'year' => $vehicle->year,
-            'color' => $vehicle->color,
-        ]));
+        $this->dispatchBroadcastSafely(
+            fn () => event(new VehicleUpdated([
+                'id' => $vehicle->id,
+                'customer_id' => $vehicle->customer_id,
+                'plate_number' => $vehicle->plate_number,
+                'brand' => $vehicle->brand,
+                'model' => $vehicle->model,
+                'year' => $vehicle->year,
+                'color' => $vehicle->color,
+            ])),
+            'VehicleUpdated'
+        );
 
         return redirect()->route('vehicles.index')->with('success', 'Kendaraan berhasil diperbarui!');
     }
@@ -328,7 +337,10 @@ class VehicleController extends Controller
         $vehicle->delete();
 
         // Broadcast vehicle deleted event
-        event(new VehicleDeleted($vehicleId));
+        $this->dispatchBroadcastSafely(
+            fn () => event(new VehicleDeleted($vehicleId)),
+            'VehicleDeleted'
+        );
 
         return redirect()->route('vehicles.index')->with('success', 'Kendaraan berhasil dihapus!');
     }

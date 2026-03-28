@@ -62,6 +62,8 @@ class NotificationController extends Controller
                         'reference' => $data['reference'] ?? null,
                         'purchase_id' => $data['purchase_id'] ?? null,
                         'sale_id' => $data['sale_id'] ?? null,
+                        'service_order_id' => $data['service_order_id'] ?? null,
+                        'warranty_registration_id' => $data['warranty_registration_id'] ?? null,
                         'context' => $data['context'] ?? null,
                         'read_at' => $notification->read_at,
                         'created_at' => $notification->created_at,

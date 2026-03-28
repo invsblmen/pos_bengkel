@@ -14,6 +14,8 @@ import {
     IconX,
     IconReceipt,
     IconDownload,
+    IconTool,
+    IconCar,
 } from '@tabler/icons-react';
 import toast from 'react-hot-toast';
 
@@ -36,14 +38,6 @@ const statusConfig = {
     },
 };
 
-function toDate(value) {
-    if (!value) return null;
-    const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return null;
-    d.setHours(0, 0, 0, 0);
-    return d;
-}
-
 function formatDate(value) {
     if (!value) return '-';
     return new Date(value).toLocaleDateString('id-ID', {
@@ -53,36 +47,23 @@ function formatDate(value) {
     });
 }
 
-function formatStatus(item, expiringInDays) {
-    if (item.warranty_claimed_at) {
-        return 'claimed';
-    }
-
-    const endDate = toDate(item.warranty_end_date);
-    const today = toDate(new Date());
-
-    if (!endDate || !today) {
-        return 'expired';
-    }
-
-    if (endDate < today) {
-        return 'expired';
-    }
-
-    const threshold = new Date(today);
-    threshold.setDate(threshold.getDate() + expiringInDays);
-
-    if (endDate <= threshold) {
-        return 'expiring';
-    }
-
-    return 'active';
+function sourceLabel(sourceType) {
+    if ((sourceType || '').includes('PartSale')) return 'Part Sale';
+    if ((sourceType || '').includes('ServiceOrder')) return 'Service Order';
+    return '-';
 }
 
-export default function Index({ warranties, summary, filters }) {
+export default function Index({ warranties, summary, filters, customers = [], vehicles = [], mechanics = [] }) {
     const currentFilters = {
         search: filters?.search || '',
         warranty_status: filters?.warranty_status || 'all',
+        source_type: filters?.source_type || 'all',
+        item_type: filters?.item_type || 'all',
+        customer_id: filters?.customer_id || '',
+        vehicle_id: filters?.vehicle_id || '',
+        mechanic_id: filters?.mechanic_id || '',
+        date_from: filters?.date_from || '',
+        date_to: filters?.date_to || '',
         expiring_in_days: Number(filters?.expiring_in_days || 30),
     };
 
@@ -143,6 +124,13 @@ export default function Index({ warranties, summary, filters }) {
         router.get(route('part-sales.warranties.index'), {
             search: nextFilters.search,
             warranty_status: nextFilters.warranty_status,
+            source_type: nextFilters.source_type,
+            item_type: nextFilters.item_type,
+            customer_id: nextFilters.customer_id,
+            vehicle_id: nextFilters.vehicle_id,
+            mechanic_id: nextFilters.mechanic_id,
+            date_from: nextFilters.date_from,
+            date_to: nextFilters.date_to,
             expiring_in_days: nextFilters.expiring_in_days,
         }, {
             preserveScroll: true,
@@ -154,26 +142,48 @@ export default function Index({ warranties, summary, filters }) {
     const handleClaim = (item) => {
         const notes = window.prompt('Catatan klaim garansi (opsional):') || '';
 
-        router.post(route('part-sales.details.claim-warranty', {
-            partSale: item.part_sale_id,
-            detail: item.id,
-        }), {
-            warranty_claim_notes: notes,
-        }, {
-            preserveScroll: true,
-            onSuccess: () => {
-                toast.success('Klaim garansi berhasil dicatat');
-            },
-            onError: (errors) => {
-                toast.error(errors?.error || 'Gagal mencatat klaim garansi');
-            },
-        });
+        if ((item.source_type || '').includes('PartSale')) {
+            router.post(route('part-sales.details.claim-warranty', {
+                partSale: item.source_id,
+                detail: item.source_detail_id,
+            }), {
+                warranty_claim_notes: notes,
+            }, {
+                preserveScroll: true,
+                onSuccess: () => toast.success('Klaim garansi berhasil dicatat'),
+                onError: (errors) => toast.error(errors?.error || 'Gagal mencatat klaim garansi'),
+            });
+            return;
+        }
+
+        if ((item.source_type || '').includes('ServiceOrder')) {
+            router.post(route('service-orders.details.claim-warranty', {
+                id: item.source_id,
+                detailId: item.source_detail_id,
+            }), {
+                claim_notes: notes,
+            }, {
+                preserveScroll: true,
+                onSuccess: () => toast.success('Klaim garansi berhasil dicatat'),
+                onError: (errors) => toast.error(errors?.error || 'Gagal mencatat klaim garansi'),
+            });
+            return;
+        }
+
+        toast.error('Sumber klaim tidak dikenali');
     };
 
     const handleExport = () => {
         const url = route('part-sales.warranties.export', {
             search: currentFilters.search,
             warranty_status: currentFilters.warranty_status,
+            source_type: currentFilters.source_type,
+            item_type: currentFilters.item_type,
+            customer_id: currentFilters.customer_id,
+            vehicle_id: currentFilters.vehicle_id,
+            mechanic_id: currentFilters.mechanic_id,
+            date_from: currentFilters.date_from,
+            date_to: currentFilters.date_to,
             expiring_in_days: currentFilters.expiring_in_days,
         });
 
@@ -182,7 +192,7 @@ export default function Index({ warranties, summary, filters }) {
 
     return (
         <DashboardLayout>
-            <Head title="Manajemen Garansi Sparepart" />
+            <Head title="Manajemen Garansi" />
 
             <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 -m-6 p-4 sm:p-5 lg:p-6 space-y-6">
                 <div className="bg-gradient-to-r from-cyan-600 to-blue-700 rounded-2xl shadow-xl">
@@ -190,16 +200,16 @@ export default function Index({ warranties, summary, filters }) {
                         <div>
                             <h1 className="text-2xl sm:text-3xl font-bold text-white flex items-center gap-3">
                                 <IconShieldCheck size={30} />
-                                Manajemen Garansi Sparepart
+                                Manajemen Garansi Terpadu
                             </h1>
-                            <p className="text-cyan-100 mt-1">Pantau masa garansi dan proses klaim dari satu halaman.</p>
+                            <p className="text-cyan-100 mt-1">Pantau garansi Part Sale dan Service Order dari satu halaman.</p>
                         </div>
                         <div className="flex items-center gap-2">
                             <Link
                                 href={route('part-sales.index')}
                                 className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white text-sm font-semibold hover:bg-white/20 transition-all"
                             >
-                                <IconReceipt size={16} /> Penjualan Part
+                                <IconReceipt size={16} /> Transaksi
                             </Link>
                             <button
                                 type="button"
@@ -246,7 +256,7 @@ export default function Index({ warranties, summary, filters }) {
                         </div>
                     </div>
                     <div className="p-5 grid gap-4 md:grid-cols-12">
-                        <div className="md:col-span-5">
+                        <div className="md:col-span-4">
                             <label className="text-xs font-bold text-slate-600 dark:text-slate-300">Cari</label>
                             <div className="relative mt-1">
                                 <IconSearch size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -254,18 +264,44 @@ export default function Index({ warranties, summary, filters }) {
                                     type="text"
                                     value={currentFilters.search}
                                     onChange={(e) => applyFilters({ ...currentFilters, search: e.target.value })}
-                                    placeholder="No. penjualan, part, pelanggan"
+                                    placeholder="Ref transaksi, item, pelanggan"
                                     className="w-full h-10 pl-9 pr-3 rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white text-sm focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
                                 />
                             </div>
                         </div>
 
-                        <div className="md:col-span-3">
+                        <div className="md:col-span-2">
+                            <label className="text-xs font-bold text-slate-600 dark:text-slate-300">Sumber</label>
+                            <select
+                                value={currentFilters.source_type}
+                                onChange={(e) => applyFilters({ ...currentFilters, source_type: e.target.value })}
+                                className="mt-1 w-full h-10 px-3 rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white text-sm"
+                            >
+                                <option value="all">Semua</option>
+                                <option value="part_sale">Part Sale</option>
+                                <option value="service_order">Service Order</option>
+                            </select>
+                        </div>
+
+                        <div className="md:col-span-2">
+                            <label className="text-xs font-bold text-slate-600 dark:text-slate-300">Tipe Item</label>
+                            <select
+                                value={currentFilters.item_type}
+                                onChange={(e) => applyFilters({ ...currentFilters, item_type: e.target.value })}
+                                className="mt-1 w-full h-10 px-3 rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white text-sm"
+                            >
+                                <option value="all">Semua</option>
+                                <option value="part">Sparepart</option>
+                                <option value="service">Layanan</option>
+                            </select>
+                        </div>
+
+                        <div className="md:col-span-2">
                             <label className="text-xs font-bold text-slate-600 dark:text-slate-300">Status</label>
                             <select
                                 value={currentFilters.warranty_status}
                                 onChange={(e) => applyFilters({ ...currentFilters, warranty_status: e.target.value })}
-                                className="mt-1 w-full h-10 px-3 rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white text-sm focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+                                className="mt-1 w-full h-10 px-3 rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white text-sm"
                             >
                                 {statusOptions.map((option) => (
                                     <option key={option.value} value={option.value}>{option.label}</option>
@@ -273,26 +309,92 @@ export default function Index({ warranties, summary, filters }) {
                             </select>
                         </div>
 
-                        <div className="md:col-span-3">
-                            <label className="text-xs font-bold text-slate-600 dark:text-slate-300">Batas Akan Expired (hari)</label>
+                        <div className="md:col-span-2">
+                            <label className="text-xs font-bold text-slate-600 dark:text-slate-300">Akan Expired (hari)</label>
                             <input
                                 type="number"
                                 min="1"
                                 max="365"
                                 value={currentFilters.expiring_in_days}
                                 onChange={(e) => applyFilters({ ...currentFilters, expiring_in_days: Number(e.target.value) || 30 })}
-                                className="mt-1 w-full h-10 px-3 rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white text-sm focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+                                className="mt-1 w-full h-10 px-3 rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white text-sm"
                             />
                         </div>
 
-                        <div className="md:col-span-1 flex items-end">
+                        <div className="md:col-span-3">
+                            <label className="text-xs font-bold text-slate-600 dark:text-slate-300">Pelanggan</label>
+                            <select
+                                value={currentFilters.customer_id}
+                                onChange={(e) => applyFilters({ ...currentFilters, customer_id: e.target.value })}
+                                className="mt-1 w-full h-10 px-3 rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white text-sm"
+                            >
+                                <option value="">Semua Pelanggan</option>
+                                {customers.map((customer) => (
+                                    <option key={customer.id} value={customer.id}>{customer.name}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="md:col-span-3">
+                            <label className="text-xs font-bold text-slate-600 dark:text-slate-300">Kendaraan</label>
+                            <select
+                                value={currentFilters.vehicle_id}
+                                onChange={(e) => applyFilters({ ...currentFilters, vehicle_id: e.target.value })}
+                                className="mt-1 w-full h-10 px-3 rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white text-sm"
+                            >
+                                <option value="">Semua Kendaraan</option>
+                                {vehicles.map((vehicle) => (
+                                    <option key={vehicle.id} value={vehicle.id}>
+                                        {vehicle.plate_number} {vehicle.brand} {vehicle.model}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="md:col-span-2">
+                            <label className="text-xs font-bold text-slate-600 dark:text-slate-300">Mekanik</label>
+                            <select
+                                value={currentFilters.mechanic_id}
+                                onChange={(e) => applyFilters({ ...currentFilters, mechanic_id: e.target.value })}
+                                className="mt-1 w-full h-10 px-3 rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white text-sm"
+                            >
+                                <option value="">Semua Mekanik</option>
+                                {mechanics.map((mechanic) => (
+                                    <option key={mechanic.id} value={mechanic.id}>{mechanic.name}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="md:col-span-2">
+                            <label className="text-xs font-bold text-slate-600 dark:text-slate-300">Tanggal Mulai</label>
+                            <input
+                                type="date"
+                                value={currentFilters.date_from}
+                                onChange={(e) => applyFilters({ ...currentFilters, date_from: e.target.value })}
+                                className="mt-1 w-full h-10 px-3 rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white text-sm"
+                            />
+                        </div>
+
+                        <div className="md:col-span-2">
+                            <label className="text-xs font-bold text-slate-600 dark:text-slate-300">Tanggal Akhir</label>
+                            <input
+                                type="date"
+                                value={currentFilters.date_to}
+                                onChange={(e) => applyFilters({ ...currentFilters, date_to: e.target.value })}
+                                className="mt-1 w-full h-10 px-3 rounded-lg border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white text-sm"
+                            />
+                        </div>
+
+                        <div className="md:col-span-12 flex justify-end">
                             <button
                                 type="button"
-                                onClick={() => applyFilters({ search: '', warranty_status: 'all', expiring_in_days: 30 })}
-                                className="w-full h-10 inline-flex items-center justify-center rounded-lg border-2 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
-                                title="Reset filter"
+                                onClick={() => applyFilters({
+                                    search: '', warranty_status: 'all', source_type: 'all', item_type: 'all',
+                                    customer_id: '', vehicle_id: '', mechanic_id: '', date_from: '', date_to: '', expiring_in_days: 30,
+                                })}
+                                className="h-10 inline-flex items-center justify-center gap-2 rounded-lg border-2 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-200 px-4 hover:bg-slate-100 dark:hover:bg-slate-800"
                             >
-                                <IconX size={16} />
+                                <IconX size={16} /> Reset
                             </button>
                         </div>
                     </div>
@@ -303,8 +405,9 @@ export default function Index({ warranties, summary, filters }) {
                         <table className="w-full text-sm">
                             <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
                                 <tr>
-                                    <th className="px-5 py-3 text-left font-bold text-slate-700 dark:text-slate-300">Transaksi</th>
-                                    <th className="px-5 py-3 text-left font-bold text-slate-700 dark:text-slate-300">Sparepart</th>
+                                    <th className="px-5 py-3 text-left font-bold text-slate-700 dark:text-slate-300">Sumber</th>
+                                    <th className="px-5 py-3 text-left font-bold text-slate-700 dark:text-slate-300">Pelanggan / Kendaraan</th>
+                                    <th className="px-5 py-3 text-left font-bold text-slate-700 dark:text-slate-300">Item</th>
                                     <th className="px-5 py-3 text-right font-bold text-slate-700 dark:text-slate-300">Periode</th>
                                     <th className="px-5 py-3 text-center font-bold text-slate-700 dark:text-slate-300">Status</th>
                                     <th className="px-5 py-3 text-center font-bold text-slate-700 dark:text-slate-300">Aksi</th>
@@ -312,26 +415,29 @@ export default function Index({ warranties, summary, filters }) {
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                                 {warranties?.data?.length > 0 ? warranties.data.map((item) => {
-                                    const key = formatStatus(item, currentFilters.expiring_in_days);
-                                    const conf = statusConfig[key];
-                                    const canClaim = key === 'active';
+                                    const conf = statusConfig[item.resolved_status] || statusConfig.active;
+                                    const canClaim = item.resolved_status === 'active';
 
                                     return (
                                         <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
                                             <td className="px-5 py-4">
-                                                <Link
-                                                    href={route('part-sales.show', item.part_sale_id)}
-                                                    className="font-bold text-cyan-700 dark:text-cyan-400 hover:underline"
-                                                >
-                                                    {item.part_sale?.sale_number || '-'}
-                                                </Link>
-                                                <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                                                    {item.part_sale?.customer?.name || '-'} • {formatDate(item.part_sale?.sale_date)}
+                                                <div className="font-bold text-cyan-700 dark:text-cyan-400">{item.reference_number || '-'}</div>
+                                                <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">{sourceLabel(item.source_type)} • {formatDate(item.source_date)}</div>
+                                            </td>
+                                            <td className="px-5 py-4">
+                                                <div className="font-semibold text-slate-900 dark:text-white">{item.customer_name || '-'}</div>
+                                                <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-2">
+                                                    <span className="inline-flex items-center gap-1"><IconCar size={12} /> {item.vehicle_label || '-'}</span>
+                                                    {(item.source_type || '').includes('ServiceOrder') && (
+                                                        <span className="inline-flex items-center gap-1"><IconTool size={12} /> {item.mechanic_name || '-'}</span>
+                                                    )}
                                                 </div>
                                             </td>
                                             <td className="px-5 py-4">
-                                                <div className="font-semibold text-slate-900 dark:text-white">{item.part?.name || '-'}</div>
-                                                <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">{item.part?.part_number || '-'}</div>
+                                                <div className="font-semibold text-slate-900 dark:text-white">{item.item_name || '-'}</div>
+                                                <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                                                    {(item.item_type || '').toLowerCase() === 'service' ? 'Layanan' : 'Sparepart'} {item.item_number && item.item_number !== '-' ? `• ${item.item_number}` : ''}
+                                                </div>
                                             </td>
                                             <td className="px-5 py-4 text-right">
                                                 <div className="font-semibold text-slate-800 dark:text-slate-100">{item.warranty_period_days || 0} hari</div>
@@ -343,9 +449,9 @@ export default function Index({ warranties, summary, filters }) {
                                                 <span className={`inline-flex items-center px-3 py-1 rounded-xl text-xs font-bold border ${conf.badgeClass}`}>
                                                     {conf.label}
                                                 </span>
-                                                {item.warranty_claimed_at && (
+                                                {item.claimed_at && (
                                                     <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-                                                        Klaim: {formatDate(item.warranty_claimed_at)}
+                                                        Klaim: {formatDate(item.claimed_at)}
                                                     </div>
                                                 )}
                                             </td>
@@ -366,7 +472,7 @@ export default function Index({ warranties, summary, filters }) {
                                     );
                                 }) : (
                                     <tr>
-                                        <td colSpan="5" className="px-5 py-10 text-center text-slate-500 dark:text-slate-400">
+                                        <td colSpan="6" className="px-5 py-10 text-center text-slate-500 dark:text-slate-400">
                                             Data garansi tidak ditemukan untuk filter saat ini.
                                         </td>
                                     </tr>

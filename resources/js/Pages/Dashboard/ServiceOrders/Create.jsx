@@ -31,7 +31,7 @@ const formatCurrency = (value) => {
     }).format(value);
 };
 
-export default function Create({ customers, mechanics, services, parts, vehicles, tags, activeServiceOrders }) {
+export default function Create({ customers, mechanics, services, parts, vehicles, tags, activeServiceOrders, availableVouchers = [] }) {
     const { data, setData, post, processing, errors } = useForm({
         customer_id: '',
         vehicle_id: '',
@@ -41,6 +41,7 @@ export default function Create({ customers, mechanics, services, parts, vehicles
         estimated_start_at: nowLocalDateTime(),
         estimated_finish_at: nowLocalDateTime(),
         notes: '',
+        voucher_code: '',
         maintenance_type: '',
         next_service_km: '',
         next_service_date: '',
@@ -839,6 +840,26 @@ export default function Create({ customers, mechanics, services, parts, vehicles
                                         onChange={setTaxMode}
                                     />
                                 </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-2">
+                                    Kode Voucher
+                                </label>
+                                <input
+                                    type="text"
+                                    value={data.voucher_code || ''}
+                                    onChange={(e) => setData('voucher_code', e.target.value.toUpperCase())}
+                                    placeholder="Contoh: SERVICEHEMAT"
+                                    list="service-order-voucher-options"
+                                    className="w-full h-10 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+                                />
+                                <datalist id="service-order-voucher-options">
+                                    {availableVouchers.map((voucher) => (
+                                        <option key={voucher.id} value={voucher.code}>{voucher.name}</option>
+                                    ))}
+                                </datalist>
+                                {errors.voucher_code && <p className="mt-1 text-xs text-red-600">{errors.voucher_code}</p>}
                             </div>
 
                             {/* Notes */}
