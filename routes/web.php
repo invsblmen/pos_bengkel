@@ -26,6 +26,8 @@ use App\Http\Controllers\Apps\PartStockHistoryController;
 use App\Http\Controllers\Apps\LowStockAlertController;
 use App\Http\Controllers\Apps\CashManagementController;
 use App\Http\Controllers\Apps\VoucherController;
+use App\Http\Controllers\Apps\WhatsAppLogController;
+use App\Http\Controllers\Apps\WhatsAppGoController;
 use App\Http\Controllers\Webhooks\WhatsAppWebhookController;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Http\Request;
@@ -71,6 +73,10 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
     Route::post('/notifications/mark-read', [NotificationController::class, 'markRead'])->name('notifications.read');
     Route::post('/notifications/delete', [NotificationController::class, 'destroy'])->name('notifications.destroy');
+    Route::get('/whatsapp/go', WhatsAppGoController::class)->middleware('permission:reports-access')->name('whatsapp.go.index');
+    Route::get('/whatsapp/logs', [WhatsAppLogController::class, 'index'])->middleware('permission:reports-access')->name('whatsapp.logs.index');
+    Route::get('/whatsapp/health/check', [WhatsAppLogController::class, 'healthCheck'])->middleware('permission:reports-access')->name('whatsapp.health.check');
+    Route::post('/whatsapp/logs/outbound/{outbound}/retry', [WhatsAppLogController::class, 'retry'])->middleware('permission:reports-access')->name('whatsapp.logs.retry');
 
     Route::get('/', [DashboardController::class, 'index'])->middleware(['auth', 'verified', 'permission:dashboard-access'])->name('dashboard');
     Route::get('/permissions', [PermissionController::class, 'index'])->middleware('permission:permissions-access')->name('permissions.index');

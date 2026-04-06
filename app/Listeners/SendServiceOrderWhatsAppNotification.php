@@ -4,6 +4,7 @@ namespace App\Listeners;
 
 use App\Events\ServiceOrderCreated;
 use App\Events\ServiceOrderUpdated;
+use App\Events\WhatsAppOutboundUpdated;
 use App\Jobs\SendWhatsAppMessageJob;
 use App\Models\WhatsAppOutboundMessage;
 
@@ -45,6 +46,8 @@ class SendServiceOrderWhatsAppNotification
             'message' => $message,
             'status' => 'queued',
         ]);
+
+        event(new WhatsAppOutboundUpdated($outbound));
 
         SendWhatsAppMessageJob::dispatch($outbound->id)
             ->onQueue((string) config('whatsapp.notifications.queue', 'default'));

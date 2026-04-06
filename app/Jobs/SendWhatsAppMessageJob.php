@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Events\WhatsAppOutboundUpdated;
 use App\Models\WhatsAppOutboundMessage;
 use App\Services\WhatsAppClient;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -11,9 +12,7 @@ class SendWhatsAppMessageJob implements ShouldQueue
 {
     use Queueable;
 
-    public int $tries = 3;
-
-    public int $backoff = 10;
+    public int $tries = 5;
 
     public function __construct(public int $outboundMessageId)
     {
@@ -38,6 +37,8 @@ class SendWhatsAppMessageJob implements ShouldQueue
                 'sent_at' => now(),
                 'failed_at' => null,
             ]);
+
+            event(new WhatsAppOutboundUpdated($outbound->fresh()));
         } catch (\Throwable $e) {
             $outbound->update([
                 'status' => 'failed',
@@ -45,7 +46,20 @@ class SendWhatsAppMessageJob implements ShouldQueue
                 'failed_at' => now(),
             ]);
 
+            event(new WhatsAppOutboundUpdated($outbound->fresh()));
+
             throw $e;
         }
+    }
+
+    /**
+     * Exponential backoff retries (in seconds).
+     * Failed jobs will end up in the failed_jobs table as dead-letter records.
+     *
+     * @return array<int,int>
+     */
+    public function backoff(): array
+    {
+        return [10, 30, 60, 120, 300];
     }
 }

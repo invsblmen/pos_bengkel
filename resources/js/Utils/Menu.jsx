@@ -25,6 +25,8 @@ import {
     IconCash,
     IconShieldCheck,
     IconTicket,
+    IconBrandWhatsapp,
+    IconExternalLink,
 } from "@tabler/icons-react";
 import hasAnyPermission from "./Permission";
 import React from "react";
@@ -251,6 +253,20 @@ export default function Menu() {
                             href: route("reports.outstanding-payments.index"),
                             active: url.startsWith("/dashboard/reports/outstanding-payments"),
                             icon: <IconAlertCircle size={20} strokeWidth={1.5} />,
+                            permissions: hasAnyPermission(["reports-access"]),
+                        },
+                        {
+                            title: "WhatsApp Go",
+                            href: route("whatsapp.go.index"),
+                            active: url.startsWith("/dashboard/whatsapp/go"),
+                            icon: <IconExternalLink size={20} strokeWidth={1.5} />,
+                            permissions: hasAnyPermission(["reports-access"]),
+                        },
+                        {
+                            title: "Log WhatsApp",
+                            href: route("whatsapp.logs.index"),
+                            active: url.startsWith("/dashboard/whatsapp/logs"),
+                            icon: <IconBrandWhatsapp size={20} strokeWidth={1.5} />,
                             permissions: hasAnyPermission(["reports-access"]),
                         },
                     ],

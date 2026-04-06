@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Webhooks;
 
+use App\Events\WhatsAppWebhookReceived;
 use App\Http\Controllers\Controller;
 use App\Models\WhatsAppWebhookEvent;
 use Illuminate\Http\JsonResponse;
@@ -15,7 +16,7 @@ class WhatsAppWebhookController extends Controller
         $signature = (string) $request->header('X-Hub-Signature-256', '');
         $signatureValid = $this->isValidSignature($rawBody, $signature);
 
-        WhatsAppWebhookEvent::create([
+        $webhookEvent = WhatsAppWebhookEvent::create([
             'event' => (string) $request->input('event', 'unknown'),
             'device_id' => $request->input('device_id'),
             'signature_valid' => $signatureValid,
@@ -23,6 +24,8 @@ class WhatsAppWebhookController extends Controller
             'payload' => $request->all(),
             'received_at' => now(),
         ]);
+
+        event(new WhatsAppWebhookReceived($webhookEvent));
 
         if (config('whatsapp.webhook.verify_signature', true) && !$signatureValid) {
             return response()->json([

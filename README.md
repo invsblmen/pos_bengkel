@@ -48,6 +48,40 @@ php artisan key:generate
 php artisan storage:link
 ```
 
+## Cheat Sheet Operasional (Cepat)
+
+Jalankan dari root project `pos_bengkel`:
+
+```powershell
+# Start Laravel + frontend
+php artisan serve
+npm run dev
+
+# Queue + Reverb (opsional sesuai kebutuhan)
+php artisan queue:work
+php artisan reverb:start
+
+# WhatsApp Go helper scripts
+scripts\start-whatsapp-go.ps1
+scripts\status-whatsapp-go.ps1
+scripts\restart-whatsapp-go.ps1
+scripts\stop-whatsapp-go.ps1
+
+# Reload config setelah ubah .env
+php artisan config:clear
+```
+
+### If This Then That (Troubleshooting Cepat)
+
+| Kondisi | Penyebab Umum | Aksi Cepat |
+|---|---|---|
+| Halaman WhatsApp Go `401 Unauthorized` | Basic auth Go aktif, kredensial Laravel tidak cocok | Samakan `WHATSAPP_API_USERNAME` dan `WHATSAPP_API_PASSWORD` dengan salah satu akun `APP_BASIC_AUTH`, lalu `php artisan config:clear` |
+| `bind ... 3000 already in use` saat start Go | Port 3000 dipakai proses lama | Jalankan `scripts\stop-whatsapp-go.ps1`, lalu `scripts\start-whatsapp-go.ps1` |
+| Menu WhatsApp Go tidak membuka halaman tujuan | URL dashboard Go belum benar | Cek `WHATSAPP_GO_DASHBOARD_URL` di `.env`, lalu `php artisan config:clear` |
+| Health check menandakan `down` | Service Go belum jalan / crash | Jalankan `scripts\status-whatsapp-go.ps1`, lalu `scripts\restart-whatsapp-go.ps1` |
+| Gagal kirim pesan karena format nomor | Nomor masih format lokal `08xxx` | Ubah nomor ke format internasional `62xxx` |
+| Setelah restart server harus scan ulang | Session store terhapus atau akun ter-unlink | Pastikan storage/session Go tidak dihapus; scan ulang hanya jika session hilang |
+
 ## Konfigurasi Environment
 
 Perbarui `.env` minimal pada bagian berikut:
@@ -85,6 +119,134 @@ Jika memakai queue untuk proses async:
 ```bash
 php artisan queue:work
 ```
+
+Untuk menjalankan WhatsApp Go dengan aman dari Windows PowerShell:
+
+```powershell
+scripts\start-whatsapp-go.ps1
+```
+
+Script tersebut akan mengecek port 3000 terlebih dahulu, menghindari double start, lalu menjalankan service dari folder `go-whatsapp-web-multidevice-main\src`.
+
+Untuk menghentikan dan mengecek statusnya:
+
+```powershell
+scripts\stop-whatsapp-go.ps1
+scripts\status-whatsapp-go.ps1
+```
+
+Untuk restart (stop lalu start) dalam satu perintah:
+
+```powershell
+scripts\restart-whatsapp-go.ps1
+```
+
+## Integrasi WhatsApp Go (Lengkap)
+
+Bagian ini merangkum seluruh instruksi operasional WhatsApp Go yang sudah diintegrasikan ke dashboard Laravel.
+
+### 1) Konfigurasi Environment Laravel
+
+Tambahkan/cek nilai berikut pada file `.env` Laravel:
+
+```env
+WHATSAPP_ENABLED=true
+WHATSAPP_API_BASE_URL=http://127.0.0.1:3000
+WHATSAPP_GO_DASHBOARD_URL=http://127.0.0.1:3000
+
+# Gunakan salah satu akun basic auth dari service Go
+WHATSAPP_API_USERNAME=kemal
+WHATSAPP_API_PASSWORD=secret
+
+WHATSAPP_WEBHOOK_SECRET=secret
+WHATSAPP_WEBHOOK_VERIFY_SIGNATURE=true
+WHATSAPP_QUEUE=default
+```
+
+Setelah ubah `.env`, jalankan:
+
+```bash
+php artisan config:clear
+```
+
+### 2) Konfigurasi Basic Auth di Service Go
+
+Pada file `go-whatsapp-web-multidevice-main/src/.env`, gunakan format multi-user berikut:
+
+```env
+APP_BASIC_AUTH=kemal:secret,toni:password,userName:secretPassword
+APP_PORT=3000
+APP_HOST=0.0.0.0
+```
+
+Catatan:
+- Laravel hanya bisa menyuntikkan satu pasangan username/password otomatis saat redirect menu dashboard.
+- Pilih satu akun utama untuk Laravel (contoh: `kemal:secret`).
+
+### 3) Menjalankan Service Go Tanpa Bentrok Port
+
+Gunakan helper script (direkomendasikan):
+
+```powershell
+scripts\start-whatsapp-go.ps1
+scripts\status-whatsapp-go.ps1
+scripts\stop-whatsapp-go.ps1
+scripts\restart-whatsapp-go.ps1
+```
+
+Perilaku script:
+- `start`: cek port 3000, hindari double start, lalu jalankan service.
+- `status`: tampilkan status RUNNING/STOPPED + PID + command line.
+- `stop`: hentikan proses berdasarkan PID file atau listener port 3000.
+- `restart`: stop lalu start dalam satu perintah.
+
+### 4) Akses dari Dashboard Laravel
+
+Menu yang tersedia:
+- `Laporan Lanjutan > WhatsApp Go`
+- `Laporan Lanjutan > Log WhatsApp`
+
+Halaman Log WhatsApp menyediakan:
+- monitor outbound/webhook,
+- retry manual pesan failed,
+- health check service Go,
+- auto-check periodik,
+- toast notifikasi perubahan status,
+- beep alert saat service berubah ke down.
+
+### 5) Troubleshooting Umum
+
+#### a) Halaman Go `Unauthorized (401)`
+
+Penyebab paling umum: Basic Auth aktif di Go, tapi kredensial Laravel belum cocok.
+
+Checklist:
+1. Pastikan `APP_BASIC_AUTH` di Go benar.
+2. Pastikan `WHATSAPP_API_USERNAME` dan `WHATSAPP_API_PASSWORD` di Laravel cocok dengan salah satu akun Go.
+3. Jalankan `php artisan config:clear`.
+4. Coba akses lagi dari menu dashboard.
+
+#### b) Service Go gagal start (`bind ... 3000 already in use`)
+
+Port 3000 dipakai proses lain. Gunakan:
+
+```powershell
+scripts\stop-whatsapp-go.ps1
+scripts\start-whatsapp-go.ps1
+```
+
+#### c) Error format nomor telepon
+
+Gunakan format internasional (`62xxxx`), bukan format lokal yang diawali `08`.
+
+### 6) Apakah Perlu Scan Ulang Device Saat Server Restart?
+
+Biasanya **tidak perlu scan ulang** jika session/device store tidak dihapus.
+
+Perlu scan ulang jika:
+1. data session/device di storage terhapus,
+2. akun logout/unlink dari WhatsApp,
+3. database/volume session diganti atau rusak.
 
 ## Perintah Penting
 

@@ -495,7 +495,7 @@ class ServiceReportController extends Controller
     {
         $parts = Part::query()
             ->with('category:id,name')
-            ->select(['id', 'name', 'category_id', 'stock', 'reorder_level', 'price'])
+            ->select(['id', 'name', 'part_category_id', 'stock', 'reorder_level', 'sell_price'])
             ->get()
             ->map(function ($part) {
                 return [
@@ -504,8 +504,8 @@ class ServiceReportController extends Controller
                     'category' => $part->category?->name,
                     'stock' => $part->stock,
                     'reorder_level' => $part->reorder_level ?? 10,
-                    'price' => $part->price,
-                    'stock_value' => ($part->stock ?? 0) * ($part->price ?? 0),
+                    'price' => $part->sell_price,
+                    'stock_value' => ($part->stock ?? 0) * ($part->sell_price ?? 0),
                     'status' => $part->stock <= ($part->reorder_level ?? 10) ? 'low' : 'good',
                 ];
             });

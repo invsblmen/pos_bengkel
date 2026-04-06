@@ -6,6 +6,9 @@ use App\Models\PartSale;
 use App\Observers\PartSaleObserver;
 use App\Listeners\FlushReportCaches;
 use App\Listeners\SendServiceOrderWhatsAppNotification;
+use App\Listeners\SendAppointmentWhatsAppNotification;
+use App\Events\AppointmentCreated;
+use App\Events\AppointmentUpdated;
 use App\Events\ServiceOrderCreated;
 use App\Events\ServiceOrderUpdated;
 use App\Events\ServiceOrderDeleted;
@@ -50,6 +53,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $listener = new FlushReportCaches();
         $whatsAppListener = new SendServiceOrderWhatsAppNotification();
+        $appointmentWhatsAppListener = new SendAppointmentWhatsAppNotification();
 
         // Service order events
         $this->app['events']->listen(
@@ -61,6 +65,12 @@ class AppServiceProvider extends ServiceProvider
         $this->app['events']->listen(
             [ServiceOrderCreated::class, ServiceOrderUpdated::class],
             [$whatsAppListener, 'handle']
+        );
+
+        // Appointment WhatsApp notifications (queued)
+        $this->app['events']->listen(
+            [AppointmentCreated::class, AppointmentUpdated::class],
+            [$appointmentWhatsAppListener, 'handle']
         );
 
         // Part sale events

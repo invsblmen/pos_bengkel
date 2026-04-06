@@ -2,6 +2,7 @@
 
 return [
     'enabled' => env('WHATSAPP_ENABLED', false),
+    'go_dashboard_url' => env('WHATSAPP_GO_DASHBOARD_URL', env('WHATSAPP_API_BASE_URL', 'http://127.0.0.1:3000')),
 
     'api' => [
         'base_url' => env('WHATSAPP_API_BASE_URL', 'http://127.0.0.1:3000'),
