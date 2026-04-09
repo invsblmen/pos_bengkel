@@ -3,8 +3,8 @@ package httpserver
 import (
 	"crypto/rand"
 	"database/sql"
-	"encoding/json"
 	"encoding/hex"
+	"encoding/json"
 	"net/http"
 	"strings"
 	"time"
@@ -223,11 +223,11 @@ func serviceOrderStoreQuickIntakeHandler(db *sql.DB) http.HandlerFunc {
 			"order_id":    orderID,
 			"submit_mode": submitMode,
 			"order": response{
-				"id":          orderID,
+				"id":           orderID,
 				"order_number": orderNumber,
-				"status":      "pending",
-				"customer_id": customerID,
-				"vehicle_id":  vehicleID,
+				"status":       "pending",
+				"customer_id":  customerID,
+				"vehicle_id":   vehicleID,
 			},
 		})
 	}

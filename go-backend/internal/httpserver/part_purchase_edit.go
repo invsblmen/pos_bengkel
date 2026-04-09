@@ -62,9 +62,9 @@ func partPurchaseEditHandler(db *sql.DB) http.HandlerFunc {
 
 		writeJSON(w, http.StatusOK, response{
 			"purchase":   purchase,
-			"suppliers":   suppliers,
-			"parts":       parts,
-			"categories":  categories,
+			"suppliers":  suppliers,
+			"parts":      parts,
+			"categories": categories,
 		})
 	}
 }

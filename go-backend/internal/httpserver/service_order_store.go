@@ -33,8 +33,8 @@ type serviceOrderStoreRequest struct {
 }
 
 type serviceOrderStoreItem struct {
-	ServiceID *int64                   `json:"service_id"`
-	Parts     []serviceOrderStorePart  `json:"parts"`
+	ServiceID *int64                  `json:"service_id"`
+	Parts     []serviceOrderStorePart `json:"parts"`
 }
 
 type serviceOrderStorePart struct {
@@ -61,7 +61,7 @@ func serviceOrderStoreHandler(db *sql.DB) http.HandlerFunc {
 		if strings.TrimSpace(payload.SubmissionToken) == "" {
 			writeJSON(w, http.StatusUnprocessableEntity, response{
 				"message": "The given data was invalid.",
-				"errors": response{"submission_token": []string{"Submission token wajib diisi."}},
+				"errors":  response{"submission_token": []string{"Submission token wajib diisi."}},
 			})
 			return
 		}
@@ -69,7 +69,7 @@ func serviceOrderStoreHandler(db *sql.DB) http.HandlerFunc {
 		if payload.OdometerKM == nil || *payload.OdometerKM < 0 {
 			writeJSON(w, http.StatusUnprocessableEntity, response{
 				"message": "The given data was invalid.",
-				"errors": response{"odometer_km": []string{"Odometer (km) wajib diisi dengan nilai valid."}},
+				"errors":  response{"odometer_km": []string{"Odometer (km) wajib diisi dengan nilai valid."}},
 			})
 			return
 		}
@@ -77,7 +77,7 @@ func serviceOrderStoreHandler(db *sql.DB) http.HandlerFunc {
 		if len(payload.Items) == 0 {
 			writeJSON(w, http.StatusUnprocessableEntity, response{
 				"message": "The given data was invalid.",
-				"errors": response{"items": []string{"Minimal harus ada 1 item."}},
+				"errors":  response{"items": []string{"Minimal harus ada 1 item."}},
 			})
 			return
 		}
@@ -89,7 +89,7 @@ func serviceOrderStoreHandler(db *sql.DB) http.HandlerFunc {
 		if !serviceOrderStatusIsAllowed(status) {
 			writeJSON(w, http.StatusUnprocessableEntity, response{
 				"message": "The given data was invalid.",
-				"errors": response{"status": []string{"Status service order tidak valid."}},
+				"errors":  response{"status": []string{"Status service order tidak valid."}},
 			})
 			return
 		}

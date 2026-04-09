@@ -30,8 +30,8 @@ type serviceOrderUpdateRequest struct {
 }
 
 type serviceOrderUpdateItem struct {
-	ServiceID *int64                    `json:"service_id"`
-	Parts     []serviceOrderUpdatePart  `json:"parts"`
+	ServiceID *int64                   `json:"service_id"`
+	Parts     []serviceOrderUpdatePart `json:"parts"`
 }
 
 type serviceOrderUpdatePart struct {
@@ -70,7 +70,7 @@ func serviceOrderUpdateHandler(db *sql.DB) http.HandlerFunc {
 		if len(payload.Items) == 0 {
 			writeJSON(w, http.StatusUnprocessableEntity, response{
 				"message": "The given data was invalid.",
-				"errors": response{"items": []string{"Minimal harus ada 1 item."}},
+				"errors":  response{"items": []string{"Minimal harus ada 1 item."}},
 			})
 			return
 		}
