@@ -101,3 +101,16 @@ Ringkasan ini dipakai untuk weekly review lintas tim (engineering, QA, operasi, 
 2. Jalankan UAT parity untuk 3 screen prioritas dulu: Appointment Index, Service Order Index, Vehicle Index.
 3. Eksekusi dry-run retention mingguan: `php artisan go:sync:purge-old --days=30 --dry-run=1`.
 4. Review mingguan dengan PO/QA lead untuk keputusan canary ramp.
+
+### Baseline Snapshot (2026-04-11)
+
+- Reconciliation: HOLD (variance batch_total 15.91%, acknowledged 12.20% > threshold 5%).
+- Shadow summary (hari ini): mismatch 0%, skipped 0% untuk `report_overall` dan `report_part_sales_profit`.
+- Shadow trend 7 hari: masih ada historical violation (avg mismatch report_overall/report_part_sales_profit 33.59%).
+- Canary gate: `GATE RESULT: HOLD` (coverage/samples belum cukup + historical mismatch/skipped tinggi).
+
+Command agregasi harian:
+
+```powershell
+./scripts/collect-go-migration-metrics.ps1 -Date 2026-04-11 -VarianceThreshold 5 -TrendDays 7 -CurrentCanary 5
+```

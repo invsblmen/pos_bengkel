@@ -433,6 +433,7 @@ php artisan go:sync:reconciliation-daily --max-variance-percent=5
 php artisan go:sync:purge-old --days=30 --dry-run=1
 php artisan go:sync:benchmark-capacity --timeouts=60,120,180 --iterations=1
 php artisan go:canary:gate --days=7 --current=5
+./scripts/collect-go-migration-metrics.ps1 -Date 2026-04-11 -VarianceThreshold 5 -TrendDays 7 -CurrentCanary 5
 ```
 
 Contoh retry dengan backoff policy:
@@ -460,6 +461,14 @@ Perintah reconciliation membandingkan:
 - Laravel received: received, acknowledged, duplicate, invalid, failed
 
 Jika variance % melampaui threshold (default 5%), command mengembalikan exit code 1 dan menlog alert.
+
+Untuk operasional harian yang konsisten, gunakan script agregasi metrik berikut:
+
+```powershell
+./scripts/collect-go-migration-metrics.ps1 -Date 2026-04-11 -VarianceThreshold 5 -TrendDays 7 -CurrentCanary 5
+```
+
+Script akan menjalankan reconciliation, shadow summary, shadow trend, dan canary gate sekaligus, lalu menyimpan laporan ke `storage/logs/go-migration/metrics-<date>-<timestamp>.log`.
 
 Profil tuning awal (disarankan):
 
