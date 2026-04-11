@@ -18,3 +18,7 @@ yarn-error.log
 /.fleet
 /.idea
 /.vscode
+
+# Local Go build artifacts
+go-backend/*.exe
+go-backend/*.exe~
