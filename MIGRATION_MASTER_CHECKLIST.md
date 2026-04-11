@@ -73,7 +73,7 @@ Legend:
 - [x] Shadow comparator implemented and integrated into key controllers.
 - [x] Shadow summary/trend artisan commands added.
 - [~] Threshold calibration using real traffic data.
-- [ ] Formal go/no-go rollout gate for increasing canary percentage.
+- [x] Formal go/no-go rollout gate for increasing canary percentage.
 
 ## 8) Data Import Support for Migration
 

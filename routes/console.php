@@ -1875,6 +1875,182 @@ Artisan::command('go:shadow:trend {--days=7} {--feature=} {--csv-path=} {--thres
     return ($violations->isNotEmpty() || $overallSkippedAvg > $maxSkippedRate) ? 1 : 0;
 })->purpose('Analyze Go shadow mismatch trends from summary CSV');
 
+Artisan::command('go:canary:gate {--days=} {--feature=} {--csv-path=} {--current=} {--step=} {--max=} {--force}', function () {
+    $gateConfig = (array) config('go_backend.canary.gate', []);
+    $days = max(1, min((int) ($this->option('days') ?: ($gateConfig['min_days'] ?? 7)), 30));
+    $featureFilter = trim((string) ($this->option('feature') ?? ''));
+    $csvPath = (string) ($this->option('csv-path') ?: storage_path('app/go-shadow/summary.csv'));
+    $minDays = max(1, min((int) ($gateConfig['min_days'] ?? 7), 30));
+    $minSamples = max(1, min((int) ($gateConfig['min_samples'] ?? 50), 100000));
+    $maxAvgMismatchRate = max(0, min((float) ($gateConfig['max_avg_mismatch_rate'] ?? 0.5), 100));
+    $maxPeakMismatchRate = max(0, min((float) ($gateConfig['max_peak_mismatch_rate'] ?? 1), 100));
+    $maxAvgSkippedRate = max(0, min((float) ($gateConfig['max_avg_skipped_rate'] ?? 20), 100));
+    $stepPercent = max(1, min((int) ($this->option('step') ?: ($gateConfig['step_percent'] ?? 5)), 20));
+    $maxPercent = max(1, min((int) ($this->option('max') ?: ($gateConfig['max_percent'] ?? 100)), 100));
+    $currentPercent = max(0, min((int) ($this->option('current') ?: config('go_backend.canary.default_percentage', 0)), 100));
+    $force = (bool) $this->option('force');
+    $featureThresholds = (array) config('go_backend.shadow_compare.feature_thresholds', []);
+    $defaultThreshold = config('go_backend.shadow_compare.default_threshold');
+
+    if (!File::exists($csvPath)) {
+        $this->error('Shadow summary CSV not found: ' . $csvPath);
+        return 1;
+    }
+
+    $rows = collect(array_map('str_getcsv', file($csvPath)))
+        ->filter(fn ($row) => is_array($row) && count($row) >= 2)
+        ->values();
+
+    if ($rows->count() <= 1) {
+        $this->error('Shadow summary CSV is empty. Jalankan go:shadow:summary --save-csv terlebih dahulu.');
+        return 1;
+    }
+
+    $headers = $rows->first();
+    $rawData = $rows->slice(1)
+        ->map(function ($row) use ($headers) {
+            $headerCount = count($headers);
+            $rowCount = count($row);
+
+            if ($rowCount < $headerCount) {
+                $row = array_pad($row, $headerCount, '');
+            } elseif ($rowCount > $headerCount) {
+                $row = array_slice($row, 0, $headerCount);
+            }
+
+            $combined = array_combine($headers, $row);
+            return is_array($combined) ? $combined : null;
+        })
+        ->filter()
+        ->values();
+
+    $startDate = Carbon::today()->subDays($days - 1)->format('Y-m-d');
+    $data = $rawData
+        ->filter(function ($row) use ($startDate, $featureFilter) {
+            $date = (string) ($row['date'] ?? '');
+            if ($date < $startDate) {
+                return false;
+            }
+
+            if ($featureFilter !== '' && (string) ($row['feature'] ?? '') !== $featureFilter) {
+                return false;
+            }
+
+            return true;
+        })
+        ->values();
+
+    if ($data->isEmpty()) {
+        $this->error('No shadow summary rows found for selected window/filter.');
+        return 1;
+    }
+
+    $distinctDays = $data->pluck('date')->unique()->count();
+    $samples = $data->count();
+    $matched = (int) $data->sum(fn ($row) => (int) ($row['matched'] ?? 0));
+    $mismatch = (int) $data->sum(fn ($row) => (int) ($row['mismatch'] ?? 0));
+    $skipped = (int) $data->sum(fn ($row) => (int) ($row['skipped'] ?? 0));
+    $checked = max(1, $matched + $mismatch);
+    $total = max(1, $matched + $mismatch + $skipped);
+
+    $overallMismatchRate = round(($mismatch / $checked) * 100, 2);
+    $overallSkippedRate = round(($skipped / $total) * 100, 2);
+    $peakMismatchRate = round((float) ($data->max(fn ($row) => (float) ($row['mismatch_rate'] ?? 0)) ?? 0), 2);
+
+    $featureStats = $data
+        ->groupBy('feature')
+        ->map(function ($group, $feature) {
+            $matched = (int) $group->sum(fn ($row) => (int) ($row['matched'] ?? 0));
+            $mismatch = (int) $group->sum(fn ($row) => (int) ($row['mismatch'] ?? 0));
+            $skipped = (int) $group->sum(fn ($row) => (int) ($row['skipped'] ?? 0));
+            $checked = max(1, $matched + $mismatch);
+            $total = max(1, $matched + $mismatch + $skipped);
+
+            return [
+                'feature' => (string) $feature,
+                'mismatch_rate' => round(($mismatch / $checked) * 100, 2),
+                'skipped_rate' => round(($skipped / $total) * 100, 2),
+                'samples' => $group->count(),
+            ];
+        })
+        ->sortByDesc('mismatch_rate')
+        ->values();
+
+    $featureViolations = $featureStats
+        ->filter(function ($row) use ($featureThresholds, $defaultThreshold) {
+            $feature = (string) $row['feature'];
+            $limit = null;
+
+            if (array_key_exists($feature, $featureThresholds)) {
+                $limit = (float) $featureThresholds[$feature];
+            } elseif ($defaultThreshold !== null) {
+                $limit = (float) $defaultThreshold;
+            }
+
+            if ($limit === null) {
+                return false;
+            }
+
+            return (float) $row['mismatch_rate'] > $limit;
+        })
+        ->values();
+
+    $checks = [
+        ['Check', 'Target', 'Actual', 'Status'],
+        ['Coverage hari', '>= ' . $minDays, (string) $distinctDays, $distinctDays >= $minDays ? 'PASS' : 'FAIL'],
+        ['Jumlah sample', '>= ' . $minSamples, (string) $samples, $samples >= $minSamples ? 'PASS' : 'FAIL'],
+        ['Avg mismatch %', '<= ' . $maxAvgMismatchRate, (string) $overallMismatchRate, $overallMismatchRate <= $maxAvgMismatchRate ? 'PASS' : 'FAIL'],
+        ['Peak mismatch %', '<= ' . $maxPeakMismatchRate, (string) $peakMismatchRate, $peakMismatchRate <= $maxPeakMismatchRate ? 'PASS' : 'FAIL'],
+        ['Avg skipped %', '<= ' . $maxAvgSkippedRate, (string) $overallSkippedRate, $overallSkippedRate <= $maxAvgSkippedRate ? 'PASS' : 'FAIL'],
+        ['Feature threshold', '0 violation', (string) $featureViolations->count(), $featureViolations->isEmpty() ? 'PASS' : 'FAIL'],
+    ];
+
+    $this->line('Go canary gate evaluation (window ' . $days . ' day(s))');
+    $this->line('CSV: ' . $csvPath);
+    if ($featureFilter !== '') {
+        $this->line('Feature filter: ' . $featureFilter);
+    }
+    $this->line('');
+    $this->table($checks[0], array_slice($checks, 1));
+
+    $this->line('');
+    $this->table(
+        ['Feature', 'Samples', 'Mismatch %', 'Skipped %'],
+        $featureStats->map(fn ($row) => [
+            $row['feature'],
+            $row['samples'],
+            $row['mismatch_rate'],
+            $row['skipped_rate'],
+        ])->all()
+    );
+
+    $passed = collect(array_slice($checks, 1))->every(fn ($row) => (string) $row[3] === 'PASS');
+    $nextPercent = min($maxPercent, $currentPercent + $stepPercent);
+
+    $this->line('');
+    if ($passed) {
+        $this->info('GATE RESULT: PASS');
+        $this->line('Recommendation: naikkan canary bertahap dari ' . $currentPercent . '% ke ' . $nextPercent . '%.');
+        $this->line('Suggested command: php artisan go:shadow:enable --canary=' . $nextPercent);
+        return 0;
+    }
+
+    $this->warn('GATE RESULT: HOLD');
+    if ($featureViolations->isNotEmpty()) {
+        $this->warn('Feature threshold violation(s):');
+        foreach ($featureViolations as $violation) {
+            $this->warn(' - ' . $violation['feature'] . ': mismatch=' . $violation['mismatch_rate'] . '%');
+        }
+    }
+
+    if ($force) {
+        $this->warn('Force option enabled: returning success code despite HOLD result.');
+        return 0;
+    }
+
+    return 1;
+})->purpose('Evaluate formal go/no-go gate before increasing canary percentage');
+
 Artisan::command('go:shadow:enable {--canary=5} {--sample=100} {--threshold=1}', function () {
     $envPath = base_path('.env');
     if (!File::exists($envPath)) {

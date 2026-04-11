@@ -40,6 +40,15 @@ return [
     'canary' => [
         'enabled' => env('GO_CANARY_ENABLED', false),
         'default_percentage' => max(0, min(100, (int) env('GO_CANARY_DEFAULT_PERCENT', 100))),
+        'gate' => [
+            'min_days' => max(1, min(30, (int) env('GO_CANARY_GATE_MIN_DAYS', 7))),
+            'min_samples' => max(1, min(100000, (int) env('GO_CANARY_GATE_MIN_SAMPLES', 50))),
+            'max_avg_mismatch_rate' => max(0, min(100, (float) env('GO_CANARY_GATE_MAX_AVG_MISMATCH_RATE', 0.5))),
+            'max_peak_mismatch_rate' => max(0, min(100, (float) env('GO_CANARY_GATE_MAX_PEAK_MISMATCH_RATE', 1))),
+            'max_avg_skipped_rate' => max(0, min(100, (float) env('GO_CANARY_GATE_MAX_AVG_SKIPPED_RATE', 20))),
+            'step_percent' => max(1, min(20, (int) env('GO_CANARY_GATE_STEP_PERCENT', 5))),
+            'max_percent' => max(1, min(100, (int) env('GO_CANARY_GATE_MAX_PERCENT', 100))),
+        ],
         'feature_percentages' => collect(explode(',', (string) env('GO_CANARY_FEATURES', '')))
             ->map(fn ($item) => trim($item))
             ->filter(fn ($item) => $item !== '' && str_contains($item, ':'))

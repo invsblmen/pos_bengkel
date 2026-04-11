@@ -414,6 +414,13 @@ GO_SYNC_ALERT_LIMIT=20
 GO_SYNC_RECONCILIATION_ENABLED=true
 GO_SYNC_RECONCILIATION_DAILY_AT=00:15
 GO_SYNC_RECONCILIATION_MAX_VARIANCE=5
+GO_CANARY_GATE_MIN_DAYS=7
+GO_CANARY_GATE_MIN_SAMPLES=50
+GO_CANARY_GATE_MAX_AVG_MISMATCH_RATE=0.5
+GO_CANARY_GATE_MAX_PEAK_MISMATCH_RATE=1
+GO_CANARY_GATE_MAX_AVG_SKIPPED_RATE=20
+GO_CANARY_GATE_STEP_PERCENT=5
+GO_CANARY_GATE_MAX_PERCENT=100
 ```
 
 Command operasional:
@@ -425,6 +432,7 @@ php artisan go:sync:alert-long-failed --minutes=120 --limit=20
 php artisan go:sync:reconciliation-daily --max-variance-percent=5
 php artisan go:sync:purge-old --days=30 --dry-run=1
 php artisan go:sync:benchmark-capacity --timeouts=60,120,180 --iterations=1
+php artisan go:canary:gate --days=7 --current=5
 ```
 
 Contoh retry dengan backoff policy:
@@ -500,6 +508,7 @@ Proses sign-off bisnis:
 1. Laporan mingguan dikirim ke product owner berisi variance, mismatch_rate, skipped_rate.
 2. Sign-off diberikan jika 7 hari berturut-turut semua indikator berada di bawah level warning.
 3. Jika ada indikator di level critical, sign-off otomatis ditunda sampai 3 hari stabil kembali.
+4. Sebelum menaikkan persentase canary, jalankan gate formal `go:canary:gate`; kenaikan hanya saat hasil `GATE RESULT: PASS`.
 
 ### 17.2 SOP Konflik dan Incident Sync
 
