@@ -16,6 +16,10 @@ Panduan terpusat untuk setup, pengembangan, testing, dan referensi fitur utama.
 10. [10. Konvensi Penamaan](#10-konvensi-penamaan)
 11. [11. Checklist Singkat Harian](#11-checklist-singkat-harian)
 12. [12. Catatan Stabilitas Lokal](#12-catatan-stabilitas-lokal)
+13. [13. Landasan Operasi Target](#13-landasan-operasi-target)
+14. [14. Rancangan Sinkronisasi Local ke Hosting](#14-rancangan-sinkronisasi-local-ke-hosting)
+15. [15. Referensi Desain Sinkron](#15-referensi-desain-sinkron)
+16. [16. Referensi Tracking Migrasi](#16-referensi-tracking-migrasi)
 
 ## 1. Ringkasan Proyek
 
@@ -303,6 +307,234 @@ npm run dev
 
 ## 12. Catatan Stabilitas Lokal
 
+## 13. Landasan Operasi Target
+
+1. Laravel akan tetap digunakan di server hosting untuk monitoring online dan akses jarak jauh.
+2. Go akan digunakan di local untuk eksekusi operasional bengkel yang butuh performa tinggi.
+3. Kedua project harus tetap identik dari sisi perilaku bisnis dan alur data.
+4. Sinkronisasi dari local ke hosting menjadi fitur lanjutan, bukan pengganti operasional lokal.
+5. Jika ada perbedaan, perbedaan hanya boleh ada pada bahasa implementasi dan optimasi performa.
+6. Frontend yang dikonsumsi user akhir harus sama secara tampilan, interaksi, dan alur (Go-backed maupun Laravel-backed).
+7. Perbedaan backend tidak boleh terlihat oleh user pada level UI/UX.
+
+Kriteria frontend parity:
+
+1. Struktur payload/props Go harus kompatibel dengan kontrak frontend Laravel.
+2. Pagination, filter, sorting, empty/loading/error states harus berperilaku sama.
+3. Format tanggal, angka, mata uang, dan teks error harus konsisten.
+4. Event realtime harus kompatibel (nama event, urutan, dan bentuk payload).
+5. Semua layar kritikal harus lolos uji side-by-side sebelum dinyatakan selesai.
+
+## 14. Rancangan Sinkronisasi Local ke Hosting
+
+Tujuan sinkronisasi:
+
+1. Mengirim ringkasan dan detail transaksi dari Go local ke Laravel hosting untuk monitoring online.
+2. Menjaga agar operasional bengkel tetap cepat di local tanpa menunggu koneksi hosting.
+3. Memberi audit trail yang jelas saat data berhasil dikirim, gagal dikirim, atau perlu retry.
+
+Model operasi yang disarankan:
+
+1. Local-first write: semua transaksi harian ditulis dulu ke Go local.
+2. Outbox sync queue: setiap data yang perlu dikirim ke hosting masuk ke antrian sinkron lokal.
+3. Scheduled sync: job harian mengirim data saat jam tutup atau saat koneksi stabil.
+4. Manual sync button: operator bisa memaksa kirim ulang jika dibutuhkan.
+5. Reconcile mode: hosting menandai data yang sudah diterima agar tidak double insert.
+
+Entitas yang disarankan untuk disinkronkan terlebih dahulu:
+
+1. Service order summary harian.
+2. Part sales harian.
+3. Part purchases harian.
+4. Cash movement / settlement harian.
+5. Snapshot stok dan perubahan penting.
+
+Aturan teknis:
+
+1. Gunakan `sync_batch_id` atau `source_event_id` sebagai idempotency key.
+2. Simpan status sinkron per batch: pending, sent, acknowledged, failed, retrying.
+3. Simpan error terakhir dan waktu percobaan terakhir.
+4. Jika hosting belum bisa diakses, data tetap aman di local dan masuk retry queue.
+5. Konflik data harus diselesaikan dengan aturan deterministik, bukan edit manual langsung pada payload.
+
+Opsi UI yang disarankan di Go local:
+
+1. Halaman manajemen sinkron dengan status terakhir.
+2. Tombol `Sync Now` untuk kirim batch pending.
+3. Tombol `Retry Failed` untuk batch yang gagal.
+4. Ringkasan `last synced at`, `pending count`, dan `failed count`.
+5. Log sinkron per hari yang bisa dibuka operator.
+
+Catatan implementasi:
+
+1. Sinkronisasi harus dipisah dari jalur transaksi utama agar tidak memperlambat kasir.
+2. Kegagalan sinkron tidak boleh menggagalkan transaksi lokal.
+3. Laravel hosting cukup menjadi penerima dan agregator monitoring, bukan pengontrol operasional local.
+
+## 15. Referensi Desain Sinkron
+
+Dokumen teknis utama untuk implementasi sinkronisasi ada di [GO_SYNC_DESIGN.md](GO_SYNC_DESIGN.md). Gunakan dokumen itu sebagai acuan untuk:
+
+1. Struktur tabel sinkron.
+2. Kontrak endpoint sync.
+3. Aturan idempotency dan retry.
+4. Desain dashboard manajemen sinkron di Go local.
+5. Mekanisme rekonsiliasi dan conflict handling.
+
+## 16. Referensi Tracking Migrasi
+
+Gunakan dokumen berikut sebagai acuan tracking operasional migrasi:
+
+1. `MIGRATION_MASTER_CHECKLIST.md` untuk status menyeluruh, weekly milestones, dan completion gate.
+2. `FRONTEND_PARITY_MATRIX.md` untuk parity layar per layar (Laravel-backed vs Go-backed).
+
+## 17. Operasional Scheduler Sync Go
+
+Tujuan bagian ini adalah memastikan sync harian berjalan otomatis tanpa intervensi manual.
+
+Konfigurasi env:
+
+```env
+GO_SYNC_ENABLED=true
+GO_SYNC_RUN_TIMEOUT_SECONDS=60
+GO_SYNC_RETRY_TIMEOUT_SECONDS=60
+GO_SYNC_ALERT_TIMEOUT_SECONDS=30
+GO_SYNC_RECONCILIATION_TIMEOUT_SECONDS=45
+GO_SYNC_RETRY_DEFAULT_LIMIT=5
+GO_SYNC_RETRY_MAX_LIMIT=200
+GO_SYNC_SCHEDULE_ENABLED=true
+GO_SYNC_SCHEDULE_DAILY_AT=23:40
+GO_SYNC_SCHEDULE_RETRY_LIMIT=5
+GO_SYNC_ALERT_ENABLED=true
+GO_SYNC_ALERT_FAILED_MINUTES=120
+GO_SYNC_ALERT_LIMIT=20
+GO_SYNC_RECONCILIATION_ENABLED=true
+GO_SYNC_RECONCILIATION_DAILY_AT=00:15
+GO_SYNC_RECONCILIATION_MAX_VARIANCE=5
+```
+
+Command operasional:
+
+```bash
+php artisan go:sync:run --scope=daily
+php artisan go:sync:retry-failed --limit=5
+php artisan go:sync:alert-long-failed --minutes=120 --limit=20
+php artisan go:sync:reconciliation-daily --max-variance-percent=5
+php artisan go:sync:benchmark-capacity --timeouts=60,120,180 --iterations=1
+```
+
+Contoh retry dengan backoff policy:
+
+```bash
+php artisan go:sync:retry-failed --limit=5 --base-minutes=5 --max-minutes=240 --respect-backoff=1
+```
+
+Jadwal yang terpasang saat scheduler aktif:
+
+1. `go:sync:run --scope=daily` dijalankan harian pada jam `GO_SYNC_SCHEDULE_DAILY_AT` (default 23:40).
+2. `go:sync:retry-failed --limit={GO_SYNC_SCHEDULE_RETRY_LIMIT}` dijalankan tiap 30 menit.
+3. `go:sync:alert-long-failed` dijalankan tiap 30 menit saat `GO_SYNC_ALERT_ENABLED=true`.
+4. `go:sync:reconciliation-daily` dijalankan harian pada jam `GO_SYNC_RECONCILIATION_DAILY_AT` (default 00:15) saat `GO_SYNC_RECONCILIATION_ENABLED=true`.
+
+Verifikasi jadwal:
+
+```bash
+php artisan schedule:list
+```
+
+Perintah reconciliation membandingkan:
+- Go backend: batch_total, pending, failed, acknowledged
+- Laravel received: received, acknowledged, duplicate, invalid, failed
+
+Jika variance % melampaui threshold (default 5%), command mengembalikan exit code 1 dan menlog alert.
+
+Profil tuning awal (disarankan):
+
+1. Dataset kecil/menengah: timeout run/retry 60 detik, retry default limit 5.
+2. Dataset besar (jam sibuk): timeout run/retry 120-180 detik, retry default limit 10-20.
+3. Batas aman: `GO_SYNC_RETRY_MAX_LIMIT` jangan di atas 200 tanpa load test, untuk mencegah lonjakan request retry serentak.
+
+Command benchmark kapasitas:
+
+```bash
+php artisan go:sync:benchmark-capacity --timeouts=60,120,180 --iterations=3
+```
+
+Output benchmark menampilkan:
+
+1. Ringkasan per timeout: success/failed, min/avg/p95/max latency.
+2. Detail per percobaan: duration, HTTP status, send status, batch id.
+3. Log terstruktur ke aplikasi: `go_sync_capacity_benchmark`.
+
+Baseline lokal terakhir (2026-04-11, `--iterations=10`):
+
+1. Timeout 60s: success 10/10, p95 351.94 ms, max 372.63 ms, HTTP 200 acknowledged.
+2. Timeout 120s: success 10/10, p95 313.91 ms, max 316.52 ms, HTTP 200 acknowledged.
+3. Timeout 180s: success 10/10, p95 269.08 ms, max 275.69 ms, HTTP 200 acknowledged.
+
+Rekomendasi final sementara (berdasarkan benchmark lokal):
+
+1. Pertahankan default `GO_SYNC_RUN_TIMEOUT_SECONDS=60` dan `GO_SYNC_RETRY_TIMEOUT_SECONDS=60`.
+2. Simpan `GO_SYNC_ALERT_TIMEOUT_SECONDS=30` dan `GO_SYNC_RECONCILIATION_TIMEOUT_SECONDS=45`.
+3. Naikkan timeout ke 120 hanya jika pada traffic nyata p95 mulai mendekati 60.000 ms.
+
+### 17.1 Threshold Mismatch dan Sign-off
+
+Matrix threshold operasional (baseline):
+
+| Area | Indikator | Warning | Critical | Keputusan |
+| --- | --- | --- | --- | --- |
+| Sync Reconciliation | Variance batch_total | > 5% | > 10% | Warning: investigasi harian, Critical: freeze canary increase |
+| Sync Reconciliation | Variance acknowledged_total | > 5% | > 10% | Warning: retry + audit, Critical: eskalasi on-call |
+| Shadow Compare | mismatch_rate per fitur | > 2% | > 5% | Warning: tambah sampling, Critical: rollback fitur ke Laravel |
+| Shadow Compare | skipped_rate per fitur | > 20% | > 35% | Warning: perbaiki endpoint parity, Critical: stop evaluasi parity |
+| Failed Batch Aging | failed batch > 120 menit | >= 1 batch | >= 5 batch | Warning: retry manual, Critical: incident response |
+
+Proses sign-off bisnis:
+
+1. Laporan mingguan dikirim ke product owner berisi variance, mismatch_rate, skipped_rate.
+2. Sign-off diberikan jika 7 hari berturut-turut semua indikator berada di bawah level warning.
+3. Jika ada indikator di level critical, sign-off otomatis ditunda sampai 3 hari stabil kembali.
+
+### 17.2 SOP Konflik dan Incident Sync
+
+Peran utama:
+
+1. Operator shift: menjalankan cek rutin scheduler dan retry manual awal.
+2. On-call engineer: analisis root cause, patch konfigurasi, dan pemulihan data.
+3. Product owner: keputusan freeze/lanjut canary dan validasi dampak bisnis.
+
+SLA respons:
+
+1. P1 (critical mismatch atau backlog failed >= 5): acknowledge <= 15 menit, mitigasi awal <= 60 menit.
+2. P2 (warning berulang > 2 siklus): acknowledge <= 60 menit, mitigasi <= 4 jam.
+3. P3 (anomali minor): review pada daily ops berikutnya.
+
+Runbook incident singkat:
+
+1. Jalankan cek status:
+  - `php artisan go:sync:alert-long-failed --minutes=120 --limit=50`
+  - `php artisan go:sync:reconciliation-daily --max-variance-percent=5`
+2. Jika ada batch failed, lakukan retry terkontrol:
+  - `php artisan go:sync:retry-failed --limit=20 --base-minutes=5 --max-minutes=240 --respect-backoff=1`
+3. Jika variance tetap critical setelah 2 siklus retry, nonaktifkan kenaikan canary dan pin endpoint bermasalah ke Laravel.
+4. Catat incident ke log operasional dengan data: waktu, batch_id terdampak, indikator threshold, tindakan, hasil.
+5. Tutup incident hanya jika 2 siklus reconciliation berikutnya kembali di bawah warning.
+
+Automasi Windows Task Scheduler (local dev):
+
+```powershell
+.\scripts\register-laravel-scheduler-task.ps1 -RunNow
+```
+
+Perintah ini membuat task `POS-Bengkel-Laravel-Scheduler` yang menjalankan `php artisan schedule:run` setiap 1 menit.
+
+Untuk menghentikan automasi:
+
+```powershell
+.\scripts\unregister-laravel-scheduler-task.ps1
+```
+
 Bagian ini merangkum masalah lokal yang sempat terjadi beserta konfigurasi/fix yang terbukti stabil.
 
 ### 12.1 Domain Herd dan APP_URL
@@ -389,6 +621,21 @@ php artisan view:clear
 Jika muncul `GET /storage/products/default.jpg 404`:
 1. Tambahkan file default image di `storage/app/public/products/default.jpg`, atau
 2. Ubah fallback path image di kode sesuai asset yang tersedia.
+
+### 12.6 Go API Single-Instance (Anti Port Conflict)
+
+Jika Go API sering gagal start dengan error bind port 8081, gunakan script single-instance berikut:
+
+```bash
+scripts\stop-go-api-single.ps1 -Port 8081
+scripts\start-go-api-single.ps1 -Port 8081 -KillExisting
+```
+
+Catatan:
+1. Script `start-go-api-single.ps1` melakukan preflight cek listener pada port target.
+2. Jika port sudah dipakai dan `-KillExisting` tidak dipakai, script akan berhenti dengan pesan jelas.
+3. Untuk stop service secara eksplisit gunakan `stop-go-api-single.ps1`.
+4. Hindari menjalankan `api.exe` berulang tanpa stop karena dapat memicu konflik bind socket.
 
 
 Dokumen ini menggantikan catatan teknis terpisah yang sebelumnya tersebar di banyak file markdown.
