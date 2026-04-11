@@ -60,3 +60,44 @@ Tambahan status (2026-03-28):
   - `php artisan schedule:list`
 - Untuk cek command Reverb yang tersedia:
   - `php artisan list | findstr /i reverb`
+
+## Update Progress Migrasi Go-Laravel (2026-04-11)
+
+Ringkasan ini dipakai untuk weekly review lintas tim (engineering, QA, operasi, bisnis).
+
+### Status Umum
+
+- Engineering core sync: 95% (stabil, command utama tersedia, benchmark tervalidasi).
+- Dokumentasi operasional: 100% (SOP, incident runbook, UAT checklist, sign-off template).
+- UAT parity frontend: in progress (template siap, eksekusi per screen belum selesai).
+- Business sign-off threshold: menunggu baseline 7 hari.
+
+### Yang Sudah Selesai (Teknis)
+
+- [x] Core sync command: `go:sync:run`, `go:sync:retry-failed`, `go:sync:alert-long-failed`, `go:sync:reconciliation-daily`, `go:sync:benchmark-capacity`.
+- [x] Timeout dan retry limit fully configurable via env (`GO_SYNC_*`).
+- [x] Benchmark kapasitas: 30/30 run sukses, p95 latency terukur dan stabil.
+- [x] Shadow compare helper + integrasi di controller prioritas.
+- [x] Import module (master + transaksi) beserta UI Import dan UI Sync dashboard.
+- [x] Retention purge policy: command `go:sync:purge-old` + scheduler harian.
+- [x] Repo hygiene: commit sudah terkelompok, artefak biner lokal di-ignore.
+
+### Yang Masih In Progress
+
+- [~] Retry/backoff prolonged-failure test cycle (observasi lebih panjang).
+- [~] Alerting integration ke channel notifikasi produksi (di luar log aplikasi).
+- [~] Frontend parity side-by-side UAT untuk screen kritis.
+- [~] Kalibrasi mismatch threshold final per fitur untuk persetujuan bisnis.
+
+### Blocking Non-Engineering
+
+- [ ] UAT execution oleh QA untuk seluruh screen kritis.
+- [ ] Persetujuan bisnis berdasarkan metrik 7 hari (variance/mismatch/skipped rate).
+- [ ] Final release gate approval lintas owner.
+
+### Next Action 7 Hari
+
+1. Jalankan `go:sync:reconciliation-daily` harian dan kumpulkan metrik ke template sign-off.
+2. Jalankan UAT parity untuk 3 screen prioritas dulu: Appointment Index, Service Order Index, Vehicle Index.
+3. Eksekusi dry-run retention mingguan: `php artisan go:sync:purge-old --days=30 --dry-run=1`.
+4. Review mingguan dengan PO/QA lead untuk keputusan canary ramp.
