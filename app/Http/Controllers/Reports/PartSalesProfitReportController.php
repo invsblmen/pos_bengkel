@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Reports;
 
 use App\Http\Controllers\Controller;
+use App\Support\GoFeatureToggle;
+use App\Support\GoShadowComparator;
 use App\Models\PartSale;
 use App\Models\PartSaleDetail;
 use Illuminate\Support\Carbon;
@@ -19,7 +21,7 @@ class PartSalesProfitReportController extends Controller
 {
     public function index(Request $request)
     {
-        if ((bool) config('go_backend.features.report_part_sales_profit', false)) {
+        if (GoFeatureToggle::shouldUseGo('report_part_sales_profit', $request)) {
             $proxied = $this->reportIndexViaGo($request);
             if ($proxied !== null) {
                 return Inertia::render('Dashboard/Reports/PartSalesProfit', $proxied);
@@ -182,12 +184,16 @@ class PartSalesProfitReportController extends Controller
                 ->all();
         }))->values();
 
-        return Inertia::render('Dashboard/Reports/PartSalesProfit', [
+        $payload = [
             'sales' => $sales,
             'summary' => $summary,
             'topParts' => $topParts,
             'filters' => $filters,
-        ]);
+        ];
+
+        $this->shadowComparePartSalesProfitIndex($request, $payload);
+
+        return Inertia::render('Dashboard/Reports/PartSalesProfit', $payload);
     }
 
     /**
@@ -204,7 +210,7 @@ class PartSalesProfitReportController extends Controller
      */
     public function bySupplier(Request $request)
     {
-        if ((bool) config('go_backend.features.report_part_sales_profit', false)) {
+        if (GoFeatureToggle::shouldUseGo('report_part_sales_profit', $request)) {
             $proxied = $this->reportBySupplierViaGo($request);
             if ($proxied !== null) {
                 return response()->json($proxied);
@@ -249,10 +255,139 @@ class PartSalesProfitReportController extends Controller
                 return $item;
             });
 
-        return response()->json([
+        $payload = [
             'supplier_performance' => $profitBySupplier,
             'filters' => $filters,
-        ]);
+        ];
+
+        $this->shadowComparePartSalesProfitBySupplier($request, $payload);
+
+        return response()->json($payload);
+    }
+
+    private function shadowComparePartSalesProfitIndex(Request $request, array $laravelPayload): void
+    {
+        if (! (bool) config('go_backend.shadow_compare.enabled', false)) {
+            return;
+        }
+
+        $sampleRate = (int) config('go_backend.shadow_compare.sample_rate', 100);
+        if ($sampleRate < 100 && random_int(1, 100) > max(0, $sampleRate)) {
+            return;
+        }
+
+        $goPayload = $this->reportIndexViaGo($request);
+        $ignorePaths = (array) config('go_backend.shadow_compare.ignore_paths', []);
+        $requestId = (string) ($request->header('X-Request-Id') ?: Str::uuid());
+
+        $normalizedLaravel = $this->normalizePartSalesProfitShadowPayload($laravelPayload);
+        $normalizedGo = $goPayload !== null ? $this->normalizePartSalesProfitShadowPayload($goPayload) : null;
+
+        GoShadowComparator::compareAndLog(
+            feature: 'report_part_sales_profit',
+            laravelPayload: $normalizedLaravel,
+            goPayload: $normalizedGo,
+            ignorePaths: $ignorePaths,
+            requestId: $requestId,
+            context: [
+                'uri' => $request->path(),
+                'method' => $request->method(),
+            ]
+        );
+    }
+
+    private function normalizePartSalesProfitShadowPayload(array $payload): array
+    {
+        $summary = (array) ($payload['summary'] ?? []);
+        $filters = (array) ($payload['filters'] ?? []);
+        $sales = (array) ($payload['sales'] ?? []);
+
+        $salesRows = collect($sales['data'] ?? [])
+            ->map(function ($item) {
+                $row = (array) $item;
+                $user = (array) ($row['user'] ?? []);
+
+                return [
+                    'id' => (int) ($row['id'] ?? 0),
+                    'reference' => (string) ($row['sale_number'] ?? $row['invoice'] ?? ''),
+                    'created_at' => (string) ($row['created_at'] ?? ''),
+                    'user_id' => isset($user['id']) ? (int) $user['id'] : null,
+                    'total_cost' => (int) ($row['total_cost'] ?? 0),
+                    'total_revenue' => (int) ($row['total_revenue'] ?? 0),
+                    'total_profit' => (int) ($row['total_profit'] ?? 0),
+                    'profit_margin' => round((float) ($row['profit_margin'] ?? 0), 2),
+                ];
+            })
+            ->values()
+            ->all();
+
+        $topParts = collect($payload['topParts'] ?? [])
+            ->map(function ($item) {
+                $row = (array) $item;
+                return [
+                    'part_name' => (string) ($row['part_name'] ?? ''),
+                    'part_sku' => (string) ($row['part_sku'] ?? ''),
+                    'total_quantity' => (int) ($row['total_quantity'] ?? 0),
+                    'total_profit' => (int) ($row['total_profit'] ?? 0),
+                    'avg_margin' => round((float) ($row['avg_margin'] ?? 0), 2),
+                ];
+            })
+            ->sortBy('part_sku')
+            ->values()
+            ->all();
+
+        return [
+            'filters' => [
+                'start_date' => (string) ($filters['start_date'] ?? ''),
+                'end_date' => (string) ($filters['end_date'] ?? ''),
+                'invoice' => isset($filters['invoice']) ? (string) $filters['invoice'] : null,
+            ],
+            'summary' => [
+                'total_cost' => (int) ($summary['total_cost'] ?? 0),
+                'total_revenue' => (int) ($summary['total_revenue'] ?? 0),
+                'total_profit' => (int) ($summary['total_profit'] ?? 0),
+                'profit_margin' => round((float) ($summary['profit_margin'] ?? 0), 2),
+                'average_profit_per_order' => (int) ($summary['average_profit_per_order'] ?? 0),
+                'orders_count' => (int) ($summary['orders_count'] ?? 0),
+                'items_sold' => (int) ($summary['items_sold'] ?? 0),
+            ],
+            'sales' => [
+                'current_page' => (int) ($sales['current_page'] ?? 1),
+                'last_page' => (int) ($sales['last_page'] ?? 1),
+                'per_page' => (int) ($sales['per_page'] ?? 15),
+                'total' => (int) ($sales['total'] ?? 0),
+                'data' => $salesRows,
+            ],
+            'topParts' => $topParts,
+        ];
+    }
+
+    private function shadowComparePartSalesProfitBySupplier(Request $request, array $laravelPayload): void
+    {
+        if (! (bool) config('go_backend.shadow_compare.enabled', false)) {
+            return;
+        }
+
+        $sampleRate = (int) config('go_backend.shadow_compare.sample_rate', 100);
+        if ($sampleRate < 100 && random_int(1, 100) > max(0, $sampleRate)) {
+            return;
+        }
+
+        $goPayload = $this->reportBySupplierViaGo($request);
+        $ignorePaths = (array) config('go_backend.shadow_compare.ignore_paths', []);
+        $requestId = (string) ($request->header('X-Request-Id') ?: Str::uuid());
+
+        GoShadowComparator::compareAndLog(
+            feature: 'report_part_sales_profit_by_supplier',
+            laravelPayload: $laravelPayload,
+            goPayload: $goPayload,
+            ignorePaths: $ignorePaths,
+            requestId: $requestId,
+            context: [
+                'uri' => $request->path(),
+                'method' => $request->method(),
+            ]
+        );
     }
 
     private function reportIndexViaGo(Request $request): ?array
@@ -273,6 +408,7 @@ class PartSalesProfitReportController extends Controller
             if (! $response->successful() || ! is_array($json)) {
                 Log::warning('Part sales profit Go bridge returned an invalid response', [
                     'status' => $response->status(),
+                    'body' => Str::limit((string) $response->body(), 500),
                 ]);
 
                 return null;
@@ -314,6 +450,7 @@ class PartSalesProfitReportController extends Controller
             if (! $response->successful() || ! is_array($json)) {
                 Log::warning('Part sales profit by supplier Go bridge returned an invalid response', [
                     'status' => $response->status(),
+                    'body' => Str::limit((string) $response->body(), 500),
                 ]);
 
                 return null;

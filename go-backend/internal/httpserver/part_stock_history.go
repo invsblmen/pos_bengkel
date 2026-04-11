@@ -3,6 +3,7 @@ package httpserver
 import (
 	"database/sql"
 	"encoding/csv"
+	"fmt"
 	"math"
 	"net/http"
 	"net/url"
@@ -26,8 +27,14 @@ func partStockHistoryIndexHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
+		referenceColumn, err := detectPartSaleReferenceColumn(db)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, response{"message": "failed to detect part sales reference column"})
+			return
+		}
+
 		params := parsePartStockHistoryParams(r)
-		movements, err := queryPartStockHistoryPage(db, r.URL.Query(), params)
+		movements, err := queryPartStockHistoryPage(db, r.URL.Query(), params, referenceColumn)
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, response{"message": "failed to read stock movements"})
 			return
@@ -67,8 +74,14 @@ func partStockHistoryExportHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
+		referenceColumn, err := detectPartSaleReferenceColumn(db)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, response{"message": "failed to detect part sales reference column"})
+			return
+		}
+
 		params := parsePartStockHistoryParams(r)
-		rows, err := queryPartStockHistoryExportRows(db, params)
+		rows, err := queryPartStockHistoryExportRows(db, params, referenceColumn)
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, response{"message": "failed to export stock movements"})
 			return
@@ -111,12 +124,12 @@ func parsePartStockHistoryParams(r *http.Request) partStockHistoryParams {
 	}
 }
 
-func queryPartStockHistoryPage(db *sql.DB, query url.Values, params partStockHistoryParams) (response, error) {
+func queryPartStockHistoryPage(db *sql.DB, query url.Values, params partStockHistoryParams, referenceColumn string) (response, error) {
 	if params.PerPage > 100 {
 		params.PerPage = 100
 	}
 
-	whereClause, args := buildPartStockHistoryWhereClause(params)
+	whereClause, args := buildPartStockHistoryWhereClause(params, referenceColumn)
 	countQuery := `
 		SELECT COUNT(*)
 		FROM part_stock_movements psm
@@ -145,15 +158,15 @@ func queryPartStockHistoryPage(db *sql.DB, query url.Values, params partStockHis
 		currentPage = lastPage
 	}
 
-	dataQuery := `
+	dataQuery := fmt.Sprintf(`
 		SELECT psm.id, psm.type, psm.qty, psm.before_stock, psm.after_stock,
 		       psm.reference_type, psm.reference_id, psm.notes,
-		       DATE_FORMAT(psm.created_at, '%Y-%m-%d %H:%i:%s') AS created_at,
+		       DATE_FORMAT(psm.created_at, '%%Y-%%m-%%d %%H:%%i:%%s') AS created_at,
 		       p.id, p.name, p.part_number,
 		       s.id, s.name,
 		       u.id, u.name,
 		       pp.purchase_number,
-		       COALESCE(ps.sale_number, ps.invoice) AS sale_number,
+		       COALESCE(ps.%s, '') AS sale_number,
 		       pso.order_number,
 		       ppo.po_number
 		FROM part_stock_movements psm
@@ -164,10 +177,10 @@ func queryPartStockHistoryPage(db *sql.DB, query url.Values, params partStockHis
 		LEFT JOIN part_sales ps ON psm.reference_type = 'App\\Models\\PartSale' AND psm.reference_id = ps.id
 		LEFT JOIN part_sales_orders pso ON psm.reference_type = 'App\\Models\\PartSalesOrder' AND psm.reference_id = pso.id
 		LEFT JOIN part_purchase_orders ppo ON psm.reference_type = 'App\\Models\\PartPurchaseOrder' AND psm.reference_id = ppo.id
-	` + whereClause + `
+		%s
 		ORDER BY psm.created_at DESC, psm.id DESC
 		LIMIT ? OFFSET ?
-	`
+	`, referenceColumn, whereClause)
 
 	queryArgs := append([]any{}, args...)
 	queryArgs = append(queryArgs, params.PerPage, (currentPage-1)*params.PerPage)
@@ -294,7 +307,7 @@ func queryPartStockHistoryPage(db *sql.DB, query url.Values, params partStockHis
 	}, nil
 }
 
-func buildPartStockHistoryWhereClause(params partStockHistoryParams) (string, []any) {
+func buildPartStockHistoryWhereClause(params partStockHistoryParams, referenceColumn string) (string, []any) {
 	clauses := []string{"(psm.reference_type IN ('App\\Models\\PartPurchase','App\\Models\\PartSale','App\\Models\\PartSalesOrder','App\\Models\\PartPurchaseOrder') OR psm.reference_type IS NULL)"}
 	args := make([]any, 0)
 
@@ -316,7 +329,7 @@ func buildPartStockHistoryWhereClause(params partStockHistoryParams) (string, []
 	}
 	if params.Q != "" {
 		search := "%" + params.Q + "%"
-		clauses = append(clauses, `(COALESCE(psm.notes, '') LIKE ? OR COALESCE(p.name, '') LIKE ? OR COALESCE(p.part_number, '') LIKE ? OR COALESCE(pp.purchase_number, '') LIKE ? OR COALESCE(ps.sale_number, ps.invoice, '') LIKE ? OR COALESCE(pso.order_number, '') LIKE ? OR COALESCE(ppo.po_number, '') LIKE ?)`)
+		clauses = append(clauses, fmt.Sprintf(`(COALESCE(psm.notes, '') LIKE ? OR COALESCE(p.name, '') LIKE ? OR COALESCE(p.part_number, '') LIKE ? OR COALESCE(pp.purchase_number, '') LIKE ? OR COALESCE(ps.%s, '') LIKE ? OR COALESCE(pso.order_number, '') LIKE ? OR COALESCE(ppo.po_number, '') LIKE ?)`, referenceColumn))
 		args = append(args, search, search, search, search, search, search, search)
 	}
 
@@ -378,16 +391,16 @@ type partStockHistoryExportRow struct {
 	notes        string
 }
 
-func queryPartStockHistoryExportRows(db *sql.DB, params partStockHistoryParams) ([]partStockHistoryExportRow, error) {
-	whereClause, args := buildPartStockHistoryWhereClause(params)
-	q := `
-		SELECT DATE_FORMAT(psm.created_at, '%Y-%m-%d %H:%i:%s') AS created_at,
+func queryPartStockHistoryExportRows(db *sql.DB, params partStockHistoryParams, referenceColumn string) ([]partStockHistoryExportRow, error) {
+	whereClause, args := buildPartStockHistoryWhereClause(params, referenceColumn)
+	q := fmt.Sprintf(`
+		SELECT DATE_FORMAT(psm.created_at, '%%Y-%%m-%%d %%H:%%i:%%s') AS created_at,
 		       COALESCE(p.name, '') AS part_name,
 		       COALESCE(psm.type, '') AS movement_type,
 		       CAST(COALESCE(psm.qty, 0) AS CHAR) AS qty,
 		       CAST(COALESCE(psm.before_stock, 0) AS CHAR) AS before_stock,
 		       CAST(COALESCE(psm.after_stock, 0) AS CHAR) AS after_stock,
-		       COALESCE(pp.purchase_number, pso.order_number, ppo.po_number, ps.sale_number, ps.invoice, '') AS reference_label,
+		       COALESCE(pp.purchase_number, pso.order_number, ppo.po_number, COALESCE(ps.%s, ''), '') AS reference_label,
 		       COALESCE(s.name, '') AS supplier_name,
 		       COALESCE(u.name, '') AS user_name,
 		       COALESCE(psm.notes, '') AS notes
@@ -399,9 +412,9 @@ func queryPartStockHistoryExportRows(db *sql.DB, params partStockHistoryParams) 
 		LEFT JOIN part_sales ps ON psm.reference_type = 'App\\Models\\PartSale' AND psm.reference_id = ps.id
 		LEFT JOIN part_sales_orders pso ON psm.reference_type = 'App\\Models\\PartSalesOrder' AND psm.reference_id = pso.id
 		LEFT JOIN part_purchase_orders ppo ON psm.reference_type = 'App\\Models\\PartPurchaseOrder' AND psm.reference_id = ppo.id
-	` + whereClause + `
+		%s
 		ORDER BY psm.created_at DESC, psm.id DESC
-	`
+	`, referenceColumn, whereClause)
 
 	rows, err := db.Query(q, args...)
 	if err != nil {

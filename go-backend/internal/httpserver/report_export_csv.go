@@ -201,12 +201,17 @@ func exportOverallCSV(writer *csv.Writer, db *sql.DB, r *http.Request, startDate
 		Source:    source,
 	}
 
+	referenceColumn, err := detectPartSaleReferenceColumn(db)
+	if err != nil {
+		return err
+	}
+
 	outerWhere, outerArgs := overallOuterWhere(filters, status)
 	query := `
 		SELECT event_at, source, reference, description, flow, amount, status,
 		       SUM(CASE WHEN flow = 'in' THEN amount WHEN flow = 'out' THEN -amount ELSE 0 END)
 		         OVER (ORDER BY event_at ASC, reference ASC) AS running_balance
-		FROM (` + overallRowsSubquery() + `) rows` + outerWhere + `
+		FROM (` + overallRowsSubquery(referenceColumn) + `) rows` + outerWhere + `
 		ORDER BY event_at DESC, reference DESC
 	`
 

@@ -9,6 +9,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Vehicle;
 use App\Models\Customer;
 use App\Support\DispatchesBroadcastSafely;
+use App\Support\GoFeatureToggle;
+use App\Support\GoShadowComparator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -20,7 +22,7 @@ class VehicleController extends Controller
 
     public function index(Request $request)
     {
-        if ((bool) config('go_backend.features.vehicle_index', false)) {
+        if (GoFeatureToggle::shouldUseGo('vehicle_index', $request)) {
             $proxied = $this->vehicleIndexViaGo($request);
             if ($proxied !== null) {
                 return inertia('Dashboard/Vehicles/Index', $proxied);
@@ -86,7 +88,7 @@ class VehicleController extends Controller
             'this_month'     => Vehicle::whereHas('serviceOrders', fn ($q) => $q->whereMonth('created_at', now()->month)->whereYear('created_at', now()->year))->count(),
         ];
 
-        return inertia('Dashboard/Vehicles/Index', [
+        $payload = [
             'vehicles' => $vehicles,
             'stats'    => $stats,
             'filters' => [
@@ -99,7 +101,39 @@ class VehicleController extends Controller
                 'sort_direction' => $sortDirection,
                 'per_page' => $perPage,
             ],
-        ]);
+        ];
+
+        $this->shadowCompareVehicleIndex($request, $payload);
+
+        return inertia('Dashboard/Vehicles/Index', $payload);
+    }
+
+    private function shadowCompareVehicleIndex(Request $request, array $laravelPayload): void
+    {
+        if (! (bool) config('go_backend.shadow_compare.enabled', false)) {
+            return;
+        }
+
+        $sampleRate = (int) config('go_backend.shadow_compare.sample_rate', 100);
+        if ($sampleRate < 100 && random_int(1, 100) > max(0, $sampleRate)) {
+            return;
+        }
+
+        $goPayload = $this->vehicleIndexViaGo($request);
+        $ignorePaths = (array) config('go_backend.shadow_compare.ignore_paths', []);
+        $requestId = (string) ($request->header('X-Request-Id') ?: Str::uuid());
+
+        GoShadowComparator::compareAndLog(
+            feature: 'vehicle_index',
+            laravelPayload: $laravelPayload,
+            goPayload: $goPayload,
+            ignorePaths: $ignorePaths,
+            requestId: $requestId,
+            context: [
+                'uri' => $request->path(),
+                'method' => $request->method(),
+            ]
+        );
     }
 
     private function vehicleIndexViaGo(Request $request): ?array
@@ -762,8 +796,10 @@ class VehicleController extends Controller
 
     public function maintenanceInsights($id)
     {
-        if ((bool) config('go_backend.features.vehicle_insights', false)) {
-            $proxied = $this->maintenanceInsightsViaGo((string) $id, request());
+        $request = request();
+
+        if (GoFeatureToggle::shouldUseGo('vehicle_insights', $request)) {
+            $proxied = $this->maintenanceInsightsViaGo((string) $id, $request);
             if ($proxied !== null) {
                 return $proxied;
             }
@@ -820,12 +856,16 @@ class VehicleController extends Controller
             }
         }
 
-        return response()->json([
+        $payload = [
             'vehicle_km' => $calculatedData['km'],
             'last_service_date' => $calculatedData['last_service_date'],
             'next_service_date' => $calculatedData['next_service_date'],
             'last_km' => $lastKm,
-        ]);
+        ];
+
+        $this->shadowCompareMaintenanceInsights($request, (string) $id, $payload);
+
+        return response()->json($payload);
     }
 
     private function maintenanceInsightsViaGo(string $vehicleId, Request $request): ?\Illuminate\Http\JsonResponse
@@ -985,8 +1025,10 @@ class VehicleController extends Controller
 
     public function getServiceHistory($id)
     {
-        if ((bool) config('go_backend.features.vehicle_service_history', false)) {
-            $proxied = $this->serviceHistoryViaGo((string) $id, request());
+        $request = request();
+
+        if (GoFeatureToggle::shouldUseGo('vehicle_service_history', $request)) {
+            $proxied = $this->serviceHistoryViaGo((string) $id, $request);
             if ($proxied !== null) {
                 return $proxied;
             }
@@ -1036,16 +1078,82 @@ class VehicleController extends Controller
                     ];
                 });
 
-            return response()->json([
+            $payload = [
                 'service_orders' => $serviceOrders,
-            ]);
+            ];
+
+            $this->shadowCompareServiceHistory($request, (string) $id, $payload);
+
+            return response()->json($payload);
         } catch (\Exception $e) {
             Log::error('Error fetching service history: ' . $e->getMessage());
-            return response()->json([
+            $payload = [
                 'service_orders' => [],
                 'error' => $e->getMessage()
-            ], 500);
+            ];
+
+            $this->shadowCompareServiceHistory($request, (string) $id, $payload);
+
+            return response()->json($payload, 500);
         }
+    }
+
+    private function shadowCompareMaintenanceInsights(Request $request, string $vehicleId, array $laravelPayload): void
+    {
+        if (! (bool) config('go_backend.shadow_compare.enabled', false)) {
+            return;
+        }
+
+        $sampleRate = (int) config('go_backend.shadow_compare.sample_rate', 100);
+        if ($sampleRate < 100 && random_int(1, 100) > max(0, $sampleRate)) {
+            return;
+        }
+
+        $goResponse = $this->maintenanceInsightsViaGo($vehicleId, $request);
+        $goPayload = $goResponse?->getData(true);
+        $ignorePaths = (array) config('go_backend.shadow_compare.ignore_paths', []);
+        $requestId = (string) ($request->header('X-Request-Id') ?: Str::uuid());
+
+        GoShadowComparator::compareAndLog(
+            feature: 'vehicle_insights',
+            laravelPayload: $laravelPayload,
+            goPayload: is_array($goPayload) ? $goPayload : null,
+            ignorePaths: $ignorePaths,
+            requestId: $requestId,
+            context: [
+                'uri' => $request->path(),
+                'method' => $request->method(),
+            ]
+        );
+    }
+
+    private function shadowCompareServiceHistory(Request $request, string $vehicleId, array $laravelPayload): void
+    {
+        if (! (bool) config('go_backend.shadow_compare.enabled', false)) {
+            return;
+        }
+
+        $sampleRate = (int) config('go_backend.shadow_compare.sample_rate', 100);
+        if ($sampleRate < 100 && random_int(1, 100) > max(0, $sampleRate)) {
+            return;
+        }
+
+        $goResponse = $this->serviceHistoryViaGo($vehicleId, $request);
+        $goPayload = $goResponse?->getData(true);
+        $ignorePaths = (array) config('go_backend.shadow_compare.ignore_paths', []);
+        $requestId = (string) ($request->header('X-Request-Id') ?: Str::uuid());
+
+        GoShadowComparator::compareAndLog(
+            feature: 'vehicle_service_history',
+            laravelPayload: $laravelPayload,
+            goPayload: is_array($goPayload) ? $goPayload : null,
+            ignorePaths: $ignorePaths,
+            requestId: $requestId,
+            context: [
+                'uri' => $request->path(),
+                'method' => $request->method(),
+            ]
+        );
     }
 
     private function serviceHistoryViaGo(string $vehicleId, Request $request): ?\Illuminate\Http\JsonResponse

@@ -2,6 +2,23 @@
 
 Dokumen ini adalah rencana praktis untuk migrasi bertahap backend POS Bengkel dari Laravel ke Go tanpa big-bang rewrite.
 
+## 0. Tujuan Akhir Migrasi
+
+Target akhir proyek ini adalah dua implementasi dari sistem yang sama:
+
+- Laravel tetap berjalan di server hosting sebagai layer online, monitoring, dan fallback operasional.
+- Go berjalan di local sebagai layer utama saat bengkel membutuhkan performa, mobilitas, dan kecepatan tinggi.
+- Keduanya harus setara secara perilaku bisnis; perbedaan hanya boleh ada di bahasa implementasi dan karakteristik performa.
+- Sinkronisasi data dari Go local ke hosting menjadi kebutuhan lanjutan untuk monitoring online, idealnya lewat jadwal harian atau trigger saat bengkel tutup.
+- Mekanisme sinkronisasi bisa berupa job terjadwal, tombol manual di manajemen sinkron, atau kombinasi keduanya, selama alur audit tetap jelas.
+
+Prinsip kerja:
+
+1. Laravel adalah source of truth untuk kebutuhan hosting dan akses online.
+2. Go adalah source of execution untuk operasi harian lokal di bengkel.
+3. Parity bisnis harus dijaga dengan contract test, shadow compare, dan rekonsiliasi data.
+4. Fitur sync tidak boleh mengubah aturan bisnis, hanya memindahkan data hasil operasi lokal ke hosting.
+
 ## 1. Kondisi Saat Ini (Baseline)
 
 Berdasarkan inventaris project saat ini:
@@ -193,6 +210,31 @@ Deliverable:
 
 - Pertahankan kanal realtime existing dulu agar frontend tidak terganggu.
 - Gunakan helper safe dispatch untuk menghindari 500 saat transport bermasalah.
+
+## 5.5 Sinkronisasi Local ke Hosting
+
+- Gunakan model local-first write, lalu kirim salinan ringkas atau detail hasil operasi ke hosting.
+- Tambahkan outbox sinkron agar data tidak hilang saat jaringan hosting sedang bermasalah.
+- Jadwalkan sinkron harian saat jam tutup, lalu sediakan tombol manual untuk `Sync Now` dan `Retry Failed`.
+- Gunakan idempotency key agar pengiriman ulang tidak menimbulkan double insert.
+- Hosting menerima data sebagai target monitoring dan rekonsiliasi, bukan sebagai sumber operasi harian.
+- Detail desain implementasi, tabel, dan endpoint ada di [GO_SYNC_DESIGN.md](GO_SYNC_DESIGN.md).
+
+Rekomendasi urutan data sinkron:
+
+1. Ringkasan service order harian.
+2. Ringkasan part sales dan part purchases harian.
+3. Cash movement / settlement.
+4. Snapshot stok dan delta penting.
+5. Detail transaksi hanya jika dibutuhkan untuk audit atau laporan tertentu.
+
+Kontrol wajib:
+
+1. Status sinkron per batch.
+2. Retry policy dengan backoff.
+3. Audit log per pengiriman.
+4. Rekonsiliasi jumlah data per hari.
+5. Notifikasi bila ada batch yang gagal terlalu lama.
 
 ## 6. Risiko Kritis dan Mitigasi
 

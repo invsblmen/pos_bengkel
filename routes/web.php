@@ -26,6 +26,8 @@ use App\Http\Controllers\Apps\PartStockHistoryController;
 use App\Http\Controllers\Apps\LowStockAlertController;
 use App\Http\Controllers\Apps\CashManagementController;
 use App\Http\Controllers\Apps\VoucherController;
+use App\Http\Controllers\Apps\DataImportController;
+use App\Http\Controllers\Apps\SyncController;
 use App\Http\Controllers\Apps\WhatsAppLogController;
 use App\Http\Controllers\Apps\WhatsAppGoController;
 use App\Http\Controllers\Webhooks\WhatsAppWebhookController;
@@ -157,6 +159,21 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
         ->middlewareFor(['create', 'store'], 'permission:vouchers-create')
         ->middlewareFor(['edit', 'update'], 'permission:vouchers-edit')
         ->middlewareFor('destroy', 'permission:vouchers-delete');
+
+    // Data import management
+    Route::get('/imports', [DataImportController::class, 'index'])
+        ->middleware('permission:reports-access')
+        ->name('imports.index');
+    Route::post('/imports', [DataImportController::class, 'store'])
+        ->middleware('permission:reports-access')
+        ->name('imports.store');
+    Route::get('/imports/templates/{type}', [DataImportController::class, 'template'])
+        ->middleware('permission:reports-access')
+        ->name('imports.template');
+
+    Route::get('/sync', [SyncController::class, 'index'])
+        ->middleware('permission:reports-access')
+        ->name('sync.index');
 
     Route::post('services/bulk-status', [ServiceController::class, 'bulkStatus'])
         ->middleware('permission:services-edit')

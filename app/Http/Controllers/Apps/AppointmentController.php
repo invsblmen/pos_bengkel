@@ -8,6 +8,8 @@ use App\Events\AppointmentUpdated;
 use App\Http\Controllers\Controller;
 use App\Models\Appointment;
 use App\Models\Mechanic;
+use App\Support\GoFeatureToggle;
+use App\Support\GoShadowComparator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
@@ -21,7 +23,7 @@ class AppointmentController extends Controller
      */
     public function index(Request $request)
     {
-        if ((bool) config('go_backend.features.appointment_index', false)) {
+        if (GoFeatureToggle::shouldUseGo('appointment_index', $request)) {
             $proxied = $this->appointmentIndexViaGo($request);
             if ($proxied !== null) {
                 if ($request->expectsJson() || $request->wantsJson()) {
@@ -104,12 +106,44 @@ class AppointmentController extends Controller
             'today' => Appointment::whereDate('scheduled_at', today())->count(),
         ];
 
-        return inertia('Dashboard/Appointments/Index', [
+        $payload = [
             'appointments' => $appointments,
             'stats' => $stats,
             'mechanics' => Mechanic::all(['id', 'name']),
             'filters' => $request->only(['search', 'status', 'date_from', 'date_to', 'mechanic_id']),
-        ]);
+        ];
+
+        $this->shadowCompareAppointmentIndex($request, $payload);
+
+        return inertia('Dashboard/Appointments/Index', $payload);
+    }
+
+    private function shadowCompareAppointmentIndex(Request $request, array $laravelPayload): void
+    {
+        if (! (bool) config('go_backend.shadow_compare.enabled', false)) {
+            return;
+        }
+
+        $sampleRate = (int) config('go_backend.shadow_compare.sample_rate', 100);
+        if ($sampleRate < 100 && random_int(1, 100) > max(0, $sampleRate)) {
+            return;
+        }
+
+        $goPayload = $this->appointmentIndexViaGo($request);
+        $ignorePaths = (array) config('go_backend.shadow_compare.ignore_paths', []);
+        $requestId = (string) ($request->header('X-Request-Id') ?: Str::uuid());
+
+        GoShadowComparator::compareAndLog(
+            feature: 'appointment_index',
+            laravelPayload: $laravelPayload,
+            goPayload: $goPayload,
+            ignorePaths: $ignorePaths,
+            requestId: $requestId,
+            context: [
+                'uri' => $request->path(),
+                'method' => $request->method(),
+            ]
+        );
     }
 
     private function appointmentIndexViaGo(Request $request): ?array
@@ -158,7 +192,7 @@ class AppointmentController extends Controller
      */
     public function calendar(Request $request)
     {
-        if ((bool) config('go_backend.features.appointment_calendar', false)) {
+        if (GoFeatureToggle::shouldUseGo('appointment_calendar', $request)) {
             $proxied = $this->appointmentCalendarViaGo($request);
             if ($proxied !== null) {
                 $proxied['csrf_token'] = $proxied['csrf_token'] ?? csrf_token();
@@ -237,14 +271,18 @@ class AppointmentController extends Controller
             $startDate->addDay();
         }
 
-        return inertia('Dashboard/Appointments/Calendar', [
+        $payload = [
             'calendar_days' => $calendarDays,
             'current_date' => now(),
             'year' => $year,
             'month' => $month,
             'mechanics' => $mechanics,
             'csrf_token' => csrf_token(),
-        ]);
+        ];
+
+        $this->shadowCompareAppointmentCalendar($request, $payload);
+
+        return inertia('Dashboard/Appointments/Calendar', $payload);
     }
 
     private function appointmentCalendarViaGo(Request $request): ?array
@@ -293,7 +331,7 @@ class AppointmentController extends Controller
      */
     public function getAvailableSlots(Request $request)
     {
-        if ((bool) config('go_backend.features.appointment_slots', false)) {
+        if (GoFeatureToggle::shouldUseGo('appointment_slots', $request)) {
             $proxied = $this->appointmentAvailableSlotsViaGo($request);
             if ($proxied !== null) {
                 return response()->json($proxied);
@@ -339,10 +377,70 @@ class AppointmentController extends Controller
             }
         }
 
-        return response()->json([
+        $payload = [
             'available_slots' => $availableSlots,
             'mechanic_name' => $mechanic->name,
-        ]);
+        ];
+
+        $this->shadowCompareAppointmentSlots($request, $payload);
+
+        return response()->json($payload);
+    }
+
+    private function shadowCompareAppointmentCalendar(Request $request, array $laravelPayload): void
+    {
+        if (! (bool) config('go_backend.shadow_compare.enabled', false)) {
+            return;
+        }
+
+        $sampleRate = (int) config('go_backend.shadow_compare.sample_rate', 100);
+        if ($sampleRate < 100 && random_int(1, 100) > max(0, $sampleRate)) {
+            return;
+        }
+
+        $goPayload = $this->appointmentCalendarViaGo($request);
+        $ignorePaths = (array) config('go_backend.shadow_compare.ignore_paths', []);
+        $requestId = (string) ($request->header('X-Request-Id') ?: Str::uuid());
+
+        GoShadowComparator::compareAndLog(
+            feature: 'appointment_calendar',
+            laravelPayload: $laravelPayload,
+            goPayload: $goPayload,
+            ignorePaths: $ignorePaths,
+            requestId: $requestId,
+            context: [
+                'uri' => $request->path(),
+                'method' => $request->method(),
+            ]
+        );
+    }
+
+    private function shadowCompareAppointmentSlots(Request $request, array $laravelPayload): void
+    {
+        if (! (bool) config('go_backend.shadow_compare.enabled', false)) {
+            return;
+        }
+
+        $sampleRate = (int) config('go_backend.shadow_compare.sample_rate', 100);
+        if ($sampleRate < 100 && random_int(1, 100) > max(0, $sampleRate)) {
+            return;
+        }
+
+        $goPayload = $this->appointmentAvailableSlotsViaGo($request);
+        $ignorePaths = (array) config('go_backend.shadow_compare.ignore_paths', []);
+        $requestId = (string) ($request->header('X-Request-Id') ?: Str::uuid());
+
+        GoShadowComparator::compareAndLog(
+            feature: 'appointment_slots',
+            laravelPayload: $laravelPayload,
+            goPayload: $goPayload,
+            ignorePaths: $ignorePaths,
+            requestId: $requestId,
+            context: [
+                'uri' => $request->path(),
+                'method' => $request->method(),
+            ]
+        );
     }
 
     private function appointmentAvailableSlotsViaGo(Request $request): ?array

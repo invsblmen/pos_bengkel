@@ -7,6 +7,8 @@ use App\Models\Vehicle;
 use App\Models\ServiceOrder;
 use App\Models\Service;
 use App\Models\Part;
+use App\Support\GoFeatureToggle;
+use App\Support\GoShadowComparator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -19,7 +21,9 @@ class RecommendationController extends Controller
      */
     public function getVehicleRecommendations(Vehicle $vehicle)
     {
-        if ((bool) config('go_backend.features.vehicle_recommendations', false)) {
+        $request = request();
+
+        if (GoFeatureToggle::shouldUseGo('vehicle_recommendations', $request)) {
             $proxied = $this->recommendationsViaGo((string) $vehicle->id, request());
             if ($proxied !== null) {
                 return $proxied;
@@ -79,16 +83,20 @@ class RecommendationController extends Controller
                 ])
                 ->toArray();
 
-            return response()->json([
+            $payload = [
                 'vehicle_id' => $vehicle->id,
                 'brand' => $vehicle->brand,
                 'model' => $vehicle->model,
                 'recommended_parts' => $commonParts ?? [],
                 'recommended_services' => $commonServices ?? [],
                 'recent_history_count' => $recentOrders->count(),
-            ]);
+            ];
+
+            $this->shadowCompareRecommendation($request, (string) $vehicle->id, $payload);
+
+            return response()->json($payload);
         } catch (\Exception $e) {
-            return response()->json([
+            $payload = [
                 'vehicle_id' => $vehicle->id,
                 'brand' => $vehicle->brand,
                 'model' => $vehicle->model,
@@ -96,7 +104,11 @@ class RecommendationController extends Controller
                 'recommended_services' => [],
                 'recent_history_count' => 0,
                 'error' => $e->getMessage(),
-            ]);
+            ];
+
+            $this->shadowCompareRecommendation($request, (string) $vehicle->id, $payload);
+
+            return response()->json($payload);
         }
     }
 
@@ -105,7 +117,9 @@ class RecommendationController extends Controller
      */
     public function getMaintenanceSchedule(Vehicle $vehicle)
     {
-        if ((bool) config('go_backend.features.vehicle_maintenance_schedule', false)) {
+        $request = request();
+
+        if (GoFeatureToggle::shouldUseGo('vehicle_maintenance_schedule', $request)) {
             $proxied = $this->maintenanceScheduleViaGo((string) $vehicle->id, request());
             if ($proxied !== null) {
                 return $proxied;
@@ -139,10 +153,72 @@ class RecommendationController extends Controller
             ],
         ];
 
-        return response()->json([
+        $payload = [
             'vehicle_id' => $vehicle->id,
             'schedule' => $schedule,
-        ]);
+        ];
+
+        $this->shadowCompareMaintenanceSchedule($request, (string) $vehicle->id, $payload);
+
+        return response()->json($payload);
+    }
+
+    private function shadowCompareRecommendation(Request $request, string $vehicleId, array $laravelPayload): void
+    {
+        if (! (bool) config('go_backend.shadow_compare.enabled', false)) {
+            return;
+        }
+
+        $sampleRate = (int) config('go_backend.shadow_compare.sample_rate', 100);
+        if ($sampleRate < 100 && random_int(1, 100) > max(0, $sampleRate)) {
+            return;
+        }
+
+        $goResponse = $this->recommendationsViaGo($vehicleId, $request);
+        $goPayload = $goResponse?->getData(true);
+        $ignorePaths = (array) config('go_backend.shadow_compare.ignore_paths', []);
+        $requestId = (string) ($request->header('X-Request-Id') ?: Str::uuid());
+
+        GoShadowComparator::compareAndLog(
+            feature: 'vehicle_recommendations',
+            laravelPayload: $laravelPayload,
+            goPayload: is_array($goPayload) ? $goPayload : null,
+            ignorePaths: $ignorePaths,
+            requestId: $requestId,
+            context: [
+                'uri' => $request->path(),
+                'method' => $request->method(),
+            ]
+        );
+    }
+
+    private function shadowCompareMaintenanceSchedule(Request $request, string $vehicleId, array $laravelPayload): void
+    {
+        if (! (bool) config('go_backend.shadow_compare.enabled', false)) {
+            return;
+        }
+
+        $sampleRate = (int) config('go_backend.shadow_compare.sample_rate', 100);
+        if ($sampleRate < 100 && random_int(1, 100) > max(0, $sampleRate)) {
+            return;
+        }
+
+        $goResponse = $this->maintenanceScheduleViaGo($vehicleId, $request);
+        $goPayload = $goResponse?->getData(true);
+        $ignorePaths = (array) config('go_backend.shadow_compare.ignore_paths', []);
+        $requestId = (string) ($request->header('X-Request-Id') ?: Str::uuid());
+
+        GoShadowComparator::compareAndLog(
+            feature: 'vehicle_maintenance_schedule',
+            laravelPayload: $laravelPayload,
+            goPayload: is_array($goPayload) ? $goPayload : null,
+            ignorePaths: $ignorePaths,
+            requestId: $requestId,
+            context: [
+                'uri' => $request->path(),
+                'method' => $request->method(),
+            ]
+        );
     }
 
     private function recommendationsViaGo(string $vehicleId, Request $request): ?\Illuminate\Http\JsonResponse

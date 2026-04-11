@@ -2,8 +2,10 @@ package httpserver
 
 import (
 	"database/sql"
+	"fmt"
 	"math"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -36,6 +38,11 @@ func overallReportHandler(db *sql.DB) http.HandlerFunc {
 		}
 
 		filters := parseOverallReportFilters(r)
+		referenceColumn, err := detectPartSaleReferenceColumn(db)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, response{"message": "failed to detect part sales reference column"})
+			return
+		}
 
 		serviceRevenue, err := overallServiceRevenue(db, filters)
 		if err != nil {
@@ -55,9 +62,9 @@ func overallReportHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		statusOptions, err := overallStatusOptions(db, filters)
+		statusOptions, err := overallStatusOptions(db, filters, referenceColumn)
 		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, response{"message": "failed to read status options"})
+			writeJSON(w, http.StatusInternalServerError, response{"message": "failed to read status options: " + err.Error()})
 			return
 		}
 
@@ -75,15 +82,15 @@ func overallReportHandler(db *sql.DB) http.HandlerFunc {
 			}
 		}
 
-		statusSummary, err := overallStatusSummary(db, filters)
+		statusSummary, err := overallStatusSummary(db, filters, referenceColumn)
 		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, response{"message": "failed to read status summary"})
+			writeJSON(w, http.StatusInternalServerError, response{"message": "failed to read status summary: " + err.Error()})
 			return
 		}
 
-		transactions, transactionCount, err := overallTransactions(db, filters, effectiveStatus)
+		transactions, transactionCount, err := overallTransactions(db, filters, effectiveStatus, referenceColumn)
 		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, response{"message": "failed to read transactions"})
+			writeJSON(w, http.StatusInternalServerError, response{"message": "failed to read transactions: " + err.Error()})
 			return
 		}
 
@@ -166,8 +173,8 @@ func parseDateOnlyOrDefault(raw string, fallback time.Time) time.Time {
 	return parsed
 }
 
-func overallRowsSubquery() string {
-	return `
+func overallRowsSubquery(partSaleReferenceColumn string) string {
+	return fmt.Sprintf(`
 		SELECT so.created_at AS event_at, 'service_order' AS source, so.order_number AS reference,
 		       TRIM(CONCAT_WS(' | ', COALESCE(c.name, ''), COALESCE(v.plate_number, ''))) AS description,
 		       'in' AS flow,
@@ -179,7 +186,7 @@ func overallRowsSubquery() string {
 		WHERE so.status IN ('completed', 'paid')
 		  AND so.created_at BETWEEN ? AND ?
 		UNION ALL
-		SELECT ps.created_at AS event_at, 'part_sale' AS source, COALESCE(ps.sale_number, ps.invoice) AS reference,
+		SELECT ps.created_at AS event_at, 'part_sale' AS source, COALESCE(ps.%s, '') AS reference,
 		       COALESCE(c2.name, '') AS description,
 		       'in' AS flow,
 		       COALESCE(ps.grand_total, 0) AS amount,
@@ -204,7 +211,7 @@ func overallRowsSubquery() string {
 			(ct.happened_at BETWEEN ? AND ?)
 			OR (ct.happened_at IS NULL AND ct.created_at BETWEEN ? AND ?)
 		)
-	`
+	`, partSaleReferenceColumn)
 }
 
 func overallRowsArgs(filters overallReportFilters) []any {
@@ -218,11 +225,11 @@ func overallOuterWhere(filters overallReportFilters, status string) (string, []a
 	args := make([]any, 0)
 
 	if filters.Source != "all" {
-		clauses = append(clauses, "rows.source = ?")
+		clauses = append(clauses, "items.source = ?")
 		args = append(args, filters.Source)
 	}
 	if status != "all" {
-		clauses = append(clauses, "rows.status = ?")
+		clauses = append(clauses, "items.status = ?")
 		args = append(args, status)
 	}
 
@@ -282,10 +289,10 @@ func overallCashFlow(db *sql.DB, filters overallReportFilters) (int64, int64, er
 	return int64OrZero(cashIn), int64OrZero(cashOut), nil
 }
 
-func overallStatusOptions(db *sql.DB, filters overallReportFilters) ([]response, error) {
-	base := overallRowsSubquery()
+func overallStatusOptions(db *sql.DB, filters overallReportFilters, partSaleReferenceColumn string) ([]response, error) {
+	base := overallRowsSubquery(partSaleReferenceColumn)
 	baseArgs := overallRowsArgs(filters)
-	clauses := []string{"rows.status IS NOT NULL", "rows.status != ''"}
+	clauses := []string{"items.status IS NOT NULL", "items.status != ''"}
 	args := append([]any{}, baseArgs...)
 
 	if filters.Source != "all" {
@@ -294,10 +301,10 @@ func overallStatusOptions(db *sql.DB, filters overallReportFilters) ([]response,
 	}
 
 	q := `
-		SELECT DISTINCT rows.status
-		FROM (` + base + `) rows
+		SELECT DISTINCT items.status
+		FROM (` + base + `) items
 		WHERE ` + strings.Join(clauses, " AND ") + `
-		ORDER BY rows.status ASC
+		ORDER BY items.status ASC
 	`
 
 	rows, err := db.Query(q, args...)
@@ -324,10 +331,10 @@ func overallStatusOptions(db *sql.DB, filters overallReportFilters) ([]response,
 	return items, rows.Err()
 }
 
-func overallStatusSummary(db *sql.DB, filters overallReportFilters) ([]response, error) {
-	base := overallRowsSubquery()
+func overallStatusSummary(db *sql.DB, filters overallReportFilters, partSaleReferenceColumn string) ([]response, error) {
+	base := overallRowsSubquery(partSaleReferenceColumn)
 	baseArgs := overallRowsArgs(filters)
-	clauses := []string{"rows.status IS NOT NULL", "rows.status != ''"}
+	clauses := []string{"items.status IS NOT NULL", "items.status != ''"}
 	args := append([]any{}, baseArgs...)
 
 	if filters.Source != "all" {
@@ -336,12 +343,12 @@ func overallStatusSummary(db *sql.DB, filters overallReportFilters) ([]response,
 	}
 
 	q := `
-		SELECT rows.status,
+		SELECT items.status,
 		       COUNT(*) AS count,
-		       SUM(CASE WHEN rows.flow = 'in' THEN rows.amount WHEN rows.flow = 'out' THEN -rows.amount ELSE 0 END) AS net_amount
-		FROM (` + base + `) rows
+		       SUM(CASE WHEN items.flow = 'in' THEN items.amount WHEN items.flow = 'out' THEN -items.amount ELSE 0 END) AS net_amount
+		FROM (` + base + `) items
 		WHERE ` + strings.Join(clauses, " AND ") + `
-		GROUP BY rows.status
+		GROUP BY items.status
 		ORDER BY count DESC
 	`
 
@@ -370,12 +377,12 @@ func overallStatusSummary(db *sql.DB, filters overallReportFilters) ([]response,
 	return items, rows.Err()
 }
 
-func overallTransactions(db *sql.DB, filters overallReportFilters, effectiveStatus string) (response, int64, error) {
-	base := overallRowsSubquery()
+func overallTransactions(db *sql.DB, filters overallReportFilters, effectiveStatus, partSaleReferenceColumn string) (response, int64, error) {
+	base := overallRowsSubquery(partSaleReferenceColumn)
 	baseArgs := overallRowsArgs(filters)
 	where, whereArgs := overallOuterWhere(filters, effectiveStatus)
 
-	countQuery := `SELECT COUNT(*) FROM (` + base + `) rows` + where
+	countQuery := `SELECT COUNT(*) FROM (` + base + `) items` + where
 	countArgs := append([]any{}, baseArgs...)
 	countArgs = append(countArgs, whereArgs...)
 
@@ -398,13 +405,13 @@ func overallTransactions(db *sql.DB, filters overallReportFilters, effectiveStat
 		currentPage = lastPage
 	}
 
-	query := `
+	pageQuery := `
 		SELECT event_at, source, reference, description, flow, amount, status, running_balance
 		FROM (
-			SELECT rows.event_at, rows.source, rows.reference, rows.description, rows.flow, rows.amount, rows.status,
-				SUM(CASE WHEN rows.flow = 'in' THEN rows.amount WHEN rows.flow = 'out' THEN -rows.amount ELSE 0 END)
-				OVER (ORDER BY rows.event_at ASC, rows.reference ASC) AS running_balance
-			FROM (` + base + `) rows
+			SELECT items.event_at, items.source, items.reference, items.description, items.flow, items.amount, items.status,
+				SUM(CASE WHEN items.flow = 'in' THEN items.amount WHEN items.flow = 'out' THEN -items.amount ELSE 0 END)
+				OVER (ORDER BY items.event_at ASC, items.reference ASC) AS running_balance
+			FROM (` + base + `) items
 		` + where + `
 		) ranked
 		ORDER BY event_at DESC, reference DESC
@@ -415,7 +422,7 @@ func overallTransactions(db *sql.DB, filters overallReportFilters, effectiveStat
 	queryArgs = append(queryArgs, whereArgs...)
 	queryArgs = append(queryArgs, filters.PerPage, (currentPage-1)*filters.PerPage)
 
-	rows, err := db.Query(query, queryArgs...)
+	rows, err := db.Query(pageQuery, queryArgs...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -460,16 +467,54 @@ func overallTransactions(db *sql.DB, filters overallReportFilters, effectiveStat
 	}
 
 	from, to := paginationBounds(totalRows, currentPage, filters.PerPage)
+	path := "/reports/overall"
+	query := overallReportQueryValues(filters, effectiveStatus)
+	firstPageURL := buildReportIndexURL(path, query, 1)
+	lastPageURL := buildReportIndexURL(path, query, lastPage)
+	prevPageURL := ""
+	if currentPage > 1 {
+		prevPageURL = buildReportIndexURL(path, query, currentPage-1)
+	}
+	nextPageURL := ""
+	if currentPage < lastPage {
+		nextPageURL = buildReportIndexURL(path, query, currentPage+1)
+	}
 
 	return response{
-		"current_page": currentPage,
-		"data":         items,
-		"from":         from,
-		"last_page":    lastPage,
-		"per_page":     filters.PerPage,
-		"to":           to,
-		"total":        totalRows,
+		"current_page":   currentPage,
+		"data":           items,
+		"first_page_url": firstPageURL,
+		"from":           from,
+		"last_page":      lastPage,
+		"last_page_url":  lastPageURL,
+		"per_page":       filters.PerPage,
+		"links":          buildReportIndexLinks(path, query, currentPage, lastPage),
+		"next_page_url":  nextPageURL,
+		"path":           path,
+		"prev_page_url":  prevPageURL,
+		"to":             to,
+		"total":          totalRows,
 	}, totalRows, nil
+}
+
+func overallReportQueryValues(filters overallReportFilters, status string) url.Values {
+	values := url.Values{}
+	if filters.StartDate.IsZero() == false {
+		values.Set("start_date", filters.StartDate.Format("2006-01-02"))
+	}
+	if filters.EndDate.IsZero() == false {
+		values.Set("end_date", filters.EndDate.Format("2006-01-02"))
+	}
+	if filters.Source != "" && filters.Source != "all" {
+		values.Set("source", filters.Source)
+	}
+	if status != "" && status != "all" {
+		values.Set("status", status)
+	}
+	if filters.PerPage > 0 {
+		values.Set("per_page", fmt.Sprintf("%d", filters.PerPage))
+	}
+	return values
 }
 
 func formatOverallStatusLabel(status string) string {

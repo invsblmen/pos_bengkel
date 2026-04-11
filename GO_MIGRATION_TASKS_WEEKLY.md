@@ -179,6 +179,19 @@ Definition of done:
 4. Security review endpoint publik dan webhook.
 5. Dokumentasi operasional untuk on-call.
 
+## Backlog Operasional Sinkronisasi Local ke Hosting
+
+1. Rancang format payload sinkron harian dari Go local ke Laravel hosting.
+2. Tentukan model sync: scheduled job, manual button, atau hybrid.
+3. Tambahkan audit trail sinkron per hari dan per entitas.
+4. Buat mekanisme retry jika sync gagal saat koneksi hosting tidak tersedia.
+5. Buat halaman manajemen sinkronisasi agar operator bisa melihat status terakhir.
+6. Tambahkan idempotency key untuk mencegah double insert saat retry.
+7. Tambahkan status batch: pending, sent, acknowledged, failed, retrying.
+8. Buat ringkasan `last synced at`, `pending count`, dan `failed count`.
+9. Implementasi tabel outbox dan endpoint penerima sync di hosting.
+10. Tambahkan batch reconciliation job untuk membandingkan ringkasan harian local vs hosting.
+
 ## Backlog Operasional Pemisahan Folder
 
 1. Finalisasi path deployment terpisah untuk Laravel, Go backend, dan frontend baru.

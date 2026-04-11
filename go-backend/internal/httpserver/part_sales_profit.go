@@ -23,22 +23,27 @@ func partSalesProfitHandler(db *sql.DB) http.HandlerFunc {
 			writeJSON(w, http.StatusInternalServerError, response{"message": "failed to detect quantity column"})
 			return
 		}
-
-		sales, err := queryPartSalesProfitPage(db, r.URL.Query(), filters, quantityColumn)
+		referenceColumn, err := detectPartSaleReferenceColumn(db)
 		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, response{"message": "failed to read sales"})
+			writeJSON(w, http.StatusInternalServerError, response{"message": "failed to detect reference column"})
 			return
 		}
 
-		summary, err := queryPartSalesProfitSummary(db, filters, quantityColumn)
+		sales, err := queryPartSalesProfitPage(db, r.URL.Query(), filters, quantityColumn, referenceColumn)
 		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, response{"message": "failed to read report summary"})
+			writeJSON(w, http.StatusInternalServerError, response{"message": "failed to read sales: " + err.Error()})
 			return
 		}
 
-		topParts, err := queryTopProfitParts(db, filters, quantityColumn)
+		summary, err := queryPartSalesProfitSummary(db, filters, quantityColumn, referenceColumn)
 		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, response{"message": "failed to read top parts"})
+			writeJSON(w, http.StatusInternalServerError, response{"message": "failed to read report summary: " + err.Error()})
+			return
+		}
+
+		topParts, err := queryTopProfitParts(db, filters, quantityColumn, referenceColumn)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, response{"message": "failed to read top parts: " + err.Error()})
 			return
 		}
 
@@ -68,10 +73,15 @@ func partSalesProfitBySupplierHandler(db *sql.DB) http.HandlerFunc {
 			writeJSON(w, http.StatusInternalServerError, response{"message": "failed to detect quantity column"})
 			return
 		}
-
-		supplierPerformance, err := queryPartSalesProfitBySupplier(db, filters, quantityColumn)
+		referenceColumn, err := detectPartSaleReferenceColumn(db)
 		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, response{"message": "failed to read supplier report"})
+			writeJSON(w, http.StatusInternalServerError, response{"message": "failed to detect reference column"})
+			return
+		}
+
+		supplierPerformance, err := queryPartSalesProfitBySupplier(db, filters, quantityColumn, referenceColumn)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, response{"message": "failed to read supplier report: " + err.Error()})
 			return
 		}
 
@@ -125,8 +135,8 @@ func detectPartSaleQuantityColumn(db *sql.DB) (string, error) {
 	return column.String, nil
 }
 
-func queryPartSalesProfitPage(db *sql.DB, query url.Values, filters partSalesProfitFilters, quantityColumn string) (response, error) {
-	whereClause, args := buildPartSalesProfitWhereClause(filters)
+func queryPartSalesProfitPage(db *sql.DB, query url.Values, filters partSalesProfitFilters, quantityColumn, referenceColumn string) (response, error) {
+	whereClause, args := buildPartSalesProfitWhereClause(filters, referenceColumn)
 	countQuery := `SELECT COUNT(*) FROM part_sales ps ` + whereClause
 
 	var total int64
@@ -147,14 +157,14 @@ func queryPartSalesProfitPage(db *sql.DB, query url.Values, filters partSalesPro
 	}
 
 	dataQuery := fmt.Sprintf(`
-		SELECT ps.id, ps.invoice, DATE_FORMAT(ps.created_at, '%%Y-%%m-%%d %%H:%%i:%%s') AS created_at,
+		SELECT ps.id, ps.%s AS reference_no, DATE_FORMAT(ps.created_at, '%%Y-%%m-%%d %%H:%%i:%%s') AS created_at,
 		       u.id, u.name
 		FROM part_sales ps
-		LEFT JOIN users u ON u.id = ps.user_id
+		LEFT JOIN users u ON u.id = ps.created_by
 		%s
 		ORDER BY ps.created_at DESC, ps.id DESC
 		LIMIT ? OFFSET ?
-	`, whereClause)
+	`, referenceColumn, whereClause)
 
 	queryArgs := append([]any{}, args...)
 	queryArgs = append(queryArgs, filters.PerPage, (page-1)*filters.PerPage)
@@ -170,17 +180,18 @@ func queryPartSalesProfitPage(db *sql.DB, query url.Values, filters partSalesPro
 	indexByID := map[int64]int{}
 	for rows.Next() {
 		var id int64
-		var invoice sql.NullString
+		var referenceNo sql.NullString
 		var createdAt sql.NullString
 		var userID sql.NullInt64
 		var userName sql.NullString
-		if err := rows.Scan(&id, &invoice, &createdAt, &userID, &userName); err != nil {
+		if err := rows.Scan(&id, &referenceNo, &createdAt, &userID, &userName); err != nil {
 			return nil, err
 		}
 
 		sale := response{
 			"id":            id,
-			"invoice":       nullString(invoice),
+			"invoice":       nullString(referenceNo),
+			"sale_number":   nullString(referenceNo),
 			"created_at":    stringOrNil(createdAt),
 			"user":          nil,
 			"total_cost":    int64(0),
@@ -226,16 +237,32 @@ func queryPartSalesProfitPage(db *sql.DB, query url.Values, filters partSalesPro
 	}
 
 	from, to := paginationBounds(total, page, filters.PerPage)
+	path := "/reports/part-sales-profit"
+	firstPageURL := buildReportIndexURL(path, query, 1)
+	lastPageURL := buildReportIndexURL(path, query, lastPage)
+	prevPageURL := ""
+	if page > 1 {
+		prevPageURL = buildReportIndexURL(path, query, page-1)
+	}
+	nextPageURL := ""
+	if page < lastPage {
+		nextPageURL = buildReportIndexURL(path, query, page+1)
+	}
 
 	return response{
-		"current_page": page,
-		"data":         sales,
-		"from":         from,
-		"last_page":    lastPage,
-		"links":        buildReportIndexLinks("/reports/part-sales-profit", query, page, lastPage),
-		"per_page":     filters.PerPage,
-		"to":           to,
-		"total":        total,
+		"current_page":   page,
+		"data":           sales,
+		"first_page_url": firstPageURL,
+		"from":           from,
+		"last_page":      lastPage,
+		"last_page_url":  lastPageURL,
+		"links":          buildReportIndexLinks("/reports/part-sales-profit", query, page, lastPage),
+		"next_page_url":  nextPageURL,
+		"path":           path,
+		"per_page":       filters.PerPage,
+		"prev_page_url":  prevPageURL,
+		"to":             to,
+		"total":          total,
 	}, nil
 }
 
@@ -281,8 +308,8 @@ func queryPartSalesProfitMetrics(db *sql.DB, saleIDs []int64, quantityColumn str
 	return metrics, rows.Err()
 }
 
-func queryPartSalesProfitSummary(db *sql.DB, filters partSalesProfitFilters, quantityColumn string) (response, error) {
-	whereClause, args := buildPartSalesProfitWhereClause(filters)
+func queryPartSalesProfitSummary(db *sql.DB, filters partSalesProfitFilters, quantityColumn, referenceColumn string) (response, error) {
+	whereClause, args := buildPartSalesProfitWhereClause(filters, referenceColumn)
 	q := fmt.Sprintf(`
 		SELECT
 			COALESCE(SUM(COALESCE(psd.cost_price, 0) * COALESCE(psd.%s, 0)), 0) AS total_cost,
@@ -327,8 +354,8 @@ func queryPartSalesProfitSummary(db *sql.DB, filters partSalesProfitFilters, qua
 	}, nil
 }
 
-func queryTopProfitParts(db *sql.DB, filters partSalesProfitFilters, quantityColumn string) ([]response, error) {
-	whereClause, args := buildPartSalesProfitWhereClause(filters)
+func queryTopProfitParts(db *sql.DB, filters partSalesProfitFilters, quantityColumn, referenceColumn string) ([]response, error) {
+	whereClause, args := buildPartSalesProfitWhereClause(filters, referenceColumn)
 	q := fmt.Sprintf(`
 		SELECT p.name, p.part_number,
 		       SUM(COALESCE(psd.%s, 0)) AS total_quantity,
@@ -371,8 +398,8 @@ func queryTopProfitParts(db *sql.DB, filters partSalesProfitFilters, quantityCol
 	return items, rows.Err()
 }
 
-func queryPartSalesProfitBySupplier(db *sql.DB, filters partSalesProfitFilters, quantityColumn string) ([]response, error) {
-	whereClause, args := buildPartSalesProfitWhereClause(filters)
+func queryPartSalesProfitBySupplier(db *sql.DB, filters partSalesProfitFilters, quantityColumn, referenceColumn string) ([]response, error) {
+	whereClause, args := buildPartSalesProfitWhereClause(filters, referenceColumn)
 	q := fmt.Sprintf(`
 		SELECT suppliers.id, suppliers.name,
 		       SUM((COALESCE(psd.selling_price, 0) - COALESCE(psd.cost_price, 0)) * COALESCE(psd.%s, 0)) AS total_profit,
@@ -431,12 +458,12 @@ func queryPartSalesProfitBySupplier(db *sql.DB, filters partSalesProfitFilters, 
 	return items, rows.Err()
 }
 
-func buildPartSalesProfitWhereClause(filters partSalesProfitFilters) (string, []any) {
+func buildPartSalesProfitWhereClause(filters partSalesProfitFilters, referenceColumn string) (string, []any) {
 	clauses := make([]string, 0)
 	args := make([]any, 0)
 
 	if filters.Invoice != "" {
-		clauses = append(clauses, "ps.invoice LIKE ?")
+		clauses = append(clauses, fmt.Sprintf("ps.%s LIKE ?", referenceColumn))
 		args = append(args, "%"+filters.Invoice+"%")
 	}
 	if filters.StartDate != "" {

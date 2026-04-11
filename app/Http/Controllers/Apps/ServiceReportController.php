@@ -8,6 +8,8 @@ use App\Models\PartSale;
 use App\Models\ServiceOrder;
 use App\Models\Mechanic;
 use App\Models\Part;
+use App\Support\GoFeatureToggle;
+use App\Support\GoShadowComparator;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
@@ -21,7 +23,7 @@ class ServiceReportController extends Controller
 {
     public function overall(Request $request)
     {
-        if ((bool) config('go_backend.features.report_overall', false)) {
+        if (GoFeatureToggle::shouldUseGo('report_overall', $request)) {
             $proxied = $this->overallViaGo($request);
             if ($proxied !== null) {
                 return inertia('Dashboard/Reports/Overall', $proxied);
@@ -224,7 +226,7 @@ class ServiceReportController extends Controller
             ]
         );
 
-        return inertia('Dashboard/Reports/Overall', [
+        $payload = [
             'filters' => [
                 'start_date' => $startDate->format('Y-m-d'),
                 'end_date' => $endDate->format('Y-m-d'),
@@ -244,7 +246,117 @@ class ServiceReportController extends Controller
                 'transaction_count' => (int) ($cachedOverall['transaction_count'] ?? $paginatedTransactions->total()),
             ],
             'transactions' => $paginatedTransactions,
-        ]);
+        ];
+
+        $this->shadowCompareOverallReport($request, $payload);
+
+        return inertia('Dashboard/Reports/Overall', $payload);
+    }
+
+    private function shadowCompareOverallReport(Request $request, array $laravelPayload): void
+    {
+        if (! (bool) config('go_backend.shadow_compare.enabled', false)) {
+            return;
+        }
+
+        $sampleRate = (int) config('go_backend.shadow_compare.sample_rate', 100);
+        if ($sampleRate < 100 && random_int(1, 100) > max(0, $sampleRate)) {
+            return;
+        }
+
+        $goPayload = $this->overallViaGo($request);
+        $ignorePaths = (array) config('go_backend.shadow_compare.ignore_paths', []);
+        $requestId = (string) ($request->header('X-Request-Id') ?: Str::uuid());
+
+        $normalizedLaravel = $this->normalizeOverallShadowPayload($laravelPayload);
+        $normalizedGo = $goPayload !== null ? $this->normalizeOverallShadowPayload($goPayload) : null;
+
+        GoShadowComparator::compareAndLog(
+            feature: 'report_overall',
+            laravelPayload: $normalizedLaravel,
+            goPayload: $normalizedGo,
+            ignorePaths: $ignorePaths,
+            requestId: $requestId,
+            context: [
+                'uri' => $request->path(),
+                'method' => $request->method(),
+            ]
+        );
+    }
+
+    private function normalizeOverallShadowPayload(array $payload): array
+    {
+        $filters = (array) ($payload['filters'] ?? []);
+        $summary = (array) ($payload['summary'] ?? []);
+        $statusOptions = collect($payload['statusOptions'] ?? [])
+            ->map(function ($item) {
+                $row = (array) $item;
+                return [
+                    'value' => (string) ($row['value'] ?? ''),
+                    'label' => (string) ($row['label'] ?? ''),
+                ];
+            })
+            ->sortBy('value')
+            ->values()
+            ->all();
+
+        $statusSummary = collect($payload['statusSummary'] ?? [])
+            ->map(function ($item) {
+                $row = (array) $item;
+                return [
+                    'value' => (string) ($row['value'] ?? ''),
+                    'count' => (int) ($row['count'] ?? 0),
+                    'net_amount' => (int) ($row['net_amount'] ?? 0),
+                ];
+            })
+            ->sortBy('value')
+            ->values()
+            ->all();
+
+        $transactions = (array) ($payload['transactions'] ?? []);
+        $transactionRows = collect($transactions['data'] ?? [])
+            ->map(function ($item) {
+                $row = (array) $item;
+                return [
+                    'date' => (string) ($row['date'] ?? ''),
+                    'source' => (string) ($row['source'] ?? ''),
+                    'reference' => (string) ($row['reference'] ?? ''),
+                    'flow' => (string) ($row['flow'] ?? ''),
+                    'amount' => (int) ($row['amount'] ?? 0),
+                    'status' => (string) ($row['status'] ?? ''),
+                    'running_balance' => (int) ($row['running_balance'] ?? 0),
+                ];
+            })
+            ->values()
+            ->all();
+
+        return [
+            'filters' => [
+                'start_date' => (string) ($filters['start_date'] ?? ''),
+                'end_date' => (string) ($filters['end_date'] ?? ''),
+                'source' => (string) ($filters['source'] ?? 'all'),
+                'status' => (string) ($filters['status'] ?? 'all'),
+                'per_page' => (int) ($filters['per_page'] ?? 20),
+            ],
+            'statusOptions' => $statusOptions,
+            'statusSummary' => $statusSummary,
+            'summary' => [
+                'service_revenue' => (int) ($summary['service_revenue'] ?? 0),
+                'part_revenue' => (int) ($summary['part_revenue'] ?? 0),
+                'total_revenue' => (int) ($summary['total_revenue'] ?? 0),
+                'cash_in' => (int) ($summary['cash_in'] ?? 0),
+                'cash_out' => (int) ($summary['cash_out'] ?? 0),
+                'net_cash_flow' => (int) ($summary['net_cash_flow'] ?? 0),
+                'transaction_count' => (int) ($summary['transaction_count'] ?? 0),
+            ],
+            'transactions' => [
+                'current_page' => (int) ($transactions['current_page'] ?? 1),
+                'last_page' => (int) ($transactions['last_page'] ?? 1),
+                'per_page' => (int) ($transactions['per_page'] ?? 20),
+                'total' => (int) ($transactions['total'] ?? 0),
+                'data' => $transactionRows,
+            ],
+        ];
     }
 
     private function overallViaGo(Request $request): ?array
@@ -265,6 +377,7 @@ class ServiceReportController extends Controller
             if (! $response->successful() || ! is_array($json)) {
                 Log::warning('Overall report Go bridge returned an invalid response', [
                     'status' => $response->status(),
+                    'body' => Str::limit((string) $response->body(), 500),
                 ]);
 
                 return null;

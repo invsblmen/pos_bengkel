@@ -18,6 +18,8 @@ use App\Services\VoucherService;
 use App\Services\WarrantyRegistrationService;
 use App\Services\WorkshopPricingService;
 use App\Support\DispatchesBroadcastSafely;
+use App\Support\GoFeatureToggle;
+use App\Support\GoShadowComparator;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -40,7 +42,7 @@ class ServiceOrderController extends Controller
 
     public function index(Request $request)
     {
-        if ((bool) config('go_backend.features.service_order_index', false)) {
+        if (GoFeatureToggle::shouldUseGo('service_order_index', $request)) {
             $proxied = $this->serviceOrderIndexViaGo($request);
             if ($proxied !== null) {
                 return Inertia::render('Dashboard/ServiceOrders/Index', $proxied);
@@ -93,12 +95,44 @@ class ServiceOrderController extends Controller
             'total_revenue' => ServiceOrder::whereIn('status', ['completed', 'paid'])->sum('total'),
         ];
 
-        return inertia('Dashboard/ServiceOrders/Index', [
+        $payload = [
             'orders' => $orders,
             'stats' => $stats,
             'mechanics' => \App\Models\Mechanic::all(['id', 'name']),
             'filters' => $request->only(['search', 'status', 'date_from', 'date_to', 'mechanic_id']),
-        ]);
+        ];
+
+        $this->shadowCompareServiceOrderIndex($request, $payload);
+
+        return inertia('Dashboard/ServiceOrders/Index', $payload);
+    }
+
+    private function shadowCompareServiceOrderIndex(Request $request, array $laravelPayload): void
+    {
+        if (! (bool) config('go_backend.shadow_compare.enabled', false)) {
+            return;
+        }
+
+        $sampleRate = (int) config('go_backend.shadow_compare.sample_rate', 100);
+        if ($sampleRate < 100 && random_int(1, 100) > max(0, $sampleRate)) {
+            return;
+        }
+
+        $goPayload = $this->serviceOrderIndexViaGo($request);
+        $ignorePaths = (array) config('go_backend.shadow_compare.ignore_paths', []);
+        $requestId = (string) ($request->header('X-Request-Id') ?: Str::uuid());
+
+        GoShadowComparator::compareAndLog(
+            feature: 'service_order_index',
+            laravelPayload: $laravelPayload,
+            goPayload: $goPayload,
+            ignorePaths: $ignorePaths,
+            requestId: $requestId,
+            context: [
+                'uri' => $request->path(),
+                'method' => $request->method(),
+            ]
+        );
     }
 
     private function serviceOrderIndexViaGo(Request $request): ?array
