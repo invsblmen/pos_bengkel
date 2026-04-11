@@ -12,14 +12,14 @@ if ($null -eq $listeners -or $listeners.Count -eq 0) {
 
 $stopped = @()
 foreach ($listener in $listeners) {
-    $ownerPid = $listener.OwningProcess
-    $process = Get-Process -Id $ownerPid -ErrorAction SilentlyContinue
+    $ownerProcessNumber = $listener.OwningProcess
+    $process = Get-Process -Id $ownerProcessNumber -ErrorAction SilentlyContinue
     if ($null -eq $process) {
         continue
     }
 
-    Stop-Process -Id $ownerPid -Force
-    $stopped += "$($process.ProcessName) (PID $ownerPid)"
+    Stop-Process -Id $ownerProcessNumber -Force
+    $stopped += "$($process.ProcessName) (ProcessId $ownerProcessNumber)"
 }
 
 if ($stopped.Count -eq 0) {
@@ -27,4 +27,4 @@ if ($stopped.Count -eq 0) {
     exit 1
 }
 
-Write-Host "Stopped listeners on port ${Port}: $($stopped -join ', ')"
+Write-Host ("Stopped listeners on port {0}. {1}" -f $Port, ($stopped -join ', '))
