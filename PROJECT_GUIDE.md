@@ -652,6 +652,7 @@ Jika Go API sering gagal start dengan error bind port 8081, gunakan script singl
 ```bash
 scripts\stop-go-api-single.ps1 -Port 8081
 scripts\start-go-api-single.ps1 -Port 8081 -KillExisting
+scripts\status-go-api-single.ps1 -Port 8081 -TailLines 20
 ```
 
 Catatan:
@@ -659,6 +660,13 @@ Catatan:
 2. Jika port sudah dipakai dan `-KillExisting` tidak dipakai, script akan berhenti dengan pesan jelas.
 3. Untuk stop service secara eksplisit gunakan `stop-go-api-single.ps1`.
 4. Hindari menjalankan `api.exe` berulang tanpa stop karena dapat memicu konflik bind socket.
+5. Untuk inspeksi cepat gunakan `status-go-api-single.ps1` (status listener, pid file, tail log stdout/stderr).
+
+Checklist troubleshooting cepat (Go-only):
+1. `scripts\status-go-api-single.ps1 -Port 8081 -TailLines 30`
+2. Jika status STOPPED, jalankan `scripts\start-go-api-single.ps1 -Port 8081 -KillExisting`
+3. Jika status RUNNING tapi endpoint gagal, cek bagian `ERR_LOG` dari output status script.
+4. Jika masih gagal bind, jalankan `scripts\stop-go-api-single.ps1 -Port 8081` lalu start ulang.
 
 
 Dokumen ini menggantikan catatan teknis terpisah yang sebelumnya tersebar di banyak file markdown.
