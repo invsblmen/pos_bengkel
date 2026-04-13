@@ -90,7 +90,12 @@ func (c DatabaseConfig) InitDatabase() (*sql.DB, error) {
 		return nil, err
 	}
 
-	db, err := sql.Open(c.Driver, dsn)
+	sqlDriver := c.Driver
+	if c.Driver == "sqlite" {
+		sqlDriver = "sqlite3"
+	}
+
+	db, err := sql.Open(sqlDriver, dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
