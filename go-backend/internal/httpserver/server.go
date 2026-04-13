@@ -9,7 +9,10 @@ import (
 	"time"
 
 	"posbengkel/go-backend/internal/config"
+	"posbengkel/go-backend/internal/events"
 	"posbengkel/go-backend/internal/middleware"
+	"posbengkel/go-backend/internal/services"
+	"posbengkel/go-backend/internal/websocket"
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -43,7 +46,38 @@ func New(cfg config.Config) (*http.Server, error) {
 		}
 	}
 
+	// Initialize auth services
+	var tokenService *services.TokenService
+	var authService *services.AuthService
+	if db != nil {
+		tokenService = services.NewTokenService(cfg.JWTSecret, cfg.JWTIssuer, cfg.JWTAudience, cfg.JWTExpiration)
+		passwordService := services.NewPasswordService(cfg.PasswordMinLength, cfg.PasswordRequireUppercase, cfg.PasswordRequireNumbers, cfg.PasswordRequireSpecial)
+		authService = services.NewAuthService(db, tokenService, passwordService)
+	}
+
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /go-ui", goUIHandler(cfg))
+
+	// Initialize WebSocket hub
+	eventHub = websocket.NewHub()
+	eventHub.Start()
+	log.Println("[WebSocket] Hub started and ready for connections")
+	mux.HandleFunc("GET /ws", websocket.Handler(eventHub, cfg.WebSocketToken))
+	mux.HandleFunc("POST /api/v1/realtime/emit", realtimeEmitHandler())
+	mux.HandleFunc("GET /api/v1/realtime/subscribers", realtimeSubscribersHandler(cfg))
+
+	go func() {
+		ticker := time.NewTicker(15 * time.Second)
+		defer ticker.Stop()
+		for range ticker.C {
+			if eventHub == nil {
+				continue
+			}
+			EmitEvent(events.NewEvent(events.EventHeartbeat, events.DomainCore).WithData(map[string]any{
+				"clients": eventHub.ClientCount(),
+			}))
+		}
+	}()
 
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, response{"status": "ok", "service": cfg.AppName})
@@ -56,6 +90,15 @@ func New(cfg config.Config) (*http.Server, error) {
 	mux.HandleFunc("GET /live", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, response{"status": "alive"})
 	})
+
+	// Authentication routes (public)
+	mux.HandleFunc("POST /api/v1/auth/login", authLoginHandler(authService))
+
+	// Protected auth routes (require authentication)
+	mux.HandleFunc("GET /api/v1/auth/me", middleware.AuthMiddleware(tokenService, authMeHandler(authService)))
+	mux.HandleFunc("POST /api/v1/auth/logout", middleware.AuthMiddleware(tokenService, authLogoutHandler()))
+	mux.HandleFunc("POST /api/v1/auth/refresh", middleware.AuthMiddleware(tokenService, authRefreshHandler(tokenService)))
+	mux.HandleFunc("POST /api/v1/auth/change-password", middleware.AuthMiddleware(tokenService, authChangePasswordHandler(authService)))
 
 	mux.HandleFunc("GET /api/v1/appointments", appointmentIndexHandler(db))
 	mux.HandleFunc("GET /api/v1/appointments/calendar", appointmentCalendarHandler(db))

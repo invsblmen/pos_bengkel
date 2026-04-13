@@ -5,8 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
+
+	"posbengkel/go-backend/internal/events"
 )
 
 type serviceOrderUpdateRequest struct {
@@ -85,6 +88,16 @@ func serviceOrderUpdateHandler(db *sql.DB) http.HandlerFunc {
 			writeJSON(w, http.StatusInternalServerError, response{"message": "failed to read service order"})
 			return
 		}
+
+		existingPartQty, existingServiceIDs, err := serviceOrderDetailSnapshot(db, orderID)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, response{"message": "failed to read existing service order details"})
+			return
+		}
+
+		newPartQty, newServiceIDs := serviceOrderPayloadSnapshot(payload.Items)
+		addedPartIDs, removedPartIDs, changedQtyPartIDs := serviceOrderPartDiff(existingPartQty, newPartQty)
+		addedServiceIDs, removedServiceIDs := serviceOrderServiceDiff(existingServiceIDs, newServiceIDs)
 
 		tx, err := db.Begin()
 		if err != nil {
@@ -189,7 +202,156 @@ func serviceOrderUpdateHandler(db *sql.DB) http.HandlerFunc {
 				"id": orderID,
 			},
 		})
+
+		EmitEvent(events.NewEvent(events.EventServiceOrderUpdated, events.DomainServiceOrder).
+			WithID(idRaw).
+			WithAction("items_changed").
+			WithData(response{
+				"id":                   orderID,
+				"items_count":          len(payload.Items),
+				"service_item_count":   serviceOrderUpdateServiceItemCount(payload.Items),
+				"part_line_count":      serviceOrderUpdatePartLineCount(payload.Items),
+				"added_part_ids":       addedPartIDs,
+				"removed_part_ids":     removedPartIDs,
+				"changed_qty_part_ids": changedQtyPartIDs,
+				"added_service_ids":    addedServiceIDs,
+				"removed_service_ids":  removedServiceIDs,
+			}))
 	}
+}
+
+func serviceOrderDetailSnapshot(db *sql.DB, orderID int64) (map[int64]int64, map[int64]struct{}, error) {
+	rows, err := db.Query(`
+		SELECT service_id, part_id, qty
+		FROM service_order_details
+		WHERE service_order_id = ?
+	`, orderID)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer rows.Close()
+
+	partQty := map[int64]int64{}
+	serviceIDs := map[int64]struct{}{}
+
+	for rows.Next() {
+		var serviceID sql.NullInt64
+		var partID sql.NullInt64
+		var qty sql.NullInt64
+		if err := rows.Scan(&serviceID, &partID, &qty); err != nil {
+			return nil, nil, err
+		}
+
+		if serviceID.Valid && serviceID.Int64 > 0 {
+			serviceIDs[serviceID.Int64] = struct{}{}
+		}
+
+		if partID.Valid && partID.Int64 > 0 {
+			q := int64(0)
+			if qty.Valid {
+				q = qty.Int64
+			}
+			partQty[partID.Int64] += q
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, nil, err
+	}
+
+	return partQty, serviceIDs, nil
+}
+
+func serviceOrderPayloadSnapshot(items []serviceOrderUpdateItem) (map[int64]int64, map[int64]struct{}) {
+	partQty := map[int64]int64{}
+	serviceIDs := map[int64]struct{}{}
+
+	for _, item := range items {
+		if item.ServiceID != nil && *item.ServiceID > 0 {
+			serviceIDs[*item.ServiceID] = struct{}{}
+		}
+
+		for _, part := range item.Parts {
+			if part.PartID != nil && *part.PartID > 0 && part.Qty > 0 {
+				partQty[*part.PartID] += part.Qty
+			}
+		}
+	}
+
+	return partQty, serviceIDs
+}
+
+func serviceOrderPartDiff(oldPartQty, newPartQty map[int64]int64) ([]int64, []int64, []int64) {
+	added := make([]int64, 0)
+	removed := make([]int64, 0)
+	changedQty := make([]int64, 0)
+
+	for id, newQty := range newPartQty {
+		oldQty, exists := oldPartQty[id]
+		if !exists {
+			added = append(added, id)
+			continue
+		}
+		if oldQty != newQty {
+			changedQty = append(changedQty, id)
+		}
+	}
+
+	for id := range oldPartQty {
+		if _, exists := newPartQty[id]; !exists {
+			removed = append(removed, id)
+		}
+	}
+
+	sort.Slice(added, func(i, j int) bool { return added[i] < added[j] })
+	sort.Slice(removed, func(i, j int) bool { return removed[i] < removed[j] })
+	sort.Slice(changedQty, func(i, j int) bool { return changedQty[i] < changedQty[j] })
+
+	return added, removed, changedQty
+}
+
+func serviceOrderServiceDiff(oldServiceIDs, newServiceIDs map[int64]struct{}) ([]int64, []int64) {
+	added := make([]int64, 0)
+	removed := make([]int64, 0)
+
+	for id := range newServiceIDs {
+		if _, exists := oldServiceIDs[id]; !exists {
+			added = append(added, id)
+		}
+	}
+
+	for id := range oldServiceIDs {
+		if _, exists := newServiceIDs[id]; !exists {
+			removed = append(removed, id)
+		}
+	}
+
+	sort.Slice(added, func(i, j int) bool { return added[i] < added[j] })
+	sort.Slice(removed, func(i, j int) bool { return removed[i] < removed[j] })
+
+	return added, removed
+}
+
+func serviceOrderUpdateServiceItemCount(items []serviceOrderUpdateItem) int {
+	total := 0
+	for _, item := range items {
+		if item.ServiceID != nil && *item.ServiceID > 0 {
+			total++
+		}
+	}
+	return total
+}
+
+func serviceOrderUpdatePartLineCount(items []serviceOrderUpdateItem) int {
+	total := 0
+	for _, item := range items {
+		for _, part := range item.Parts {
+			if part.PartID != nil && part.Qty > 0 {
+				total++
+			}
+		}
+	}
+	return total
 }
 
 func serviceOrderUpdateNullableDateTime(value string) any {

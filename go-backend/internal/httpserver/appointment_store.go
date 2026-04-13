@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"posbengkel/go-backend/internal/events"
 )
 
 type appointmentStoreRequest struct {
@@ -147,6 +149,14 @@ func appointmentStoreHandler(db *sql.DB) http.HandlerFunc {
 			"message":     "Appointment berhasil dijadwalkan.",
 			"appointment": appointment,
 		})
+
+		EmitEvent(events.NewEvent(events.EventAppointmentCreated, events.DomainAppointment).
+			WithID(strconv.FormatInt(id, 10)).
+			WithAction("created").
+			WithData(response{
+				"status":       "scheduled",
+				"scheduled_at": scheduledAt.Format("2006-01-02 15:04:05"),
+			}))
 	}
 }
 

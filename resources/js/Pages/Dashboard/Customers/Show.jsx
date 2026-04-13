@@ -1,6 +1,10 @@
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
 import DashboardLayout from "@/Layouts/DashboardLayout";
-import { Head, Link } from "@inertiajs/react";
+import { Head, Link, router } from "@inertiajs/react";
+import { useGoRealtime } from "@/Hooks/useGoRealtime";
+import { useRealtimeToggle } from "@/Hooks/useRealtimeToggle";
+import RealtimeControlBanner from "@/Components/Dashboard/RealtimeControlBanner";
+import RealtimeToggleButton from "@/Components/Dashboard/RealtimeToggleButton";
 import {
     IconArrowLeft,
     IconPencilCog,
@@ -16,8 +20,64 @@ import {
 import { toDisplayDateTime } from "@/Utils/datetime";
 
 export default function Show({ customer }) {
-    const vehicles = customer?.vehicles || [];
-    const serviceOrders = customer?.service_orders || [];
+    const [liveCustomer, setLiveCustomer] = useState(customer);
+    const [realtimeEnabled, setRealtimeEnabled] = useRealtimeToggle();
+    const [goRealtimeEventMeta, setGoRealtimeEventMeta] = useState(null);
+    const [highlightExpiresAt, setHighlightExpiresAt] = useState(null);
+    const [countdownNow, setCountdownNow] = useState(Date.now());
+    const reloadTimerRef = useRef(null);
+    const highlightTimerRef = useRef(null);
+
+    useEffect(() => setLiveCustomer(customer), [customer]);
+
+    useEffect(() => {
+        return () => {
+            if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current);
+            if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!highlightExpiresAt) return undefined;
+        const interval = setInterval(() => setCountdownNow(Date.now()), 1000);
+        return () => clearInterval(interval);
+    }, [highlightExpiresAt]);
+
+    useEffect(() => {
+        if (realtimeEnabled) return;
+        if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current);
+        if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+        setHighlightExpiresAt(null);
+    }, [realtimeEnabled]);
+
+    const scheduleReload = () => {
+        if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current);
+        reloadTimerRef.current = setTimeout(() => {
+            router.reload({ only: ['customer'], preserveScroll: true, preserveState: true });
+        }, 300);
+    };
+
+    const { status: goRealtimeStatus } = useGoRealtime({
+        enabled: realtimeEnabled,
+        domains: ['customers'],
+        onEvent: (payload) => {
+            if (!payload || payload.domain !== 'customers') return;
+            const action = payload.action || '';
+            if (!['created', 'updated', 'deleted'].includes(action)) return;
+            setGoRealtimeEventMeta({ action, at: new Date(payload.timestamp || Date.now()).toLocaleTimeString('id-ID') });
+            const expiresAt = Date.now() + 6000;
+            setHighlightExpiresAt(expiresAt);
+            setCountdownNow(Date.now());
+            if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+            highlightTimerRef.current = setTimeout(() => setHighlightExpiresAt(null), 6000);
+            scheduleReload();
+        },
+    });
+
+    const highlightSecondsLeft = highlightExpiresAt ? Math.max(0, Math.ceil((highlightExpiresAt - countdownNow) / 1000)) : 0;
+    const currentData = liveCustomer || customer;
+    const vehicles = currentData?.vehicles || [];
+    const serviceOrders = currentData?.service_orders || [];
 
     const statusLabel = (status) => {
         const map = {
@@ -33,7 +93,22 @@ export default function Show({ customer }) {
 
     return (
         <>
-            <Head title={`Detail Pelanggan - ${customer?.name || "-"}`} />
+            <Head title={`Detail Pelanggan - ${currentData?.name || "-"}`} />
+
+            <div className="space-y-4 mb-6">
+                <RealtimeControlBanner enabled={realtimeEnabled} />
+                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 flex items-center justify-between">
+                    <div className="text-sm text-slate-600 dark:text-slate-400">
+                        {goRealtimeEventMeta?.action && (
+                            <span>Perbaruan terakhir: <strong>{goRealtimeEventMeta.action}</strong> pada {goRealtimeEventMeta.at}</span>
+                        )}
+                        {highlightSecondsLeft > 0 && (
+                            <span className="ml-3 inline-block rounded-md bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">Highlight aktif ~{highlightSecondsLeft} dtk</span>
+                        )}
+                    </div>
+                    <RealtimeToggleButton enabled={realtimeEnabled} onClick={() => setRealtimeEnabled(!realtimeEnabled)} />
+                </div>
+            </div>
 
             <div className="space-y-6">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

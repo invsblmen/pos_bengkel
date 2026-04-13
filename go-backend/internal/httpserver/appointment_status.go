@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	"posbengkel/go-backend/internal/events"
 )
 
 var allowedAppointmentStatuses = map[string]bool{
@@ -76,6 +78,11 @@ func appointmentStatusHandler(db *sql.DB) http.HandlerFunc {
 				"status": payload.Status,
 			},
 		})
+
+		EmitEvent(events.NewEvent(events.EventAppointmentStatusChanged, events.DomainAppointment).
+			WithID(appointmentID).
+			WithAction("status_changed").
+			WithData(response{"status": payload.Status}))
 	}
 }
 

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { router } from '@inertiajs/react';
+import { useGoRealtime } from '@/Hooks/useGoRealtime';
 
 const DEFAULT_SUBSCRIPTIONS = [
     { channel: 'workshop.serviceorders', events: ['serviceorder.created', 'serviceorder.updated', 'serviceorder.deleted'] },
@@ -12,6 +13,29 @@ const DEFAULT_SUBSCRIPTIONS = [
     { channel: 'workshop.products', events: ['product.created', 'product.updated', 'product.deleted'] },
 ];
 
+const CHANNEL_DOMAIN_MAP = {
+    'workshop.serviceorders': 'service_orders',
+    'workshop.partpurchases': 'part_purchases',
+    'workshop.partsales': 'part_sales',
+    'workshop.parts': 'parts',
+    'workshop.partpurchaseorders': 'part_purchase_orders',
+    'workshop.partsalesorders': 'part_sales_orders',
+    'workshop.mechanics': 'mechanics',
+    'workshop.products': 'products',
+};
+
+const normalizeDomains = (subscriptions) => {
+    if (!Array.isArray(subscriptions)) return [];
+    const domains = subscriptions
+        .map((subscription) => {
+            if (typeof subscription === 'string') return subscription;
+            if (!subscription?.channel) return null;
+            return CHANNEL_DOMAIN_MAP[subscription.channel] || null;
+        })
+        .filter(Boolean);
+    return Array.from(new Set(domains));
+};
+
 export function useRealtimeReportHistoryReload({
     enabled = true,
     debounceMs = 800,
@@ -21,6 +45,7 @@ export function useRealtimeReportHistoryReload({
     preserveState = true,
 } = {}) {
     const debounceTimerRef = useRef(null);
+    const domains = normalizeDomains(subscriptions);
 
     const scheduleReload = useCallback(() => {
         if (!enabled) return;
@@ -38,32 +63,19 @@ export function useRealtimeReportHistoryReload({
         }, debounceMs);
     }, [enabled, debounceMs, only, preserveScroll, preserveState]);
 
+    useGoRealtime({
+        enabled: enabled && domains.length > 0,
+        domains,
+        onEvent: () => {
+            scheduleReload();
+        },
+    });
+
     useEffect(() => {
-        if (!enabled) return;
-        if (!window.Echo || !Array.isArray(subscriptions) || subscriptions.length === 0) return;
-
-        const listeners = [];
-
-        subscriptions.forEach(({ channel, events }) => {
-            if (!channel || !Array.isArray(events) || events.length === 0) return;
-
-            const echoChannel = window.Echo.channel(channel);
-
-            events.forEach((eventName) => {
-                const prefixedEvent = `.${eventName}`;
-                echoChannel.listen(prefixedEvent, scheduleReload);
-                listeners.push({ echoChannel, prefixedEvent });
-            });
-        });
-
         return () => {
             if (debounceTimerRef.current) {
                 clearTimeout(debounceTimerRef.current);
             }
-
-            listeners.forEach(({ echoChannel, prefixedEvent }) => {
-                echoChannel.stopListening(prefixedEvent);
-            });
         };
-    }, [enabled, scheduleReload, subscriptions]);
+    }, []);
 }

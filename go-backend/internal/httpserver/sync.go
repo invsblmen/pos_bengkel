@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"posbengkel/go-backend/internal/config"
+	"posbengkel/go-backend/internal/events"
 )
 
 var syncSnapshotTables = []string{
@@ -252,10 +253,18 @@ func syncRunHandler(db *sql.DB, cfg config.Config) http.HandlerFunc {
 		result, err := syncSendBatchByID(db, cfg, batch["sync_batch_id"].(string))
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, response{"message": "failed to send sync batch", "error": err.Error(), "batch": batch})
+			EmitEvent(events.NewEvent(events.EventSyncBatchFailed, events.DomainSync).
+				WithID(fmt.Sprint(batch["sync_batch_id"])).
+				WithAction("batch_failed").
+				WithData(response{"error": err.Error()}))
 			return
 		}
 
 		writeJSON(w, http.StatusOK, response{"batch": batch, "send_result": result})
+		EmitEvent(events.NewEvent(events.EventSyncBatchCompleted, events.DomainSync).
+			WithID(fmt.Sprint(batch["sync_batch_id"])).
+			WithAction("batch_completed").
+			WithData(response{"result": result}))
 	}
 }
 
@@ -270,10 +279,18 @@ func syncSendBatchHandler(db *sql.DB, cfg config.Config) http.HandlerFunc {
 		result, err := syncSendBatchByID(db, cfg, batchID)
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, response{"message": "failed to send sync batch", "error": err.Error()})
+			EmitEvent(events.NewEvent(events.EventSyncBatchFailed, events.DomainSync).
+				WithID(batchID).
+				WithAction("batch_failed").
+				WithData(response{"error": err.Error()}))
 			return
 		}
 
 		writeJSON(w, http.StatusOK, response{"result": result})
+		EmitEvent(events.NewEvent(events.EventSyncBatchCompleted, events.DomainSync).
+			WithID(batchID).
+			WithAction("batch_sent").
+			WithData(response{"result": result}))
 	}
 }
 
@@ -288,10 +305,18 @@ func syncRetryBatchHandler(db *sql.DB, cfg config.Config) http.HandlerFunc {
 		result, err := syncSendBatchByID(db, cfg, batchID)
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, response{"message": "failed to retry sync batch", "error": err.Error()})
+			EmitEvent(events.NewEvent(events.EventSyncBatchFailed, events.DomainSync).
+				WithID(batchID).
+				WithAction("batch_retry_failed").
+				WithData(response{"error": err.Error()}))
 			return
 		}
 
 		writeJSON(w, http.StatusOK, response{"result": result})
+		EmitEvent(events.NewEvent(events.EventSyncBatchCompleted, events.DomainSync).
+			WithID(batchID).
+			WithAction("batch_retry_completed").
+			WithData(response{"result": result}))
 	}
 }
 

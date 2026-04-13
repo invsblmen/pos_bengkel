@@ -37,7 +37,7 @@ Cakupan utama:
 2. Inertia.js + React 18
 3. Tailwind CSS 3
 4. Spatie Laravel Permission
-5. Laravel Reverb + Laravel Echo
+5. Realtime split: Laravel Reverb + Laravel Echo (jalur Laravel), WebSocket native GO (jalur GO)
 
 ## 3. Setup Cepat (Device Baru)
 
@@ -60,7 +60,11 @@ copy .env.example .env
 php artisan key:generate
 ```
 
-### 3.3 Konfigurasi `.env` minimum
+### 3.3 Konfigurasi `.env` minimum (jalur Laravel)
+
+Catatan penting:
+1. Blok Reverb di bawah ini khusus jalur Laravel.
+2. Jalur GO local gunakan konfigurasi websocket GO (`VITE_GO_WS_URL`, opsional `VITE_GO_WS_TOKEN`).
 
 ```env
 APP_NAME="POSBengkel"
@@ -88,6 +92,10 @@ VITE_REVERB_APP_KEY="${REVERB_APP_KEY}"
 VITE_REVERB_HOST="${REVERB_HOST}"
 VITE_REVERB_PORT="${REVERB_PORT}"
 VITE_REVERB_SCHEME="${REVERB_SCHEME}"
+
+# GO native realtime path (untuk frontend jalur GO)
+VITE_GO_WS_URL=ws://127.0.0.1:8081/ws
+VITE_GO_WS_TOKEN=
 ```
 
 Catatan:
@@ -127,7 +135,7 @@ php artisan storage:link
 php artisan config:clear
 ```
 
-Jalankan aplikasi:
+Jalankan aplikasi (jalur Laravel):
 
 ```bash
 php artisan reverb:start
@@ -135,22 +143,24 @@ npm run dev
 php artisan serve
 ```
 
+Untuk jalur GO local, realtime tidak bergantung pada `php artisan reverb:start`; pastikan GO API berjalan dan frontend GO mengarah ke `VITE_GO_WS_URL`.
+
 Jika pakai Herd, `php artisan serve` tidak wajib.
 
 ## 4. Troubleshooting Umum
 
-1. `Failed to resolve import "laravel-echo"`
+1. `Failed to resolve import "laravel-echo"` (khusus jalur Laravel)
 
 ```bash
 npm install
 npm ls laravel-echo pusher-js --depth=0
 ```
 
-2. `You must pass your app key when you instantiate Pusher`
+2. `You must pass your app key when you instantiate Pusher` (khusus jalur Laravel)
 
 Periksa `VITE_REVERB_APP_KEY` di `.env` dan restart Vite.
 
-3. `Class "Pusher\\Pusher" not found`
+3. `Class "Pusher\\Pusher" not found` (khusus jalur Laravel)
 
 ```bash
 composer require pusher/pusher-php-server
@@ -165,6 +175,23 @@ php artisan config:clear
 5. Port Vite 5173 terpakai
 
 Normal, Vite akan pindah ke port lain.
+
+6. Reverb tidak reachable dari browser atau Echo gagal connect (khusus jalur Laravel)
+
+```bash
+php artisan list | findstr /i reverb
+php artisan reverb:watchdog-status --lines=20
+php artisan reverb:watchdog-maintain --max-kb=1024 --keep-lines=600
+```
+
+Jika status menunjukkan Reverb tidak hidup, jalankan ulang watchdog lokal:
+
+```powershell
+scripts\ensure-reverb-running.ps1
+scripts\watch-reverb.ps1
+```
+
+Jika port 8080 sudah dipakai tetapi event tetap tidak masuk, cek apakah proses yang menempati port masih milik project ini dan pastikan `.env` memakai `REVERB_HOST=pos-bengkel.test` serta `REVERB_SCHEME=http` untuk dev lokal.
 
 ## 5. SOP Pengembangan Fitur Baru
 
@@ -574,7 +601,11 @@ herd unlink pos_bengkel
 herd link pos-bengkel
 ```
 
-### 12.2 Reverb WebSocket Lokal
+### 12.2 Reverb WebSocket Lokal (khusus jalur Laravel)
+
+Catatan penting alignment arsitektur:
+- Bagian ini khusus jalur Laravel (hosting/fallback/monitoring).
+- Untuk jalur GO local, gunakan realtime native GO (`/ws`) dan bukan Reverb.
 
 Untuk local development yang stabil:
 
@@ -593,11 +624,34 @@ php artisan reverb:start
 npm run dev
 ```
 
+Kalau Reverb tetap unreachable, gunakan urutan cek berikut:
+
+1. Pastikan command Reverb tersedia dengan `php artisan list | findstr /i reverb`.
+2. Cek status watchdog dengan `php artisan reverb:watchdog-status --lines=20`.
+3. Jalankan `scripts\ensure-reverb-running.ps1` untuk start/repair proses Reverb project-scoped.
+4. Jika masih gagal, buka `storage\logs\reverb-autostart.log` dan `storage\logs\reverb-watchdog.log` untuk melihat alasan stop/start terakhir.
+5. Setelah `.env` diubah, jalankan lagi `php artisan config:clear` lalu restart Vite.
+
 Jika site sebelumnya di-HTTPS Herd dan handshake gagal, nonaktifkan HTTPS lokal:
 
 ```bash
 herd unsecure pos-bengkel
 ```
+
+### 12.2.1 Diagnostik Realtime GO (Local-First)
+
+Untuk jalur GO native realtime, gunakan pengecekan berikut:
+
+```bash
+GET /api/v1/realtime/subscribers
+POST /api/v1/realtime/emit
+GET /ws
+```
+
+Checklist cepat:
+1. Pastikan GO API berjalan pada port target (contoh `:8081`).
+2. Cek subscriber aktif via `/api/v1/realtime/subscribers`.
+3. Uji emit event via `/api/v1/realtime/emit` dan verifikasi pesan diterima client WebSocket.
 
 ### 12.3 CSRF 419 (Login/Logout)
 

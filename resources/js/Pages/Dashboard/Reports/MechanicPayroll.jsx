@@ -4,9 +4,14 @@ import { Head, router } from "@inertiajs/react";
 import { Card, CardBody, CardHeader, CardTitle } from "@/Components/Card";
 import { IconDownload } from "@tabler/icons-react";
 import { useRealtimeReportHistoryReload } from "@/Hooks/useRealtimeReportHistoryReload";
+import { useGoReportRealtime } from "@/Hooks/useGoReportRealtime";
+import { useRealtimeToggle } from "@/Hooks/useRealtimeToggle";
+import ReportRealtimeBar from "@/Components/Dashboard/ReportRealtimeBar";
 
 export default function MechanicPayroll({ mechanics, filters, summary }) {
     useRealtimeReportHistoryReload();
+    const [realtimeEnabled, setRealtimeEnabled] = useRealtimeToggle();
+    const { connectionStatus, eventMeta, highlightSecondsLeft } = useGoReportRealtime({ enabled: realtimeEnabled });
     const [formData, setFormData] = useState({
         start_date: filters.start_date,
         end_date: filters.end_date,
@@ -50,6 +55,13 @@ export default function MechanicPayroll({ mechanics, filters, summary }) {
                         Export CSV
                     </button>
                 </div>
+                <ReportRealtimeBar
+                    enabled={realtimeEnabled}
+                    status={connectionStatus}
+                    eventMeta={eventMeta}
+                    highlightSecondsLeft={highlightSecondsLeft}
+                    onToggle={() => setRealtimeEnabled((prev) => !prev)}
+                />
 
                 <Card>
                     <CardBody>

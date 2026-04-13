@@ -1,6 +1,10 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import DashboardLayout from "@/Layouts/DashboardLayout";
 import { Head, Link, router, usePage } from "@inertiajs/react";
+import { useGoRealtime } from "@/Hooks/useGoRealtime";
+import { useRealtimeToggle } from "@/Hooks/useRealtimeToggle";
+import RealtimeControlBanner from "@/Components/Dashboard/RealtimeControlBanner";
+import RealtimeToggleButton from "@/Components/Dashboard/RealtimeToggleButton";
 import {
     IconCalendar,
     IconChevronLeft,
@@ -69,6 +73,13 @@ export default function AppointmentCalendar({
 
     const [selectedDate, setSelectedDate] = useState(null);
     const [showModal, setShowModal] = useState(false);
+    const [realtimeEnabled, setRealtimeEnabled] = useRealtimeToggle();
+    const [goRealtimeEventMeta, setGoRealtimeEventMeta] = useState(null);
+    const [highlightedAppointmentIds, setHighlightedAppointmentIds] = useState([]);
+    const [highlightExpiresAt, setHighlightExpiresAt] = useState(null);
+    const [countdownNow, setCountdownNow] = useState(Date.now());
+    const reloadTimerRef = useRef(null);
+    const highlightTimerRef = useRef(null);
 
     const [selectedMechanic, setSelectedMechanic] = useState("");
     const [selectedSlot, setSelectedSlot] = useState("");
@@ -102,36 +113,98 @@ export default function AppointmentCalendar({
             : new Date(value);
 
     useEffect(() => {
-        if (!window.Echo) return;
-
-        let reloadTimeout = null;
-        const reloadCalendar = () => {
-            if (reloadTimeout) {
-                clearTimeout(reloadTimeout);
-            }
-
-            // Debounce tiny bursts of events so UI reload happens once.
-            reloadTimeout = setTimeout(() => {
-                router.reload({
-                    only: ["calendar_days"],
-                    preserveScroll: true,
-                    preserveState: true,
-                });
-            }, 120);
-        };
-
-        const channel = window.Echo.channel("workshop.appointments");
-        channel.listen(".appointment.created", reloadCalendar);
-        channel.listen(".appointment.updated", reloadCalendar);
-        channel.listen(".appointment.deleted", reloadCalendar);
-
         return () => {
-            if (reloadTimeout) {
-                clearTimeout(reloadTimeout);
+            if (reloadTimerRef.current) {
+                clearTimeout(reloadTimerRef.current);
             }
-            window.Echo.leaveChannel("workshop.appointments");
+            if (highlightTimerRef.current) {
+                clearTimeout(highlightTimerRef.current);
+            }
         };
     }, []);
+
+    useEffect(() => {
+        if (!highlightExpiresAt) {
+            return undefined;
+        }
+
+        const interval = setInterval(() => {
+            setCountdownNow(Date.now());
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [highlightExpiresAt]);
+
+    useEffect(() => {
+        if (realtimeEnabled) return;
+        if (reloadTimerRef.current) {
+            clearTimeout(reloadTimerRef.current);
+        }
+        if (highlightTimerRef.current) {
+            clearTimeout(highlightTimerRef.current);
+        }
+        setHighlightedAppointmentIds([]);
+        setHighlightExpiresAt(null);
+    }, [realtimeEnabled]);
+
+    const scheduleReload = () => {
+        if (reloadTimerRef.current) {
+            clearTimeout(reloadTimerRef.current);
+        }
+
+        reloadTimerRef.current = setTimeout(() => {
+            router.reload({
+                only: ["calendar_days"],
+                preserveScroll: true,
+                preserveState: true,
+            });
+        }, 250);
+    };
+
+    const { status: goRealtimeStatus } = useGoRealtime({
+        enabled: realtimeEnabled,
+        domains: ["appointments"],
+        onEvent: (payload) => {
+            if (!payload || payload.domain !== "appointments") {
+                return;
+            }
+
+            const action = payload.action || "";
+            if (!["created", "updated", "deleted", "status_changed"].includes(action)) {
+                return;
+            }
+
+            setGoRealtimeEventMeta({
+                action,
+                at: new Date(payload.timestamp || Date.now()).toLocaleTimeString("id-ID"),
+            });
+
+            const appointmentId = payload.id || payload?.data?.appointment_id || payload?.data?.id;
+            if (appointmentId) {
+                const normalizedId = String(appointmentId);
+                setHighlightedAppointmentIds((prev) => {
+                    const merged = new Set(prev);
+                    merged.add(normalizedId);
+                    return Array.from(merged);
+                });
+
+                const expiresAt = Date.now() + 6000;
+                setHighlightExpiresAt(expiresAt);
+                setCountdownNow(Date.now());
+
+                if (highlightTimerRef.current) {
+                    clearTimeout(highlightTimerRef.current);
+                }
+                highlightTimerRef.current = setTimeout(() => {
+                    setHighlightedAppointmentIds([]);
+                    setHighlightExpiresAt(null);
+                }, 6000);
+            }
+            scheduleReload();
+        },
+    });
+
+    const highlightSecondsLeft = highlightExpiresAt ? Math.max(0, Math.ceil((highlightExpiresAt - countdownNow) / 1000)) : 0;
 
     const dayAppointmentsWithFilter = (day) => {
         if (!day || !day.appointments) return [];
@@ -311,6 +384,7 @@ export default function AppointmentCalendar({
                             <p className="text-sm text-white/90 mt-1">
                                 Tampilan compact untuk booking cepat, monitoring slot, dan kontrol agenda harian.
                             </p>
+                            <RealtimeControlBanner enabled={realtimeEnabled} />
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
                             <button
@@ -327,6 +401,28 @@ export default function AppointmentCalendar({
                                 Daftar Appointment
                             </Link>
                         </div>
+                    </div>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2.5 text-xs text-slate-600 dark:text-slate-300">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span>
+                            GO Realtime: <span className="font-semibold">{realtimeEnabled ? goRealtimeStatus : "disabled"}</span>
+                        </span>
+                        <RealtimeToggleButton
+                            enabled={realtimeEnabled}
+                            onClick={() => setRealtimeEnabled((prev) => !prev)}
+                        />
+                        <span>
+                            {goRealtimeEventMeta
+                                ? `Event terakhir: ${goRealtimeEventMeta.action} (${goRealtimeEventMeta.at})`
+                                : "Belum ada event realtime appointments."}
+                        </span>
+                        {highlightSecondsLeft > 0 && (
+                            <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                                Highlight aktif ~{highlightSecondsLeft} dtk
+                            </span>
+                        )}
                     </div>
                 </div>
 
@@ -460,6 +556,7 @@ export default function AppointmentCalendar({
                                         const isSelected = selectedDate === day.date;
                                         const dayNum = day.day_num || toDate(day.date).getDate();
                                         const appointments = dayAppointmentsWithFilter(day);
+                                        const isDayHighlighted = appointments.some((apt) => highlightedAppointmentIds.includes(String(apt.id)));
 
                                         return (
                                             <button
@@ -468,8 +565,10 @@ export default function AppointmentCalendar({
                                                 className={`min-h-[112px] p-2 rounded-xl border text-left transition ${
                                                     isSelected
                                                         ? "border-cyan-500 ring-2 ring-cyan-200 dark:ring-cyan-900"
-                                                        : "border-slate-200 hover:border-cyan-400 dark:border-slate-700"
-                                                } ${isToday ? "bg-cyan-50/70 dark:bg-cyan-950/30" : "bg-white dark:bg-slate-900"}`}
+                                                        : isDayHighlighted
+                                                            ? "border-amber-300 dark:border-amber-700"
+                                                            : "border-slate-200 hover:border-cyan-400 dark:border-slate-700"
+                                                } ${isToday ? "bg-cyan-50/70 dark:bg-cyan-950/30" : isDayHighlighted ? "bg-amber-50 dark:bg-amber-900/20" : "bg-white dark:bg-slate-900"}`}
                                             >
                                                 <div className="flex items-center justify-between">
                                                     <span
@@ -547,7 +646,7 @@ export default function AppointmentCalendar({
                                         agendaItems.map((apt) => (
                                             <div
                                                 key={apt.id}
-                                                className="rounded-xl border border-slate-200 dark:border-slate-700 p-3"
+                                                className={`rounded-xl border p-3 transition-colors ${highlightedAppointmentIds.includes(String(apt.id)) ? 'border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-900/20' : 'border-slate-200 dark:border-slate-700'}`}
                                             >
                                                 <div className="flex items-start justify-between gap-2">
                                                     <div>

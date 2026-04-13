@@ -10,6 +10,7 @@ import Autocomplete from '@/Components/Dashboard/Autocomplete';
 import QuickCreateVehicleModal from '@/Components/Dashboard/QuickCreateVehicleModal';
 import QuickCreatePartModal from '@/Components/Dashboard/QuickCreatePartModal';
 import VehicleHistoryModal from '@/Components/ServiceOrder/VehicleHistoryModal';
+import { useGoRealtime } from '@/Hooks/useGoRealtime';
 import {
     IconDeviceFloppy,
     IconTrash,
@@ -95,55 +96,43 @@ export default function Create({ customers, mechanics, services, parts, vehicles
         setLiveVehicles(vehicles || []);
     }, [vehicles]);
 
-    useEffect(() => {
-        if (!window.Echo) return;
+    useGoRealtime({
+        enabled: true,
+        domains: ['customers', 'vehicles'],
+        onEvent: (payload) => {
+            const domain = payload?.domain;
+            const action = payload?.action || '';
+            const incoming = payload?.data || {};
 
-        const customerChannel = window.Echo.channel('workshop.customers');
-        const vehicleChannel = window.Echo.channel('workshop.vehicles');
+            if (domain === 'customers' && action === 'created' && incoming?.id) {
+                setLiveCustomers((prev) => {
+                    if (prev.some((customer) => Number(customer.id) === Number(incoming.id))) {
+                        return prev;
+                    }
+                    return [...prev, { ...incoming, vehicles: incoming.vehicles || [] }];
+                });
+            }
 
-        customerChannel.listen('.customer.created', (event) => {
-            const incoming = event?.customer;
-            if (!incoming?.id) return;
+            if (domain === 'vehicles' && action === 'created' && incoming?.id) {
+                setLiveVehicles((prev) => {
+                    if (prev.some((vehicle) => Number(vehicle.id) === Number(incoming.id))) {
+                        return prev;
+                    }
+                    return [...prev, incoming];
+                });
 
-            setLiveCustomers((prev) => {
-                if (prev.some((customer) => customer.id === incoming.id)) {
-                    return prev;
-                }
-
-                return [...prev, { ...incoming, vehicles: incoming.vehicles || [] }];
-            });
-        });
-
-        vehicleChannel.listen('.vehicle.created', (event) => {
-            const incoming = event?.vehicle;
-            if (!incoming?.id) return;
-
-            setLiveVehicles((prev) => {
-                if (prev.some((vehicle) => vehicle.id === incoming.id)) {
-                    return prev;
-                }
-
-                return [...prev, incoming];
-            });
-
-            setCustomerVehicles((prev) => {
-                if (Number(incoming.customer_id) !== Number(data.customer_id)) {
-                    return prev;
-                }
-
-                if (prev.some((vehicle) => vehicle.id === incoming.id)) {
-                    return prev;
-                }
-
-                return [...prev, incoming];
-            });
-        });
-
-        return () => {
-            window.Echo.leaveChannel('workshop.customers');
-            window.Echo.leaveChannel('workshop.vehicles');
-        };
-    }, [data.customer_id]);
+                setCustomerVehicles((prev) => {
+                    if (Number(incoming.customer_id) !== Number(data.customer_id)) {
+                        return prev;
+                    }
+                    if (prev.some((vehicle) => Number(vehicle.id) === Number(incoming.id))) {
+                        return prev;
+                    }
+                    return [...prev, incoming];
+                });
+            }
+        },
+    });
 
     // Filter vehicles that are currently in active service orders
     const vehiclesInService = useMemo(() => {

@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"posbengkel/go-backend/internal/events"
 )
 
 type partPurchaseUpdateStatusRequest struct {
@@ -170,6 +172,14 @@ func partPurchaseUpdateStatusHandler(db *sql.DB) http.HandlerFunc {
 			"ok":      true,
 			"message": "Purchase status updated to: " + payload.Status,
 		})
+
+		EmitEvent(events.NewEvent(events.EventPartPurchaseUpdated, events.DomainPartPurchase).
+			WithID(purchaseID).
+			WithAction("status_changed").
+			WithData(response{
+				"old_status": oldStatus,
+				"new_status": payload.Status,
+			}))
 	}
 }
 

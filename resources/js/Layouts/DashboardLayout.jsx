@@ -4,6 +4,7 @@ import Sidebar from "@/Components/Dashboard/Sidebar";
 import Navbar from "@/Components/Dashboard/Navbar";
 import { Toaster } from "react-hot-toast";
 import { useTheme } from "@/Context/ThemeSwitcherContext";
+import { useGoRealtime } from "@/Hooks/useGoRealtime";
 
 export default function AppLayout({ children }) {
     const { darkMode, themeSwitcher } = useTheme();
@@ -25,31 +26,26 @@ export default function AppLayout({ children }) {
         return !/\/print$/.test(url);
     }, [url]);
 
-    useEffect(() => {
-        if (!shouldEnableGlobalRealtime) return;
-        if (!window.Echo) return;
-
-        const subscriptions = [
-            { channel: "workshop.customers", events: ["customer.created", "customer.updated", "customer.deleted"] },
-            { channel: "workshop.vehicles", events: ["vehicle.created", "vehicle.updated", "vehicle.deleted"] },
-            { channel: "workshop.suppliers", events: ["supplier.created", "supplier.updated", "supplier.deleted"] },
-            { channel: "workshop.mechanics", events: ["mechanic.created", "mechanic.updated", "mechanic.deleted"] },
-            { channel: "workshop.services", events: ["service.created", "service.updated", "service.deleted"] },
-            { channel: "workshop.servicecategories", events: ["servicecategory.created", "servicecategory.updated", "servicecategory.deleted"] },
-            { channel: "workshop.partcategories", events: ["partcategory.created", "partcategory.updated", "partcategory.deleted"] },
-            { channel: "workshop.parts", events: ["part.created", "part.updated", "part.deleted"] },
-            { channel: "workshop.vouchers", events: ["voucher.created", "voucher.updated", "voucher.deleted"] },
-            { channel: "workshop.serviceorders", events: ["serviceorder.created", "serviceorder.updated", "serviceorder.deleted"] },
-            { channel: "workshop.appointments", events: ["appointment.created", "appointment.updated", "appointment.deleted"] },
-            { channel: "workshop.partpurchases", events: ["partpurchase.created", "partpurchase.updated"] },
-            { channel: "workshop.partpurchaseorders", events: ["partpurchaseorder.created", "partpurchaseorder.deleted"] },
-            { channel: "workshop.partsales", events: ["partsale.created", "partsale.updated", "partsale.deleted"] },
-            { channel: "workshop.partsalesorders", events: ["partsalesorder.created", "partsalesorder.deleted"] },
-        ];
-
-        const listeners = [];
-
-        const scheduleReload = () => {
+    useGoRealtime({
+        enabled: shouldEnableGlobalRealtime,
+        domains: [
+            "customers",
+            "vehicles",
+            "suppliers",
+            "mechanics",
+            "services",
+            "service_categories",
+            "part_categories",
+            "parts",
+            "vouchers",
+            "service_orders",
+            "appointments",
+            "part_purchases",
+            "part_purchase_orders",
+            "part_sales",
+            "part_sales_orders",
+        ],
+        onEvent: () => {
             if (reloadTimerRef.current) {
                 clearTimeout(reloadTimerRef.current);
             }
@@ -60,28 +56,16 @@ export default function AppLayout({ children }) {
                     preserveState: true,
                 });
             }, 700);
-        };
+        },
+    });
 
-        subscriptions.forEach(({ channel, events }) => {
-            const echoChannel = window.Echo.channel(channel);
-
-            events.forEach((eventName) => {
-                const prefixedEvent = `.${eventName}`;
-                echoChannel.listen(prefixedEvent, scheduleReload);
-                listeners.push({ echoChannel, prefixedEvent });
-            });
-        });
-
+    useEffect(() => {
         return () => {
             if (reloadTimerRef.current) {
                 clearTimeout(reloadTimerRef.current);
             }
-
-            listeners.forEach(({ echoChannel, prefixedEvent }) => {
-                echoChannel.stopListening(prefixedEvent);
-            });
         };
-    }, [shouldEnableGlobalRealtime]);
+    }, []);
 
     const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 

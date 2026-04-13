@@ -1,7 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import Pagination from '@/Components/Dashboard/Pagination';
+import { useGoRealtime } from '@/Hooks/useGoRealtime';
+import { useRealtimeToggle } from '@/Hooks/useRealtimeToggle';
+import RealtimeControlBanner from '@/Components/Dashboard/RealtimeControlBanner';
+import RealtimeToggleButton from '@/Components/Dashboard/RealtimeToggleButton';
 import {
     IconCalendar,
     IconClock,
@@ -47,80 +51,113 @@ export default function Index({ appointments }) {
     const [searchQuery, setSearchQuery] = useState('');
     const [viewMode, setViewMode] = useState('grid');
     const [liveAppointments, setLiveAppointments] = useState(appointments?.data || []);
+    const [realtimeEnabled, setRealtimeEnabled] = useRealtimeToggle();
+    const [goRealtimeEventMeta, setGoRealtimeEventMeta] = useState(null);
+    const [highlightedAppointmentIds, setHighlightedAppointmentIds] = useState([]);
+    const [highlightExpiresAt, setHighlightExpiresAt] = useState(null);
+    const [countdownNow, setCountdownNow] = useState(Date.now());
+    const reloadTimerRef = useRef(null);
+    const highlightTimerRef = useRef(null);
 
     const totalAppointments = liveAppointments?.length || 0;
 
-    // Real-time listener for appointments
     useEffect(() => {
-        if (!window.Echo) {
-            console.warn('Echo not available - real-time updates disabled');
-            return;
-        }
+        setLiveAppointments(appointments?.data || []);
+    }, [appointments?.data]);
 
-        const channel = window.Echo.channel('workshop.appointments');
-
-        channel.listen('.appointment.created', (event) => {
-            console.log('Appointment created event received:', event);
-            const incomingAppointment = event?.appointment;
-
-            if (!incomingAppointment?.id) {
-                console.warn('Invalid appointment data received');
-                return;
-            }
-
-            setLiveAppointments(prev => {
-                const exists = prev.some(a => a.id === incomingAppointment.id);
-                if (exists) {
-                    console.log('Appointment already in list, skipping');
-                    return prev;
-                }
-                console.log('Adding new appointment:', incomingAppointment.id);
-                return [incomingAppointment, ...prev];
-            });
-        });
-
-        channel.listen('.appointment.deleted', (event) => {
-            console.log('Appointment deleted event received:', event);
-            const deletedAppointmentId = event?.appointmentId;
-
-            if (!deletedAppointmentId) {
-                console.warn('Invalid appointment ID received');
-                return;
-            }
-
-            setLiveAppointments(prev => {
-                const filtered = prev.filter(a => a.id !== deletedAppointmentId);
-                console.log('Removed appointment with ID:', deletedAppointmentId);
-                return filtered;
-            });
-        });
-
-        channel.listen('.appointment.updated', (event) => {
-            console.log('Appointment updated event received:', event);
-            const updatedAppointment = event?.appointment;
-
-            if (!updatedAppointment?.id) {
-                console.warn('Invalid appointment data received');
-                return;
-            }
-
-            setLiveAppointments(prev => {
-                const index = prev.findIndex(a => a.id === updatedAppointment.id);
-                if (index === -1) {
-                    console.log('Appointment not found in list, skipping update');
-                    return prev;
-                }
-                const updated = [...prev];
-                updated[index] = updatedAppointment;
-                console.log('Updated appointment:', updatedAppointment.id);
-                return updated;
-            });
-        });
-
+    useEffect(() => {
         return () => {
-            window.Echo.leaveChannel('workshop.appointments');
+            if (reloadTimerRef.current) {
+                clearTimeout(reloadTimerRef.current);
+            }
+            if (highlightTimerRef.current) {
+                clearTimeout(highlightTimerRef.current);
+            }
         };
     }, []);
+
+    useEffect(() => {
+        if (!highlightExpiresAt) {
+            return undefined;
+        }
+
+        const interval = setInterval(() => {
+            setCountdownNow(Date.now());
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [highlightExpiresAt]);
+
+    useEffect(() => {
+        if (realtimeEnabled) return;
+        if (reloadTimerRef.current) {
+            clearTimeout(reloadTimerRef.current);
+        }
+        if (highlightTimerRef.current) {
+            clearTimeout(highlightTimerRef.current);
+        }
+        setHighlightedAppointmentIds([]);
+        setHighlightExpiresAt(null);
+    }, [realtimeEnabled]);
+
+    const scheduleReload = () => {
+        if (reloadTimerRef.current) {
+            clearTimeout(reloadTimerRef.current);
+        }
+
+        reloadTimerRef.current = setTimeout(() => {
+            router.reload({
+                only: ['appointments'],
+                preserveScroll: true,
+                preserveState: true,
+            });
+        }, 300);
+    };
+
+    const { status: goRealtimeStatus } = useGoRealtime({
+        enabled: realtimeEnabled,
+        domains: ['appointments'],
+        onEvent: (payload) => {
+            if (!payload || payload.domain !== 'appointments') {
+                return;
+            }
+
+            const action = payload.action || '';
+            if (!['created', 'updated', 'deleted', 'status_changed'].includes(action)) {
+                return;
+            }
+
+            setGoRealtimeEventMeta({
+                action,
+                at: new Date(payload.timestamp || Date.now()).toLocaleTimeString('id-ID'),
+            });
+
+            const appointmentId = payload.id || payload?.data?.appointment_id || payload?.data?.id;
+            if (appointmentId) {
+                const normalizedId = String(appointmentId);
+                setHighlightedAppointmentIds((prev) => {
+                    const merged = new Set(prev);
+                    merged.add(normalizedId);
+                    return Array.from(merged);
+                });
+
+                const expiresAt = Date.now() + 6000;
+                setHighlightExpiresAt(expiresAt);
+                setCountdownNow(Date.now());
+
+                if (highlightTimerRef.current) {
+                    clearTimeout(highlightTimerRef.current);
+                }
+                highlightTimerRef.current = setTimeout(() => {
+                    setHighlightedAppointmentIds([]);
+                    setHighlightExpiresAt(null);
+                }, 6000);
+            }
+            scheduleReload();
+        },
+    });
+
+    const highlightSecondsLeft = highlightExpiresAt ? Math.max(0, Math.ceil((highlightExpiresAt - countdownNow) / 1000)) : 0;
 
     const handleStatusChange = (appointmentId, newStatus) => {
         if (confirm(`Ubah status appointment menjadi ${statusConfig[newStatus].label}?`)) {
@@ -156,6 +193,7 @@ export default function Index({ appointments }) {
                     <div>
                         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Daftar Appointment</h1>
                         <p className="text-sm text-slate-500 dark:text-slate-400">{totalAppointments} appointment terdaftar</p>
+                        <RealtimeControlBanner enabled={realtimeEnabled} />
                     </div>
                     <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 w-full lg:w-auto">
                         <div className="flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-1 self-start">
@@ -206,6 +244,28 @@ export default function Index({ appointments }) {
                     </div>
                 </div>
 
+                <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2.5 text-xs text-slate-600 dark:text-slate-300">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span>
+                            GO Realtime: <span className="font-semibold">{realtimeEnabled ? goRealtimeStatus : 'disabled'}</span>
+                        </span>
+                        <RealtimeToggleButton
+                            enabled={realtimeEnabled}
+                            onClick={() => setRealtimeEnabled((prev) => !prev)}
+                        />
+                        <span>
+                            {goRealtimeEventMeta
+                                ? `Event terakhir: ${goRealtimeEventMeta.action} (${goRealtimeEventMeta.at})`
+                                : 'Belum ada event realtime appointments.'}
+                        </span>
+                        {highlightSecondsLeft > 0 && (
+                            <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                                Highlight aktif ~{highlightSecondsLeft} dtk
+                            </span>
+                        )}
+                    </div>
+                </div>
+
                 <div className="space-y-4">
                     {filteredAppointments?.length ? (
                         <>
@@ -216,7 +276,7 @@ export default function Index({ appointments }) {
                                         const isPast = isPastDate(apt.scheduled_at);
 
                                         return (
-                                            <div key={apt.id} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
+                                            <div key={apt.id} className={`rounded-2xl border p-5 transition-colors ${highlightedAppointmentIds.includes(String(apt.id)) ? 'bg-amber-50 border-amber-300 dark:bg-amber-900/20 dark:border-amber-700' : 'bg-white border-slate-200 dark:bg-slate-900 dark:border-slate-800'}`}>
                                                 <div className="flex flex-col lg:flex-row gap-4">
                                                     {/* Left: Date & Time */}
                                                     <div className="lg:w-48 flex flex-col items-start lg:items-center lg:justify-center lg:border-r lg:pr-4 border-slate-100 dark:border-slate-800">
@@ -359,7 +419,7 @@ export default function Index({ appointments }) {
                                                     const StatusIcon = statusConfig[apt.status]?.icon || IconClock;
                                                     const isPast = isPastDate(apt.scheduled_at);
                                                     return (
-                                                        <tr key={apt.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                                                        <tr key={apt.id} className={`transition-colors ${highlightedAppointmentIds.includes(String(apt.id)) ? 'bg-amber-50 dark:bg-amber-900/20' : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'}`}>
                                                             <td className="px-4 py-3 text-sm text-slate-700 dark:text-slate-300">
                                                                 <div className="flex items-center gap-2">
                                                                     <IconCalendar size={16} className="text-slate-400" />

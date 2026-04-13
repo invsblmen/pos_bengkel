@@ -1,9 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import Pagination from '@/Components/Dashboard/Pagination';
 import { IconFilter, IconSearch, IconX, IconCirclePlus, IconDatabaseOff, IconLayoutGrid, IconList, IconPencil, IconShoppingCart, IconReceipt } from '@tabler/icons-react';
-import { useVisibilityRealtime } from '@/Hooks/useRealtime';
+import { useGoRealtime } from '@/Hooks/useGoRealtime';
+import { useRealtimeToggle } from '@/Hooks/useRealtimeToggle';
+import RealtimeControlBanner from '@/Components/Dashboard/RealtimeControlBanner';
+import RealtimeToggleButton from '@/Components/Dashboard/RealtimeToggleButton';
 
 const defaultFilters = { search: '', status: '', payment_status: '', customer_id: '' };
 
@@ -40,15 +43,89 @@ export default function Index({ sales, filters, customers = [] }) {
     });
     const [showFilters, setShowFilters] = useState(false);
     const [viewMode, setViewMode] = useState('card');
+    const [liveSales, setLiveSales] = useState(sales?.data || []);
 
-    // Enable real-time updates - auto refresh every 5 seconds
-    // Pause when tab not visible to save resources
-    useVisibilityRealtime({
-        interval: 5000,
-        only: ['sales'],
-        preserveScroll: true,
-        preserveState: true
+    const [realtimeEnabled, setRealtimeEnabled] = useRealtimeToggle();
+    const [highlightedIds, setHighlightedIds] = useState([]);
+    const [highlightExpiresAt, setHighlightExpiresAt] = useState(null);
+    const [countdownNow, setCountdownNow] = useState(Date.now());
+    const [goRealtimeEventMeta, setGoRealtimeEventMeta] = useState(null);
+    const reloadTimerRef = useRef(null);
+    const highlightTimerRef = useRef(null);
+
+    const highlightSecondsLeft = highlightExpiresAt ? Math.max(0, Math.ceil((highlightExpiresAt - countdownNow) / 1000)) : 0;
+    const realtimeStatusMeta = {
+        connected: { label: 'Terhubung', className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' },
+        connecting: { label: 'Menghubungkan...', className: 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300' },
+        disconnected: { label: 'Terputus', className: 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300' },
+        error: { label: 'Error', className: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300' },
+    };
+
+    const { status: goRealtimeStatus } = useGoRealtime({
+        enabled: realtimeEnabled,
+        domains: ['part_sales'],
+        onEvent: (payload) => {
+            const action = payload?.action || '';
+            const incoming = payload?.data || {};
+            const incomingId = String(payload?.id || incoming?.id || '');
+            if (!incomingId) return;
+
+            setGoRealtimeEventMeta({
+                action,
+                at: new Date(payload?.timestamp || Date.now()).toLocaleTimeString('id-ID'),
+            });
+
+            if (action === 'created') {
+                setLiveSales((prev) => {
+                    if (prev.some((sale) => String(sale.id) === incomingId)) return prev;
+                    return [incoming, ...prev];
+                });
+            } else if (action === 'updated' || action === 'status_changed' || action === 'payment_updated') {
+                setLiveSales((prev) => prev.map((sale) => (String(sale.id) === incomingId ? { ...sale, ...incoming } : sale)));
+            } else if (action === 'deleted') {
+                setLiveSales((prev) => prev.filter((sale) => String(sale.id) !== incomingId));
+            }
+
+            if (action !== 'deleted') {
+                setHighlightedIds((prev) => [...new Set([...prev, incomingId])]);
+                setHighlightExpiresAt(Date.now() + 6000);
+                setCountdownNow(Date.now());
+            }
+
+            clearTimeout(reloadTimerRef.current);
+            reloadTimerRef.current = setTimeout(() => {
+                router.reload({ only: ['sales'], preserveScroll: true, preserveState: true });
+            }, 300);
+        },
     });
+
+    const currentRealtimeStatus = realtimeEnabled
+        ? (realtimeStatusMeta[goRealtimeStatus] || { label: goRealtimeStatus || 'Tidak diketahui', className: 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300' })
+        : { label: 'Dimatikan', className: 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300' };
+
+    useEffect(() => {
+        setLiveSales(sales?.data || []);
+    }, [sales?.data]);
+
+    useEffect(() => {
+        if (!highlightExpiresAt) return;
+        const interval = setInterval(() => {
+            setCountdownNow(Date.now());
+            if (Date.now() >= highlightExpiresAt) {
+                setHighlightedIds([]);
+                setHighlightExpiresAt(null);
+                clearInterval(interval);
+            }
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [highlightExpiresAt]);
+
+    useEffect(() => {
+        return () => {
+            clearTimeout(reloadTimerRef.current);
+            clearTimeout(highlightTimerRef.current);
+        };
+    }, []);
 
     useEffect(() => {
         setFilterData({
@@ -84,7 +161,7 @@ export default function Index({ sales, filters, customers = [] }) {
 
     const hasActiveFilters = filterData.search || filterData.status || filterData.payment_status || filterData.customer_id;
 
-    const totalSalesValue = sales.data.reduce((sum, sale) => sum + (sale.grand_total || 0), 0);
+    const totalSalesValue = liveSales.reduce((sum, sale) => sum + (sale.grand_total || 0), 0);
 
     return (
         <>
@@ -103,13 +180,14 @@ export default function Index({ sales, filters, customers = [] }) {
                                     <h1 className="text-3xl font-bold text-white flex items-center gap-3">
                                         Penjualan Sparepart
                                     </h1>
-                                    <p className="text-emerald-100 mt-1">{sales?.total || 0} transaksi penjualan</p>
+                                    <p className="text-emerald-100 mt-1">{liveSales.length} transaksi penjualan</p>
+                                    <RealtimeControlBanner enabled={realtimeEnabled} />
                                 </div>
                             </div>
                             <div className="grid grid-cols-2 gap-4 lg:flex lg:gap-6">
                                 <div className="bg-white/10 backdrop-blur-sm rounded-xl px-4 py-3">
                                     <p className="text-emerald-100 text-xs font-medium mb-1">Total Transaksi</p>
-                                    <p className="text-xl font-bold text-white">{sales?.total || 0}</p>
+                                    <p className="text-xl font-bold text-white">{liveSales.length}</p>
                                 </div>
                                 <div className="bg-white/10 backdrop-blur-sm rounded-xl px-4 py-3">
                                     <p className="text-emerald-100 text-xs font-medium mb-1">Nilai Penjualan</p>
@@ -165,7 +243,30 @@ export default function Index({ sales, filters, customers = [] }) {
                                     <IconCirclePlus size={20} /> Penjualan Baru
                                 </button>
                             </Link>
+                            <RealtimeToggleButton
+                                enabled={realtimeEnabled}
+                                goRealtimeStatus={goRealtimeStatus}
+                                onClick={() => setRealtimeEnabled((prev) => !prev)}
+                            />
                         </div>
+                    </div>
+                </div>
+
+                <div className="mb-6 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2.5 text-xs text-slate-600 dark:text-slate-300">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span>
+                            GO Realtime: <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${currentRealtimeStatus.className}`}>{currentRealtimeStatus.label}</span>
+                        </span>
+                        <span>
+                            {goRealtimeEventMeta
+                                ? `Event terakhir: ${goRealtimeEventMeta.action} (${goRealtimeEventMeta.at})`
+                                : 'Belum ada event realtime penjualan sparepart.'}
+                        </span>
+                        {highlightSecondsLeft > 0 && (
+                            <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                                Highlight aktif ~{highlightSecondsLeft} dtk
+                            </span>
+                        )}
                     </div>
                 </div>
 
@@ -268,11 +369,11 @@ export default function Index({ sales, filters, customers = [] }) {
                 )}
 
                 {/* Content */}
-                {sales.data.length > 0 ? (
+                {liveSales.length > 0 ? (
                     viewMode === 'card' ? (
                         <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-                                {sales.data.map((sale) => (
-                                    <div key={sale.id} className="group rounded-2xl border-2 border-slate-200 dark:border-slate-800 bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-800 shadow-md hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] hover:border-emerald-300 dark:hover:border-emerald-700 overflow-hidden">
+                                {liveSales.map((sale) => (
+                                    <div key={sale.id} className={`group rounded-2xl border-2 bg-gradient-to-br shadow-md hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] overflow-hidden ${highlightedIds.includes(String(sale.id)) ? 'border-amber-300 dark:border-amber-700 from-amber-50 to-amber-100 dark:from-amber-900/20 dark:to-amber-800/20' : 'border-slate-200 dark:border-slate-800 from-white to-slate-50 dark:from-slate-900 dark:to-slate-800 hover:border-emerald-300 dark:hover:border-emerald-700'}`}>
                                         <div className="bg-gradient-to-r from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-800/20 px-5 py-4 border-b-2 border-emerald-200 dark:border-emerald-700/30">
                                             <div className="flex items-center justify-between">
                                                 <Link href={route('part-sales.show', sale.id)} className="text-lg font-bold text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 transition-colors">
@@ -347,8 +448,8 @@ export default function Index({ sales, filters, customers = [] }) {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                        {sales.data.map((sale) => (
-                                            <tr key={sale.id} className="hover:bg-emerald-50 dark:hover:bg-slate-800/50 transition-colors">
+                                        {liveSales.map((sale) => (
+                                            <tr key={sale.id} className={`transition-colors ${highlightedIds.includes(String(sale.id)) ? 'bg-amber-50 dark:bg-amber-900/20' : 'hover:bg-emerald-50 dark:hover:bg-slate-800/50'}`}>
                                                 <td className="px-6 py-4 text-sm font-bold text-emerald-600 dark:text-emerald-400">
                                                     <Link href={route('part-sales.show', sale.id)} className="hover:underline">
                                                         {sale.sale_number}
@@ -423,7 +524,7 @@ export default function Index({ sales, filters, customers = [] }) {
                 )}
 
                 {/* Pagination */}
-                {sales.data.length > 0 && (
+                {liveSales.length > 0 && (
                     <div className="pt-4">
                         <Pagination links={sales.links} />
                     </div>

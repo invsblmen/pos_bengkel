@@ -3,6 +3,7 @@ import { Head, router, usePage } from "@inertiajs/react";
 import DashboardLayout from "@/Layouts/DashboardLayout";
 import Pagination from "@/Components/Dashboard/Pagination";
 import { toDisplayDateTime } from "@/Utils/datetime";
+import { useGoRealtime } from "@/Hooks/useGoRealtime";
 import {
     IconBrandWhatsapp,
     IconClockHour4,
@@ -42,7 +43,6 @@ function SummaryCard({ title, value, icon, tone = "slate" }) {
 export default function Logs({ filters, summary, outboundStatuses, webhookEvents, outboundLogs, webhookLogs }) {
     const { props } = usePage();
     const flash = props?.flash || {};
-    const [realtimeStatus, setRealtimeStatus] = useState("checking");
     const [serviceHealth, setServiceHealth] = useState({
         status: "unknown",
         message: "Belum dicek",
@@ -125,6 +125,35 @@ export default function Logs({ filters, summary, outboundStatuses, webhookEvents
         date_to: dateTo,
     }), [outboundQueryText, outboundStatusValue, webhookQueryText, webhookEventValue, dateFrom, dateTo]);
 
+    const scheduleRealtimeReload = useCallback(() => {
+        if (debounceRef.current) {
+            clearTimeout(debounceRef.current);
+        }
+
+        debounceRef.current = setTimeout(() => {
+            router.reload({
+                only: ["summary", "outboundLogs", "webhookLogs", "webhookEvents"],
+                preserveScroll: true,
+                preserveState: true,
+            });
+        }, 500);
+    }, []);
+
+    const { status: goRealtimeStatus } = useGoRealtime({
+        enabled: true,
+        domains: ["whatsapp"],
+        onEvent: (payload) => {
+            if (payload?.domain !== "whatsapp") return;
+            scheduleRealtimeReload();
+        },
+    });
+
+    const realtimeStatus = goRealtimeStatus === "connected"
+        ? "connected"
+        : goRealtimeStatus === "connecting"
+            ? "checking"
+            : "disconnected";
+
     useEffect(() => {
         setOutboundQueryText(filters?.outbound_q || "");
         setWebhookQueryText(filters?.webhook_q || "");
@@ -133,55 +162,10 @@ export default function Logs({ filters, summary, outboundStatuses, webhookEvents
     }, [filters]);
 
     useEffect(() => {
-        if (!window.Echo) {
-            setRealtimeStatus("disconnected");
-            return undefined;
-        }
-
-        const pusherConnection = window.Echo?.connector?.pusher?.connection;
-        if (pusherConnection?.state === "connected") {
-            setRealtimeStatus("connected");
-        } else if (pusherConnection?.state) {
-            setRealtimeStatus("checking");
-        }
-
-        const handleConnected = () => setRealtimeStatus("connected");
-        const handleDisconnected = () => setRealtimeStatus("disconnected");
-
-        pusherConnection?.bind?.("connected", handleConnected);
-        pusherConnection?.bind?.("disconnected", handleDisconnected);
-        pusherConnection?.bind?.("unavailable", handleDisconnected);
-        pusherConnection?.bind?.("failed", handleDisconnected);
-
-        const channel = window.Echo.channel("workshop.whatsapp");
-        const scheduleReload = () => {
-            if (debounceRef.current) {
-                clearTimeout(debounceRef.current);
-            }
-
-            debounceRef.current = setTimeout(() => {
-                router.reload({
-                    only: ["summary", "outboundLogs", "webhookLogs", "webhookEvents"],
-                    preserveScroll: true,
-                    preserveState: true,
-                });
-            }, 500);
-        };
-
-        channel.listen(".whatsapp.outbound.updated", scheduleReload);
-        channel.listen(".whatsapp.webhook.received", scheduleReload);
-
         return () => {
             if (debounceRef.current) {
                 clearTimeout(debounceRef.current);
             }
-            channel.stopListening(".whatsapp.outbound.updated");
-            channel.stopListening(".whatsapp.webhook.received");
-            window.Echo.leaveChannel("workshop.whatsapp");
-            pusherConnection?.unbind?.("connected", handleConnected);
-            pusherConnection?.unbind?.("disconnected", handleDisconnected);
-            pusherConnection?.unbind?.("unavailable", handleDisconnected);
-            pusherConnection?.unbind?.("failed", handleDisconnected);
         };
     }, []);
 

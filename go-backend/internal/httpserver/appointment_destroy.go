@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"net/http"
 	"strings"
+
+	"posbengkel/go-backend/internal/events"
 )
 
 func appointmentDestroyHandler(db *sql.DB) http.HandlerFunc {
@@ -49,5 +51,10 @@ func appointmentDestroyHandler(db *sql.DB) http.HandlerFunc {
 			"message":        "Appointment cancelled.",
 			"appointment_id": id,
 		})
+
+		EmitEvent(events.NewEvent(events.EventAppointmentDeleted, events.DomainAppointment).
+			WithID(appointmentID).
+			WithAction("deleted").
+			WithData(response{"id": id}))
 	}
 }

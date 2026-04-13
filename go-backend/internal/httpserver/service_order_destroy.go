@@ -5,6 +5,8 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+
+	"posbengkel/go-backend/internal/events"
 )
 
 func serviceOrderDestroyHandler(db *sql.DB) http.HandlerFunc {
@@ -70,5 +72,10 @@ func serviceOrderDestroyHandler(db *sql.DB) http.HandlerFunc {
 			"message":  "Service order deleted.",
 			"order_id": orderID,
 		})
+
+		EmitEvent(events.NewEvent(events.EventServiceOrderDeleted, events.DomainServiceOrder).
+			WithID(idRaw).
+			WithAction("deleted").
+			WithData(response{"id": orderID}))
 	}
 }

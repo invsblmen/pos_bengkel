@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"posbengkel/go-backend/internal/events"
 )
 
 type serviceOrderUpdateStatusRequest struct {
@@ -170,6 +172,15 @@ func serviceOrderUpdateStatusHandler(db *sql.DB) http.HandlerFunc {
 				"odometer_km": finalKM,
 			},
 		})
+
+		EmitEvent(events.NewEvent(events.EventServiceOrderStatusChanged, events.DomainServiceOrder).
+			WithID(idRaw).
+			WithAction("status_changed").
+			WithData(response{
+				"old_status":  oldStatus,
+				"new_status":  newStatus,
+				"odometer_km": finalKM,
+			}))
 	}
 }
 

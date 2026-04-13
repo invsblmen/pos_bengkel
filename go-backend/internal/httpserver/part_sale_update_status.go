@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"posbengkel/go-backend/internal/events"
 )
 
 type partSaleUpdateStatusRequest struct {
@@ -95,6 +97,14 @@ func partSaleUpdateStatusHandler(db *sql.DB) http.HandlerFunc {
 			"ok":      true,
 			"message": "Status penjualan berhasil diperbarui",
 		})
+
+		EmitEvent(events.NewEvent(events.EventPartSaleUpdated, events.DomainPartSales).
+			WithID(partSaleID).
+			WithAction("status_changed").
+			WithData(response{
+				"old_status": currentStatus,
+				"new_status": payload.Status,
+			}))
 	}
 }
 

@@ -8,6 +8,12 @@ Dokumen ini untuk mode transisi/pasca-transisi saat project Go backend dan front
 2. Go backend berjalan sebagai backend utama baru.
 3. Frontend baru berjalan terpisah dan mengakses Go backend.
 
+Guardrail arsitektur:
+1. GO local = jalur operasi utama.
+2. Laravel hosting = jalur monitoring/fallback.
+3. Frontend GO harus parity fitur/desain/UX dengan Laravel, namun boleh implementasi source terpisah.
+4. Realtime jalur GO memakai websocket native GO, tidak bergantung Echo/Reverb.
+
 ## Struktur Folder yang Disarankan
 
 Contoh (bebas menyesuaikan):

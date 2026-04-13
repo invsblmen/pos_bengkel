@@ -2,6 +2,13 @@
 
 Starter service untuk migrasi bertahap endpoint Laravel ke Go.
 
+## Guardrail Arsitektur (Wajib)
+
+1. Go local adalah jalur operasi utama harian bengkel.
+2. Laravel hosting dipakai untuk monitoring online, fallback, dan sinkronisasi.
+3. Jalur realtime GO wajib native WebSocket GO (`/ws`) dan tidak bergantung Echo/Reverb.
+4. Frontend jalur GO boleh implementasi source terpisah, tetapi parity fitur/desain/UX harus tetap sama.
+
 ## Jalankan Lokal
 
 1. Copy env file:
@@ -12,8 +19,15 @@ Starter service untuk migrasi bertahap endpoint Laravel ke Go.
 
    go run ./cmd/api
 
+   Optional security for local realtime websocket:
+   - set env `GO_WS_TOKEN=your-local-token`
+   - connect websocket using `ws://127.0.0.1:8081/ws?token=your-local-token`
+
 3. Cek endpoint:
 
+- GET /go-ui (native UI untuk monitoring cepat service Go dengan WebSocket real-time)
+- GET /ws (WebSocket endpoint untuk realtime events jalur GO, tidak bergantung Reverb)
+- GET /api/v1/realtime/subscribers (debug subscriber count per domain)
 - GET /health
 - GET /ready
 - GET /live

@@ -2,6 +2,12 @@
 
 Dokumen ini adalah breakdown eksekusi 12 minggu yang bisa langsung dipindahkan ke Jira/Trello/Linear.
 
+Alignment wajib selama eksekusi:
+1. GO local diposisikan sebagai jalur operasi utama.
+2. Laravel hosting diposisikan sebagai monitoring/fallback.
+3. Frontend GO wajib parity terhadap Laravel (fitur/desain/UX), dengan implementasi frontend dedicated GO diperbolehkan.
+4. Realtime pada jalur GO wajib native GO (tanpa ketergantungan Echo/Reverb).
+
 ## Minggu 1 - Discovery dan Quality Gate
 
 1. Inventaris endpoint per domain dari routes aktif.

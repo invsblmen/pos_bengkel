@@ -3,6 +3,7 @@
 Last updated: 2026-04-11
 Owner: Migration Team
 Purpose: Track visual and UX parity so Go-backed screens are indistinguishable from Laravel-backed screens.
+This matrix measures parity of user-facing behavior and presentation, not shared component source code.
 
 Legend:
 - [x] Pass
@@ -73,8 +74,91 @@ Week considered "frontend parity green" only when:
 ## 6) Notes
 
 - Start with critical screens: Appointment Index, Service Order Index, Vehicle Index, Overall Report.
-- Keep one frontend code path when possible; switch backend source only via feature toggle/canary.
+- Keep user-facing behavior identical; the GO path may use its own dedicated frontend implementation as long as parity stays aligned.
 - Treat payload contract drift as parity bug, not enhancement.
+
+### Technical Validation Snapshot (2026-04-12)
+
+- Frontend production build: PASS (`npm run build`, exit code 0).
+- Go backend test/build validation: PASS (`go test ./...` pada `go-backend`).
+- Realtime GO instrumentation tersedia lintas layar prioritas (status bar/toggle/hook), namun status parity C6 tetap [ ]/[~] sampai side-by-side UAT selesai.
+
+### Formal UAT Entry Points & Readiness (2026-04-12)
+
+#### Screen 1: Appointment Index (`/dashboard/appointments`)
+
+**Pre-UAT Checklist (Automated/Code-level Validations):**
+- [x] React component syntax: NO ERRORS (lint free).
+- [x] useGoRealtime hook integrated: ✓ (`domains: ['appointments']`, event handlers implemented).
+- [x] Realtime toggle button visible: ✓ (RealtimeToggleButton component present).
+- [x] Highlight/refresh behavior hardened: ✓ (Inertia reload with preserveScroll/preserveState, 6s highlight timer).
+- [x] Event metadata logging: ✓ (action + timestamp displayed in UI).
+- [x] Backend GO handler available: ✓ (appointment_index.go, appointment_index_params, full query support).
+- [x] Feature flag configured: ✓ (.env setting `GO_APPOINTMENT_INDEX_USE_GO`=false by default, approachable for canary).
+
+**UAT Manual Tests Required (Side-by-side Laravel vs Go):**
+- [ ] C1 Layout parity: Card grid view, list view, header, filters, action buttons.
+- [ ] C2 Filter/sort parity: Status filter (scheduled/confirmed/completed/cancelled) + search + pagination (20 per page).
+- [ ] C3 Empty state: No appointments present, rendering identical message.
+- [ ] C4 Validation: Confirm/cancel appointment triggers identical validation/toast.
+- [ ] C5 Formatting: Date/time display in "16 April 2026 14:30" format, mechanic name display.
+- [ ] C6 Realtime: Create appointment in separate tab, verify update appears in <1s with highlight, verify refresh debouncing (300ms) works.
+- [ ] C7 Permissions: Check role visibility (Admin vs Service Advisor action buttons).
+- [ ] C8 Payload: Compare Laravel vs Go JSON structure (appointments array, stats sub-object, mechanics list).
+
+**Entry Point:** Set `GO_APPOINTMENT_INDEX_USE_GO=true` in `.env`, then `php artisan serve` + `go run ./cmd/api` on port 8081, navigate to `/dashboard/appointments`.
+
+---
+
+#### Screen 2: Service Order Index (`/dashboard/service-orders`)
+
+**Pre-UAT Checklist:**
+- [x] React component syntax: NO ERRORS (lint free).
+- [x] useGoRealtime hook integrated: ✓ (`domains: ['service_orders']`, action types: created/updated/deleted/status_changed/items_changed).
+- [x] Realtime toggle button visible: ✓ (RealtimeToggleButton + RealtimeControlBanner).
+- [x] Highlight/refresh behavior hardened: ✓ (Inertia reload, individual order highlighting, 6s timer).
+- [x] Event metadata logging: ✓ (action, orderId, timestamp, added/removed/changed part IDs tracked).
+- [x] Backend GO handler available: ✓ (service_order_index.go fully implemented).
+- [x] Feature flag configured: ✓ (.env setting `GO_SERVICE_ORDER_INDEX_USE_GO`=false by default).
+
+**UAT Manual Tests Required:**
+- [ ] C1 Layout parity: Table/card view, compact header, filters, action buttons, status badges.
+- [ ] C2 Filter/sort parity: Status filter (pending/in_progress/completed/paid/cancelled) + mechanic filter + date range + pagination (25 per page).
+- [ ] C3 Empty state: No orders present message format identical.
+- [ ] C4 Validation: Status change (e.g., pending -> in_progress) triggers identical response.
+- [ ] C5 Formatting: Order number format (ORDER-###), date format, cost display in IDR, status label.
+- [ ] C6 Realtime: Add part to order in separate tab, verify items_changed event triggers update with highlight, verify no duplicate renders.
+- [ ] C7 Permissions: Check admin-only actions vs mechanic-view-only states.
+- [ ] C8 Payload: Compare Laravel vs Go JSON (orders array with nested details, stats object, mechanic list).
+
+**Entry Point:** Set `GO_SERVICE_ORDER_INDEX_USE_GO=true` in `.env`, navigate to `/dashboard/service-orders`.
+
+---
+
+#### Screen 3: Vehicle Index (`/dashboard/vehicles`)
+
+**Pre-UAT Checklist:**
+- [x] React component syntax: NO ERRORS (lint free).
+- [x] useGoRealtime hook integrated: ✓ (`domains: ['vehicles']`, action types: created/updated/deleted).
+- [x] Realtime toggle button visible: ✓ (RealtimeToggleButton in header).
+- [x] Highlight/refresh behavior hardened: ✓ (Inertia reload, 6s vehicle highlight, debounced 300ms refresh).
+- [x] Event metadata logging: ✓ (action, vehicleId, timestamp).
+- [x] Backend GO handler available: ✓ (vehicle_index.go fully implemented with filters, search, pagination).
+- [x] Feature flag configured: ✓ (.env setting `GO_VEHICLE_INDEX_USE_GO`=false by default).
+
+**UAT Manual Tests Required:**
+- [ ] C1 Layout parity: Grid card view (brand/model, plate number, year, KM, service status), list view (table), header.
+- [ ] C2 Filter/sort parity: Transmission filter + service_status filter + sort by column + search (plate/brand/model) + pagination (20 per page).
+- [ ] C3 Empty state: No vehicles available message identical.
+- [ ] C4 Validation: Create/edit vehicle triggers identical validation errors.
+- [ ] C5 Formatting: Plate number uppercase, KM display with comma separator, year as 4-digit, color label.
+- [ ] C6 Realtime: Create vehicle in separate tab, verify update in index within 1s, verify highlight 6s, verify no jitter.
+- [ ] C7 Permissions: Check service advisor vs owner view restrictions on edit/detail buttons.
+- [ ] C8 Payload: Compare Laravel vs Go JSON (vehicles array with nested customer, stats object).
+
+**Entry Point:** Set `GO_VEHICLE_INDEX_USE_GO=true` in `.env`, navigate to `/dashboard/vehicles`.
+
+---
 
 ## 7) UAT Execution Checklist (Per Screen)
 

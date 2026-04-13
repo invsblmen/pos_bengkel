@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"posbengkel/go-backend/internal/events"
 )
 
 type serviceOrderStoreRequest struct {
@@ -214,7 +216,40 @@ func serviceOrderStoreHandler(db *sql.DB) http.HandlerFunc {
 				"status":       status,
 			},
 		})
+
+		EmitEvent(events.NewEvent(events.EventServiceOrderCreated, events.DomainServiceOrder).
+			WithID(strconv.FormatInt(orderID, 10)).
+			WithAction("created").
+			WithData(response{
+				"order_number":       orderNumber,
+				"status":             status,
+				"items_count":        len(payload.Items),
+				"service_item_count": serviceOrderStoreServiceItemCount(payload.Items),
+				"part_line_count":    serviceOrderStorePartLineCount(payload.Items),
+			}))
 	}
+}
+
+func serviceOrderStoreServiceItemCount(items []serviceOrderStoreItem) int {
+	total := 0
+	for _, item := range items {
+		if item.ServiceID != nil && *item.ServiceID > 0 {
+			total++
+		}
+	}
+	return total
+}
+
+func serviceOrderStorePartLineCount(items []serviceOrderStoreItem) int {
+	total := 0
+	for _, item := range items {
+		for _, part := range item.Parts {
+			if part.PartID != nil && part.Qty > 0 {
+				total++
+			}
+		}
+	}
+	return total
 }
 
 func serviceOrderStoreNullableDateTime(value string) any {

@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"posbengkel/go-backend/internal/events"
 )
 
 type partSaleUpdatePaymentRequest struct {
@@ -151,6 +153,16 @@ func partSaleUpdatePaymentHandler(db *sql.DB) http.HandlerFunc {
 			"ok":      true,
 			"message": "Pembayaran berhasil dicatat",
 		})
+
+		EmitEvent(events.NewEvent(events.EventPartSaleUpdated, events.DomainPartSales).
+			WithID(partSaleID).
+			WithAction("payment_updated").
+			WithData(response{
+				"payment_amount":   payload.PaymentAmount,
+				"new_paid_amount":  newPaidAmount,
+				"remaining_amount": remainingAmount,
+				"payment_status":   paymentStatus,
+			}))
 	}
 }
 

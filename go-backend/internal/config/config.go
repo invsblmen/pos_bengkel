@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -19,11 +20,27 @@ type Config struct {
 	WriteTimeout    time.Duration
 	ShutdownTimeout time.Duration
 
+	// Authentication & Authorization
+	JWTSecret                string
+	JWTExpiration            time.Duration
+	JWTIssuer                string
+	JWTAudience              string
+	PasswordMinLength        int
+	PasswordRequireUppercase bool
+	PasswordRequireNumbers   bool
+	PasswordRequireSpecial   bool
+	RateLimitLoginAttempts   int
+	SessionTimeout           time.Duration
+
+	// Security & CORS
+	CORSAllowedOrigins []string
+
 	SyncEnabled        bool
 	SyncHostURL        string
 	SyncSharedToken    string
 	SyncSourceID       string
 	SyncRequestTimeout time.Duration
+	WebSocketToken     string
 
 	WhatsAppDashboardURL   string
 	WhatsAppAPIUsername    string
@@ -56,11 +73,27 @@ func Load() (Config, error) {
 		WriteTimeout:    getDurationEnv("WRITE_TIMEOUT", 10*time.Second),
 		ShutdownTimeout: getDurationEnv("SHUTDOWN_TIMEOUT", 10*time.Second),
 
+		// Authentication & Authorization
+		JWTSecret:                getEnv("JWT_SECRET", "change-me-jwt-secret-key"),
+		JWTExpiration:            getDurationEnv("JWT_EXPIRATION", 24*time.Hour),
+		JWTIssuer:                getEnv("JWT_ISSUER", "posbengkel-go"),
+		JWTAudience:              getEnv("JWT_AUDIENCE", "posbengkel-app"),
+		PasswordMinLength:        getIntEnv("PASSWORD_MIN_LENGTH", 8),
+		PasswordRequireUppercase: getBoolEnv("PASSWORD_REQUIRE_UPPERCASE", true),
+		PasswordRequireNumbers:   getBoolEnv("PASSWORD_REQUIRE_NUMBERS", true),
+		PasswordRequireSpecial:   getBoolEnv("PASSWORD_REQUIRE_SPECIAL", false),
+		RateLimitLoginAttempts:   getIntEnv("RATE_LIMIT_LOGIN_ATTEMPTS", 5),
+		SessionTimeout:           getDurationEnv("SESSION_TIMEOUT", 12*time.Hour),
+
+		// Security & CORS
+		CORSAllowedOrigins: getCORSOrigins(),
+
 		SyncEnabled:        getBoolEnv("GO_SYNC_ENABLED", false),
 		SyncHostURL:        getEnv("GO_SYNC_HOST_URL", "http://127.0.0.1:8000"),
 		SyncSharedToken:    getEnv("GO_SYNC_SHARED_TOKEN", ""),
 		SyncSourceID:       getEnv("GO_SYNC_SOURCE_ID", "local-workshop"),
 		SyncRequestTimeout: getDurationEnv("GO_SYNC_REQUEST_TIMEOUT", 20*time.Second),
+		WebSocketToken:     getEnv("GO_WS_TOKEN", ""),
 
 		WhatsAppDashboardURL:   getEnv("WHATSAPP_GO_DASHBOARD_URL", ""),
 		WhatsAppAPIUsername:    getEnv("WHATSAPP_API_USERNAME", ""),
@@ -131,4 +164,43 @@ func getBoolEnv(key string, fallback bool) bool {
 	}
 
 	return b
+}
+
+func getIntEnv(key string, fallback int) int {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
+	}
+
+	i, err := strconv.Atoi(v)
+	if err != nil {
+		return fallback
+	}
+
+	return i
+}
+
+func getCORSOrigins() []string {
+	corsEnv := getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173")
+	origins := []string{}
+
+	for _, origin := range splitCSV(corsEnv) {
+		if trimmed := strings.TrimSpace(origin); trimmed != "" {
+			origins = append(origins, trimmed)
+		}
+	}
+
+	if len(origins) == 0 {
+		origins = []string{"http://localhost:3000", "http://localhost:5173"}
+	}
+
+	return origins
+}
+
+func splitCSV(s string) []string {
+	var result []string
+	for _, v := range strings.Split(s, ",") {
+		result = append(result, v)
+	}
+	return result
 }

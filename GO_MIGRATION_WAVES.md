@@ -2,6 +2,11 @@
 
 Dokumen ini menurunkan blueprint menjadi daftar endpoint aktual per gelombang migrasi berdasarkan route aktif di dashboard.
 
+Guardrail tujuan akhir:
+- Jalur GO local memakai frontend parity dedicated GO (fitur/desain/UX sama).
+- Realtime pada jalur GO wajib native GO, bukan ketergantungan Echo/Reverb.
+- Jalur Laravel hosting tetap tersedia untuk monitoring/fallback.
+
 ## Prinsip Penentuan Wave
 
 - Wave 1: read-heavy atau side-effect rendah.

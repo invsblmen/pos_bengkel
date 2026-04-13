@@ -22,3 +22,7 @@ yarn-error.log
 # Local Go build artifacts
 go-backend/*.exe
 go-backend/*.exe~
+
+# Nested frontend artifacts (avoid accidental commit)
+go-frontend/node_modules/
+go-frontend/dist/

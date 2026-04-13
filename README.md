@@ -4,6 +4,13 @@
 
 Fokus repository saat ini adalah mode `workshop-only` (modul retail POS lama sudah dibersihkan dari codebase).
 
+## Arah Akhir Arsitektur
+
+- GO backend dipakai sebagai jalur operasi lokal utama (local-first execution).
+- Laravel dipakai sebagai jalur hosting/network untuk monitoring, fallback, dan sinkronisasi online.
+- Frontend harus parity (fitur, desain, UX) antara jalur Laravel dan GO.
+- Untuk jalur GO, realtime wajib native GO (WebSocket GO), tanpa ketergantungan Echo/Reverb.
+
 ## Gambaran Fitur
 
 - Dashboard bengkel dengan ringkasan operasional harian.
@@ -16,7 +23,7 @@ Fokus repository saat ini adalah mode `workshop-only` (modul retail POS lama sud
 - Appointment dan kalender booking.
 - Laporan: service revenue, mechanic productivity, mechanic payroll, parts inventory, outstanding payments, dan part sales profit.
 - Sistem role dan permission granular (Spatie Permission).
-- Notifikasi in-app dan dukungan realtime (Reverb/Echo).
+- Notifikasi in-app dan dukungan realtime: Laravel path dapat memakai Reverb/Echo; GO path memakai realtime native GO.
 
 ## Tech Stack
 
@@ -27,7 +34,7 @@ Fokus repository saat ini adalah mode `workshop-only` (modul retail POS lama sud
 - Tailwind CSS `^3`
 - Vite `^6`
 - Spatie Laravel Permission
-- Laravel Reverb + Pusher protocol
+- Laravel Reverb + Pusher protocol (khusus jalur Laravel, bukan keharusan jalur GO)
 
 ## Prasyarat
 
@@ -127,7 +134,7 @@ Jalankan dari root project `pos_bengkel`:
 php artisan serve
 npm run dev
 
-# Queue + Reverb (opsional sesuai kebutuhan)
+# Queue + Reverb (opsional, khusus jalur Laravel/hosting)
 php artisan queue:work
 php artisan reverb:start
 
@@ -158,8 +165,9 @@ Perbarui `.env` minimal pada bagian berikut:
 
 - `APP_NAME`, `APP_URL`
 - `DB_CONNECTION`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`
-- `BROADCAST_CONNECTION` (default: `reverb`)
-- `REVERB_*` dan `VITE_REVERB_*` jika realtime diaktifkan
+- `BROADCAST_CONNECTION` (jika jalur Laravel memakai Reverb)
+- `REVERB_*` dan `VITE_REVERB_*` hanya untuk jalur Laravel
+- `VITE_GO_WS_URL` dan `VITE_GO_WS_TOKEN` untuk jalur GO realtime native
 
 ## Inisialisasi Database
 
@@ -176,13 +184,15 @@ Seeder default akan menyiapkan permission, role, user, workshop data, kategori s
 
 ## Menjalankan Aplikasi (Development)
 
-Jalankan di terminal terpisah:
+Jalankan di terminal terpisah (jalur Laravel):
 
 ```bash
 php artisan serve
 npm run dev
 php artisan reverb:start
 ```
+
+Jalur GO local (realtime native GO) gunakan backend GO yang berjalan di port layanan GO (contoh `:8081`) dan frontend yang mengarah ke `VITE_GO_WS_URL`.
 
 Jika memakai queue untuk proses async:
 
@@ -337,10 +347,11 @@ php artisan db:seed --class=WorkshopSeeder
 
 Perubahan stabilisasi dan UX yang baru ditambahkan:
 
-- Hardening realtime event dispatch agar transaksi inti tidak gagal saat broadcaster (Reverb) tidak tersedia sementara.
-- Penambahan alert notifikasi in-app untuk kondisi Reverb down beruntun + recovery.
-- Penambahan konfigurasi host khusus backend broadcast: `REVERB_BROADCAST_HOST`.
-- Otomatisasi startup Reverb lokal (Windows startup + watchdog script) agar tidak perlu menjalankan perintah manual setiap kali login.
+- Hardening realtime event dispatch agar transaksi inti tidak gagal saat broadcaster (Reverb) tidak tersedia sementara pada jalur Laravel.
+- Penambahan alert notifikasi in-app untuk kondisi Reverb down beruntun + recovery pada jalur Laravel.
+- Penambahan konfigurasi host khusus backend broadcast: `REVERB_BROADCAST_HOST` (jalur Laravel).
+- Otomatisasi startup Reverb lokal (Windows startup + watchdog script) untuk jalur Laravel.
+- Jalur GO local tetap memakai realtime native GO (`/ws`) dan tidak memerlukan dependensi Echo/Reverb.
 - Perbaikan route link referensi di detail service order agar aman terhadap route yang tidak tersedia.
 - Penambahan halaman detail pelanggan (`customers.show`) beserta akses dari daftar pelanggan.
 - Penyempurnaan UI daftar pelanggan (aksi detail/edit/hapus lebih ringkas).

@@ -52,7 +52,7 @@ Implikasi:
 - Validation: go-playground/validator.
 - Auth: JWT/OAuth2 atau session bridge (transisi dari Laravel auth).
 - Queue/event: Redis + worker Go (atau Kafka/NATS jika skala naik).
-- Realtime: bridge ke Reverb sementara, lalu evaluasi migrasi ke WebSocket hub Go bila perlu.
+- Realtime: untuk jalur GO gunakan WebSocket hub GO sebagai default; Reverb dipertahankan hanya pada jalur Laravel hosting bila masih dibutuhkan kompatibilitas.
 
 ## 2.3 Struktur Service (contoh)
 
@@ -208,8 +208,9 @@ Deliverable:
 
 ## 5.4 Realtime
 
-- Pertahankan kanal realtime existing dulu agar frontend tidak terganggu.
-- Gunakan helper safe dispatch untuk menghindari 500 saat transport bermasalah.
+- Jalur GO wajib memakai kanal realtime native GO (tanpa ketergantungan Echo/Reverb).
+- Jalur Laravel hosting boleh mempertahankan kanal existing untuk kompatibilitas monitoring/fallback.
+- Kontrak event harus tetap setara agar frontend parity tetap terjaga lintas jalur.
 
 ## 5.5 Sinkronisasi Local ke Hosting
 

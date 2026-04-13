@@ -15,6 +15,7 @@ Legend:
 - [ ] Local-to-hosting sync is stable, idempotent, auditable, and scheduled.
 - [ ] Business behavior parity (Go vs Laravel) is within approved threshold.
 - [ ] Frontend parity achieved: Go-backed pages are visually and interaction-wise identical to Laravel-backed pages.
+- [ ] Realtime parity achieved with GO-native realtime on GO path (no Echo/Reverb dependency on GO frontend path).
 - [ ] Operational SOP and incident runbook are ready for operator/on-call.
 
 ## 1) Direction and Scope Lock
@@ -166,7 +167,7 @@ Reconciliation evidence:
 
 Reference: see FRONTEND_PARITY_MATRIX.md for screen-by-screen tracking and UAT status.
 
-- [ ] Single source of truth frontend components/layout is enforced for both backends.
+- [ ] Frontend UX and behavior are parity-aligned for both backends, even if the GO path uses a dedicated frontend implementation.
 - [ ] Response/payload contracts from Go match Laravel shape for all migrated pages.
 - [ ] Pagination, filters, sort, and empty-state behavior match Laravel output.
 - [ ] Validation and error message UX match Laravel behavior.

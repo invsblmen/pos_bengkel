@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+
+	"posbengkel/go-backend/internal/events"
 )
 
 type appointmentUpdateRequest struct {
@@ -192,5 +194,13 @@ func appointmentUpdateHandler(db *sql.DB) http.HandlerFunc {
 				},
 			},
 		})
+
+		EmitEvent(events.NewEvent(events.EventAppointmentUpdated, events.DomainAppointment).
+			WithID(appointmentID).
+			WithAction("updated").
+			WithData(response{
+				"status":       existingStatus,
+				"scheduled_at": scheduledAt.Format("2006-01-02 15:04:05"),
+			}))
 	}
 }

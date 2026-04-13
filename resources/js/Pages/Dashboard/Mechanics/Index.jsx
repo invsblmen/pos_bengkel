@@ -1,9 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Head, router } from '@inertiajs/react';
+import { useGoRealtime } from '@/Hooks/useGoRealtime';
+import { useRealtimeToggle } from '@/Hooks/useRealtimeToggle';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import Pagination from '@/Components/Dashboard/Pagination';
 import Button from '@/Components/Dashboard/Button';
 import Search from '@/Components/Dashboard/Search';
+import RealtimeControlBanner from '@/Components/Dashboard/RealtimeControlBanner';
+import RealtimeToggleButton from '@/Components/Dashboard/RealtimeToggleButton';
 import {
     IconDatabaseOff,
     IconCirclePlus,
@@ -16,9 +20,9 @@ import {
 } from '@tabler/icons-react';
 import toast from 'react-hot-toast';
 
-function MechanicCard({ mechanic, onQuickEdit }) {
+function MechanicCard({ mechanic, onQuickEdit, isHighlighted }) {
     return (
-        <div className="group bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden hover:shadow-lg hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-200">
+        <div className={`group rounded-2xl border overflow-hidden hover:shadow-lg transition-all duration-200 ${isHighlighted ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-300 dark:border-amber-700' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'}`}>
             <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -64,41 +68,94 @@ export default function Index({ mechanics, filters }) {
     const initialSearch = filters?.q || '';
     const totalMechanics = liveItems.length;
 
-    // Real-time Echo listeners
+    // Realtime state
+    const [realtimeEnabled, setRealtimeEnabled] = useRealtimeToggle();
+    const [highlightedIds, setHighlightedIds] = useState([]);
+    const [highlightExpiresAt, setHighlightExpiresAt] = useState(null);
+    const [countdownNow, setCountdownNow] = useState(Date.now());
+    const [goRealtimeEventMeta, setGoRealtimeEventMeta] = useState(null);
+    const reloadTimerRef = useRef(null);
+    const highlightTimerRef = useRef(null);
+
+    const highlightSecondsLeft = highlightExpiresAt ? Math.max(0, Math.ceil((highlightExpiresAt - countdownNow) / 1000)) : 0;
+    const realtimeStatusMeta = {
+        connected: { label: 'Terhubung', className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' },
+        connecting: { label: 'Menghubungkan...', className: 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300' },
+        disconnected: { label: 'Terputus', className: 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300' },
+        error: { label: 'Error', className: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300' },
+    };
+
+
+
+
+
+
+    // GO Realtime Hook
+    const { status: goRealtimeStatus } = useGoRealtime({
+        enabled: realtimeEnabled,
+        domains: ['mechanics'],
+        onEvent: (payload) => {
+            const incoming = payload?.data || {};
+            const action = payload?.action || '';
+            const incomingId = String(payload?.id || incoming?.id || '');
+            if (!incomingId) return;
+            setGoRealtimeEventMeta({
+                action: action || 'updated',
+                at: new Date(payload?.timestamp || Date.now()).toLocaleTimeString('id-ID'),
+            });
+
+            // Handle different event types
+            if (action === 'created' || action === 'updated') {
+                setHighlightedIds(prev => [...new Set([...prev, incomingId])]);
+                setHighlightExpiresAt(Date.now() + 6000);
+                setCountdownNow(Date.now());
+
+                if (action === 'created') {
+                    setLiveItems(prev => {
+                        if (prev.some(i => String(i.id) === incomingId)) return prev;
+                        return [incoming, ...prev];
+                    });
+                } else {
+                    setLiveItems(prev => prev.map(i => String(i.id) === incomingId ? { ...i, ...incoming } : i));
+                }
+            } else if (action === 'deleted') {
+                setLiveItems(prev => prev.filter(i => String(i.id) !== incomingId));
+                setHighlightedIds(prev => prev.filter(id => String(id) !== incomingId));
+            }
+
+            // Debounce reload
+            clearTimeout(reloadTimerRef.current);
+            reloadTimerRef.current = setTimeout(() => {
+                router.reload({ preserveScroll: true, preserveState: true });
+            }, 300);
+        },
+    });
+
+    const currentRealtimeStatus = realtimeEnabled
+        ? (realtimeStatusMeta[goRealtimeStatus] || { label: goRealtimeStatus || 'Tidak diketahui', className: 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300' })
+        : { label: 'Dimatikan', className: 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300' };
+
+    // Countdown timer
     useEffect(() => {
-        if (!window.Echo) return;
-        const channel = window.Echo.channel('workshop.mechanics');
+        if (!highlightExpiresAt) return;
+        const interval = setInterval(() => {
+            setCountdownNow(Date.now());
+            if (Date.now() >= highlightExpiresAt) {
+                setHighlightedIds([]);
+                setHighlightExpiresAt(null);
+                clearInterval(interval);
+            }
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [highlightExpiresAt]);
 
-        channel.listen('.mechanic.created', (event) => {
-            const incoming = event?.mechanic;
-            if (!incoming?.id) return;
-            setLiveItems(prev => {
-                if (prev.some(i => i.id === incoming.id)) return prev;
-                return [incoming, ...prev];
-            });
-        });
-
-        channel.listen('.mechanic.updated', (event) => {
-            const updated = event?.mechanic;
-            if (!updated?.id) return;
-            setLiveItems(prev => {
-                const index = prev.findIndex(i => i.id === updated.id);
-                if (index === -1) return prev;
-                const newArr = [...prev];
-                newArr[index] = updated;
-                return newArr;
-            });
-        });
-
-        channel.listen('.mechanic.deleted', (event) => {
-            const id = event?.mechanicId;
-            if (!id) return;
-            setLiveItems(prev => prev.filter(i => i.id !== id));
-        });
-
-        return () => window.Echo.leaveChannel('workshop.mechanics');
+    // Cleanup
+    useEffect(() => {
+        return () => {
+            clearTimeout(reloadTimerRef.current);
+            clearTimeout(highlightTimerRef.current);
+        };
     }, []);
-
     const openEdit = (m) => {
         setEditId(m.id);
         setEditForm({
@@ -138,6 +195,7 @@ export default function Index({ mechanics, filters }) {
                 <div>
                     <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Mekanik</h1>
                     <p className="text-sm text-slate-500 dark:text-slate-400">{totalMechanics} mekanik terdaftar</p>
+                    <RealtimeControlBanner enabled={realtimeEnabled} />
                 </div>
                     <div className="flex items-center gap-2 w-full sm:w-auto">
                         <div className="flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-1">
@@ -159,7 +217,30 @@ export default function Index({ mechanics, filters }) {
                         <div className="w-full sm:w-64">
                             <Search route={route('mechanics.index')} placeholder="Cari mekanik..." initialValue={initialSearch} />
                         </div>
+                        <RealtimeToggleButton
+                            enabled={realtimeEnabled}
+                            goRealtimeStatus={goRealtimeStatus}
+                            onClick={() => setRealtimeEnabled((prev) => !prev)}
+                        />
                         <Button type="link" href={route('mechanics.create')} icon={<IconCirclePlus size={18} />} label="Tambah Mekanik" />
+                    </div>
+                </div>
+
+                <div className="mb-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2.5 text-xs text-slate-600 dark:text-slate-300">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span>
+                            GO Realtime: <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${currentRealtimeStatus.className}`}>{currentRealtimeStatus.label}</span>
+                        </span>
+                        <span>
+                            {goRealtimeEventMeta
+                                ? `Event terakhir: ${goRealtimeEventMeta.action} (${goRealtimeEventMeta.at})`
+                                : 'Belum ada event realtime mekanik.'}
+                        </span>
+                        {highlightSecondsLeft > 0 && (
+                            <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                                Highlight aktif ~{highlightSecondsLeft} dtk
+                            </span>
+                        )}
                     </div>
                 </div>
 
@@ -168,7 +249,7 @@ export default function Index({ mechanics, filters }) {
                         {viewMode === 'grid' ? (
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                                 {liveItems.map((m) => (
-                                    <MechanicCard key={m.id} mechanic={m} onQuickEdit={openEdit} />
+                                        <MechanicCard key={m.id} mechanic={m} onQuickEdit={openEdit} isHighlighted={highlightedIds.includes(String(m.id))} />
                                 ))}
                             </div>
                         ) : (
@@ -189,7 +270,7 @@ export default function Index({ mechanics, filters }) {
                                         </thead>
                                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                                             {liveItems.map((m, idx) => (
-                                                <tr key={m.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                                <tr key={m.id} className={`transition-colors ${highlightedIds.includes(String(m.id)) ? 'bg-amber-50 dark:bg-amber-900/20' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}>
                                                     <td className="px-4 py-4 text-sm text-slate-600 dark:text-slate-400">{idx + 1 + ((mechanics.current_page || 1) - 1) * (mechanics.per_page || mechanics.data.length)}</td>
                                                     <td className="px-4 py-4 text-sm font-semibold text-slate-900 dark:text-white">{m.name}</td>
                                                     <td className="px-4 py-4 text-sm text-slate-600 dark:text-slate-400">{m.phone || '-'}</td>
