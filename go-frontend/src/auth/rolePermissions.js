@@ -15,7 +15,6 @@ export const ROLE_PERMISSIONS = {
     'cash-management-access',
     'cash-management-manage',
   ],
-  // Legacy aliases kept for compatibility with old role names.
   staff: [
     'dashboard-access',
     'customers-access',

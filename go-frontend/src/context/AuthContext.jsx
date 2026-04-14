@@ -24,7 +24,7 @@ export function AuthProvider({ children }) {
     try {
       const res = await api.get('/auth/me')
       setUser(res?.data?.user || null)
-    } catch (err) {
+    } catch {
       localStorage.removeItem('auth_token')
       setUser(null)
     } finally {
@@ -53,18 +53,21 @@ export function AuthProvider({ children }) {
   const logout = useCallback(async () => {
     try {
       await api.post('/auth/logout')
-    } catch (_) {
+    } catch {
       // no-op: clear local state regardless of API response
     }
+
     localStorage.removeItem('auth_token')
     setUser(null)
   }, [])
 
-  const roles = Array.isArray(user?.roles) ? user.roles : []
-  const backendPermissions = Array.isArray(user?.permissions) ? user.permissions : []
-  const permissions = backendPermissions.length > 0
-    ? buildPermissionMapFromList(backendPermissions)
-    : buildPermissionMap(roles)
+  const roles = useMemo(() => (Array.isArray(user?.roles) ? user.roles : []), [user])
+  const backendPermissions = useMemo(() => (Array.isArray(user?.permissions) ? user.permissions : []), [user])
+  const permissions = useMemo(() => (
+    backendPermissions.length > 0
+      ? buildPermissionMapFromList(backendPermissions)
+      : buildPermissionMap(roles)
+  ), [backendPermissions, roles])
 
   const value = useMemo(() => ({
     user,
@@ -92,5 +95,6 @@ export function useAuth() {
   if (!ctx) {
     throw new Error('useAuth must be used within AuthProvider')
   }
+
   return ctx
 }

@@ -528,7 +528,7 @@ func (as *AuthService) logLoginAttempt(email string, success bool, reason string
 	}
 
 	_, err := as.db.Exec(
-		`INSERT INTO login_audits (user_id, email, status, reason, attempted_at) 
+		`INSERT INTO login_audits (user_id, email, status, reason, attempted_at)
 		 VALUES (?, ?, ?, ?, ?)`,
 		userID, email, statusStr, reason, time.Now(),
 	)

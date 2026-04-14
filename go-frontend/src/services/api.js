@@ -1,8 +1,6 @@
 import axios from 'axios'
 
-const API_BASE_URL = import.meta.env.DEV
-  ? '/api'
-  : (import.meta.env.VITE_API_URL || '/api')
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api'
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -11,7 +9,6 @@ const api = axios.create({
   },
 })
 
-// Request interceptor for auth token
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('auth_token')
   if (token) {
@@ -20,7 +17,6 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-// Response interceptor for error handling
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -32,6 +28,7 @@ api.interceptors.response.use(
       localStorage.removeItem('auth_token')
       window.location.href = '/login'
     }
+
     return Promise.reject(error)
   }
 )

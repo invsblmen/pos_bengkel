@@ -31,7 +31,7 @@ export function connectRealtime({
     return () => {}
   }
 
-  const wsUrl = normalizeWsUrl(import.meta.env.VITE_WS_URL, import.meta.env.VITE_WS_TOKEN)
+  const wsUrl = normalizeWsUrl(process.env.NEXT_PUBLIC_WS_URL, process.env.NEXT_PUBLIC_WS_TOKEN)
   const RECONNECT_BASE_MS = 1000
   const RECONNECT_MAX_MS = 15000
 
@@ -56,6 +56,7 @@ export function connectRealtime({
       if (domains.length > 0) {
         socket.send(JSON.stringify({ type: 'subscribe', domains }))
       }
+
       if (typeof onOpen === 'function') {
         onOpen()
       }
@@ -92,9 +93,11 @@ export function connectRealtime({
       clearReconnectTimer()
       reconnectAttempts += 1
       const delay = Math.min(RECONNECT_BASE_MS * (2 ** (reconnectAttempts - 1)), RECONNECT_MAX_MS)
+
       if (typeof onReconnecting === 'function') {
         onReconnecting(reconnectAttempts, delay)
       }
+
       reconnectTimer = window.setTimeout(() => {
         connect()
       }, delay)
