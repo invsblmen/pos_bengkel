@@ -22,6 +22,7 @@ export default function ServiceOrderIndex() {
   const [lastUpdatedAt, setLastUpdatedAt] = useState(null)
   const [lastRealtimeEvent, setLastRealtimeEvent] = useState('')
   const [realtimeConnected, setRealtimeConnected] = useState(false)
+  const [realtimeReconnecting, setRealtimeReconnecting] = useState(null)
   const [refreshTick, setRefreshTick] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -39,8 +40,12 @@ export default function ServiceOrderIndex() {
   useEffect(() => {
     const disconnect = connectRealtime({
       domains: ['service_orders'],
-      onOpen: () => setRealtimeConnected(true),
+      onOpen: () => {
+        setRealtimeConnected(true)
+        setRealtimeReconnecting(null)
+      },
       onClose: () => setRealtimeConnected(false),
+      onReconnecting: (attempt, delay) => setRealtimeReconnecting({ attempt, delay }),
       onEvent: (event) => {
         if (!event) return
 
@@ -160,8 +165,8 @@ export default function ServiceOrderIndex() {
               Auto refresh (30s)
             </label>
             <span className="text-slate-500">{lastUpdatedAt ? `Last updated: ${lastUpdatedAt.toLocaleTimeString('id-ID')}` : 'Belum ada refresh'}</span>
-            <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${realtimeConnected ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
-              {realtimeConnected ? 'Realtime connected' : 'Realtime disconnected'}
+            <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${realtimeConnected ? 'bg-emerald-50 text-emerald-700' : (realtimeReconnecting ? 'bg-amber-50 text-amber-700' : 'bg-rose-50 text-rose-700')}`}>
+              {realtimeConnected ? 'Realtime connected' : (realtimeReconnecting ? `Reconnecting (attempt ${realtimeReconnecting.attempt})` : 'Realtime disconnected')}
             </span>
             {lastRealtimeEvent ? <span className="text-slate-500">{lastRealtimeEvent}</span> : null}
           </div>

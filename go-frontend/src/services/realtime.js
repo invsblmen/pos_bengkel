@@ -25,6 +25,7 @@ export function connectRealtime({
   onOpen,
   onClose,
   onError,
+  onReconnecting,
 }) {
   if (typeof window === 'undefined' || typeof WebSocket === 'undefined') {
     return () => {}
@@ -91,6 +92,9 @@ export function connectRealtime({
       clearReconnectTimer()
       reconnectAttempts += 1
       const delay = Math.min(RECONNECT_BASE_MS * (2 ** (reconnectAttempts - 1)), RECONNECT_MAX_MS)
+      if (typeof onReconnecting === 'function') {
+        onReconnecting(reconnectAttempts, delay)
+      }
       reconnectTimer = window.setTimeout(() => {
         connect()
       }, delay)
