@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import api from '@services/api'
+import { connectRealtime } from '@services/realtime'
 
 export default function ServiceOrderIndex() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -19,6 +20,8 @@ export default function ServiceOrderIndex() {
   const [dateTo, setDateTo] = useState(searchParams.get('date_to') || '')
   const [autoRefresh, setAutoRefresh] = useState(true)
   const [lastUpdatedAt, setLastUpdatedAt] = useState(null)
+  const [lastRealtimeEvent, setLastRealtimeEvent] = useState('')
+  const [realtimeConnected, setRealtimeConnected] = useState(false)
   const [refreshTick, setRefreshTick] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -32,6 +35,40 @@ export default function ServiceOrderIndex() {
 
     return () => clearInterval(interval)
   }, [autoRefresh])
+
+  useEffect(() => {
+    const disconnect = connectRealtime({
+      domains: ['service_orders'],
+      onOpen: () => setRealtimeConnected(true),
+      onClose: () => setRealtimeConnected(false),
+      onEvent: (event) => {
+        if (!event) return
+
+        const isServiceOrderDomain = event.domain === 'service_orders'
+        const isServiceOrderType = typeof event.type === 'string' && event.type.startsWith('service_order.')
+        if (!isServiceOrderDomain && !isServiceOrderType) return
+
+        const incomingStatus = event?.data?.new_status || event?.data?.status || null
+        const incomingID = event?.id || event?.data?.id || null
+
+        if (incomingID && incomingStatus) {
+          setRows((prevRows) => prevRows.map((row) => (
+            String(row.id) === String(incomingID)
+              ? { ...row, status: incomingStatus }
+              : row
+          )))
+        }
+
+        setLastRealtimeEvent(`${event.type || 'event'} @ ${new Date().toLocaleTimeString('id-ID')}`)
+        setLastUpdatedAt(new Date())
+        setRefreshTick((tick) => tick + 1)
+      },
+    })
+
+    return () => {
+      disconnect()
+    }
+  }, [])
 
   useEffect(() => {
     const nextParams = {}
@@ -123,6 +160,10 @@ export default function ServiceOrderIndex() {
               Auto refresh (30s)
             </label>
             <span className="text-slate-500">{lastUpdatedAt ? `Last updated: ${lastUpdatedAt.toLocaleTimeString('id-ID')}` : 'Belum ada refresh'}</span>
+            <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${realtimeConnected ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+              {realtimeConnected ? 'Realtime connected' : 'Realtime disconnected'}
+            </span>
+            {lastRealtimeEvent ? <span className="text-slate-500">{lastRealtimeEvent}</span> : null}
           </div>
         </div>
         <Link to="/service-orders/create" className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-700">
