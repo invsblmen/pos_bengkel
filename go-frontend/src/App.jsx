@@ -18,6 +18,8 @@ import PartPurchaseIndex from '@pages/PartPurchases/Index'
 import PartPurchaseCreate from '@pages/PartPurchases/Create'
 import PartPurchaseShow from '@pages/PartPurchases/Show'
 import PartPurchaseEdit from '@pages/PartPurchases/Edit'
+import AppointmentIndex from '@pages/Appointments/Index'
+import VehicleIndex from '@pages/Vehicles/Index'
 
 function App() {
   return (
@@ -54,6 +56,14 @@ function App() {
                 <Route path="part-purchases/create" element={<PartPurchaseCreate />} />
                 <Route path="part-purchases/:id" element={<PartPurchaseShow />} />
                 <Route path="part-purchases/:id/edit" element={<PartPurchaseEdit />} />
+              </Route>
+
+              <Route element={<ProtectedRoute requiredPermissions={['appointments-access']} />}>
+                <Route path="appointments" element={<AppointmentIndex />} />
+              </Route>
+
+              <Route element={<ProtectedRoute requiredPermissions={['vehicles-access']} />}>
+                <Route path="vehicles" element={<VehicleIndex />} />
               </Route>
             </Route>
           </Route>

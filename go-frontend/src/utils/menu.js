@@ -13,7 +13,7 @@ export function buildMenu(canAny) {
         { title: 'Layanan', permissions: ['services-access'] },
         { title: 'Mekanik', permissions: ['mechanics-access'] },
         { title: 'Pelanggan', permissions: ['customers-access'] },
-        { title: 'Kendaraan', permissions: ['vehicles-access'] },
+        { title: 'Kendaraan', path: '/vehicles', permissions: ['vehicles-access'] },
         { title: 'Supplier', permissions: ['suppliers-access'] },
       ],
     },
@@ -24,7 +24,7 @@ export function buildMenu(canAny) {
         { title: 'Penerimaan Cepat', path: '/service-orders/create', permissions: ['service-orders-create'] },
         { title: 'Penjualan Sparepart', path: '/part-sales', permissions: ['part-sales-access'] },
         { title: 'Pembelian Sparepart', path: '/part-purchases', permissions: ['part-purchases-access'] },
-        { title: 'Appointment', permissions: ['appointments-access'] },
+        { title: 'Appointment', path: '/appointments', permissions: ['appointments-access'] },
       ],
     },
     {
