@@ -4,21 +4,15 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
-	"strings"
+	"path/filepath"
 	"time"
 
-	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/mattn/go-sqlite3"
 )
 
 // DatabaseConfig holds database connection settings
 type DatabaseConfig struct {
-	Driver          string // "mysql" or "sqlite"
-	Host            string
-	Port            string
-	Name            string
-	User            string
-	Password        string
+	Driver          string // sqlite
 	SQLitePath      string
 	MaxOpenConns    int
 	MaxIdleConns    int
@@ -28,19 +22,14 @@ type DatabaseConfig struct {
 
 // NewDatabaseConfig creates DatabaseConfig from environment
 func NewDatabaseConfig() DatabaseConfig {
-	driver := firstNonEmpty(strings.TrimSpace(os.Getenv("DB_CONNECTION")), strings.TrimSpace(os.Getenv("GO_DATABASE_DRIVER")))
+	driver := os.Getenv("GO_DATABASE_DRIVER")
 	if driver == "" {
 		driver = "sqlite"
 	}
 
 	return DatabaseConfig{
 		Driver:          driver,
-		Host:            firstNonEmpty(os.Getenv("GO_DATABASE_HOST"), os.Getenv("DB_HOST")),
-		Port:            firstNonEmpty(os.Getenv("GO_DATABASE_PORT"), os.Getenv("DB_PORT")),
-		Name:            firstNonEmpty(os.Getenv("GO_DATABASE_NAME"), os.Getenv("DB_DATABASE")),
-		User:            firstNonEmpty(os.Getenv("GO_DATABASE_USER"), os.Getenv("DB_USERNAME")),
-		Password:        firstNonEmpty(os.Getenv("GO_DATABASE_PASSWORD"), os.Getenv("DB_PASSWORD")),
-		SQLitePath:      firstNonEmpty(os.Getenv("GO_DATABASE_SQLITE_PATH"), os.Getenv("DB_DATABASE")),
+		SQLitePath:      os.Getenv("GO_DATABASE_SQLITE_PATH"),
 		MaxOpenConns:    5,
 		MaxIdleConns:    2,
 		ConnMaxLifetime: time.Hour,
@@ -50,47 +39,15 @@ func NewDatabaseConfig() DatabaseConfig {
 
 // BuildDSN constructs the database connection string
 func (c DatabaseConfig) BuildDSN() (string, error) {
-	switch c.Driver {
-	case "sqlite":
-		if c.SQLitePath == "" {
-			c.SQLitePath = "./data/posbengkel.db"
-		}
-		return c.SQLitePath, nil
-
-	case "mysql":
-		if c.Host == "" {
-			c.Host = "127.0.0.1"
-		}
-		if c.Port == "" {
-			c.Port = "3306"
-		}
-		if c.Name == "" {
-			c.Name = "laravel12_pos_bengkel"
-		}
-
-		// MySQL DSN format: user:password@tcp(host:port)/dbname?param=value
-		dsn := fmt.Sprintf(
-			"%s:%s@tcp(%s:%s)/%s?parseTime=true&loc=Local",
-			c.User,
-			c.Password,
-			c.Host,
-			c.Port,
-			c.Name,
-		)
-		return dsn, nil
-
-	default:
+	if c.Driver != "sqlite" {
 		return "", fmt.Errorf("unsupported database driver: %s", c.Driver)
 	}
-}
 
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return strings.TrimSpace(value)
-		}
+	if c.SQLitePath == "" {
+		c.SQLitePath = "./data/posbengkel.db"
 	}
-	return ""
+
+	return c.SQLitePath, nil
 }
 
 // InitDatabase opens database connection and validates it
@@ -100,26 +57,18 @@ func (c DatabaseConfig) InitDatabase() (*sql.DB, error) {
 		return nil, err
 	}
 
-	sqlDriver := c.Driver
-	if c.Driver == "sqlite" {
-		sqlDriver = "sqlite3"
+	if err := os.MkdirAll(filepath.Dir(dsn), 0755); err != nil && filepath.Dir(dsn) != "." {
+		return nil, fmt.Errorf("failed to create sqlite directory: %w", err)
 	}
 
-	db, err := sql.Open(sqlDriver, dsn)
+	db, err := sql.Open("sqlite3", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
 
-	// Set connection pool limits
-	// SQLite: use single writer (MaxOpenConns=1)
-	// MySQL: use higher concurrency
-	if c.Driver == "sqlite" {
-		db.SetMaxOpenConns(1)
-		db.SetMaxIdleConns(1)
-	} else {
-		db.SetMaxOpenConns(c.MaxOpenConns)
-		db.SetMaxIdleConns(c.MaxIdleConns)
-	}
+	// SQLite performs better and more predictably with a single writer connection.
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
 
 	db.SetConnMaxLifetime(c.ConnMaxLifetime)
 	db.SetConnMaxIdleTime(c.ConnMaxIdleTime)
@@ -129,10 +78,17 @@ func (c DatabaseConfig) InitDatabase() (*sql.DB, error) {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	// Enable foreign keys for SQLite
-	if c.Driver == "sqlite" {
-		if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
-			return nil, fmt.Errorf("failed to enable sqlite foreign keys: %w", err)
+	// SQLite pragmas for integrity and local performance.
+	pragmas := []string{
+		"PRAGMA foreign_keys = ON",
+		"PRAGMA journal_mode = WAL",
+		"PRAGMA synchronous = NORMAL",
+		"PRAGMA temp_store = MEMORY",
+		"PRAGMA busy_timeout = 5000",
+	}
+	for _, pragma := range pragmas {
+		if _, err := db.Exec(pragma); err != nil {
+			return nil, fmt.Errorf("failed to apply sqlite pragma %q: %w", pragma, err)
 		}
 	}
 

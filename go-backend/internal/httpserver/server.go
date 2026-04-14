@@ -195,32 +195,8 @@ func New(cfg config.Config) (*http.Server, error) {
 
 func initDatabase(cfg config.Config) (*sql.DB, error) {
 	dbConfig := cfg.Database
-
-	// Backward compatibility for older env files that still use Laravel-style DB_* vars.
-	if dbConfig.Driver == "mysql" {
-		if dbConfig.Host == "" {
-			dbConfig.Host = cfg.DBHost
-		}
-		if dbConfig.Port == "" {
-			dbConfig.Port = cfg.DBPort
-		}
-		if dbConfig.Name == "" {
-			dbConfig.Name = cfg.DBName
-		}
-		if dbConfig.User == "" {
-			dbConfig.User = cfg.DBUser
-		}
-		if dbConfig.Password == "" {
-			dbConfig.Password = cfg.DBPassword
-		}
-	}
-
-	if dbConfig.Driver == "sqlite" {
-		if dbConfig.SQLitePath == "" {
-			dbConfig.SQLitePath = "./data/posbengkel.db"
-		}
-	} else if dbConfig.Name == "" || dbConfig.User == "" {
-		return nil, nil
+	if dbConfig.SQLitePath == "" {
+		dbConfig.SQLitePath = "./data/posbengkel.db"
 	}
 
 	db, err := dbConfig.InitDatabase()
