@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -27,19 +28,19 @@ type DatabaseConfig struct {
 
 // NewDatabaseConfig creates DatabaseConfig from environment
 func NewDatabaseConfig() DatabaseConfig {
-	driver := os.Getenv("GO_DATABASE_DRIVER")
+	driver := firstNonEmpty(strings.TrimSpace(os.Getenv("DB_CONNECTION")), strings.TrimSpace(os.Getenv("GO_DATABASE_DRIVER")))
 	if driver == "" {
-		driver = "mysql" // Default to MySQL for backwards compatibility
+		driver = "sqlite"
 	}
 
 	return DatabaseConfig{
 		Driver:          driver,
-		Host:            os.Getenv("GO_DATABASE_HOST"),
-		Port:            os.Getenv("GO_DATABASE_PORT"),
-		Name:            os.Getenv("GO_DATABASE_NAME"),
-		User:            os.Getenv("GO_DATABASE_USER"),
-		Password:        os.Getenv("GO_DATABASE_PASSWORD"),
-		SQLitePath:      os.Getenv("GO_DATABASE_SQLITE_PATH"),
+		Host:            firstNonEmpty(os.Getenv("GO_DATABASE_HOST"), os.Getenv("DB_HOST")),
+		Port:            firstNonEmpty(os.Getenv("GO_DATABASE_PORT"), os.Getenv("DB_PORT")),
+		Name:            firstNonEmpty(os.Getenv("GO_DATABASE_NAME"), os.Getenv("DB_DATABASE")),
+		User:            firstNonEmpty(os.Getenv("GO_DATABASE_USER"), os.Getenv("DB_USERNAME")),
+		Password:        firstNonEmpty(os.Getenv("GO_DATABASE_PASSWORD"), os.Getenv("DB_PASSWORD")),
+		SQLitePath:      firstNonEmpty(os.Getenv("GO_DATABASE_SQLITE_PATH"), os.Getenv("DB_DATABASE")),
 		MaxOpenConns:    5,
 		MaxIdleConns:    2,
 		ConnMaxLifetime: time.Hour,
@@ -81,6 +82,15 @@ func (c DatabaseConfig) BuildDSN() (string, error) {
 	default:
 		return "", fmt.Errorf("unsupported database driver: %s", c.Driver)
 	}
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
 }
 
 // InitDatabase opens database connection and validates it
