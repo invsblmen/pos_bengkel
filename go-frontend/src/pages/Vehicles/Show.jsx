@@ -161,7 +161,11 @@ export default function VehicleShow() {
               <tbody>
                 {serviceOrders.map((order) => (
                   <tr key={order.id} className="border-b border-slate-100">
-                    <td className="px-3 py-2">{order.order_number || '-'}</td>
+                    <td className="px-3 py-2">
+                      <Link className="text-slate-700 underline" to={`/service-orders/${order.id}`}>
+                        {order.order_number || '-'}
+                      </Link>
+                    </td>
                     <td className="px-3 py-2">{order.status || '-'}</td>
                     <td className="px-3 py-2">{order.created_at || '-'}</td>
                     <td className="px-3 py-2">{Number(order.total_amount || 0).toLocaleString('id-ID')}</td>
@@ -190,7 +194,11 @@ export default function VehicleShow() {
               <tbody>
                 {history.map((order) => (
                   <tr key={order.id} className="border-b border-slate-100">
-                    <td className="px-3 py-2">{order.order_number || '-'}</td>
+                    <td className="px-3 py-2">
+                      <Link className="text-slate-700 underline" to={`/service-orders/${order.id}`}>
+                        {order.order_number || '-'}
+                      </Link>
+                    </td>
                     <td className="px-3 py-2">{order.status || '-'}</td>
                     <td className="px-3 py-2">{order.created_at || '-'}</td>
                   </tr>
