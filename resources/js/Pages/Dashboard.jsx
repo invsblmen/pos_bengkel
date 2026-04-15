@@ -1,20 +1,11 @@
-import Card from '@/Components/Dashboard/Card';
+﻿import Card from '@/Components/Dashboard/Card';
 import Table from '@/Components/Dashboard/Table';
 import Widget from '@/Components/Dashboard/Widget';
 import DashboardLayout from '@/Layouts/DashboardLayout';
-import { Head, router } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import { IconBox, IconCategory, IconMoneybag, IconUsers } from '@tabler/icons-react';
-import { useGoRealtime } from '@/Hooks/useGoRealtime';
 
 export default function Dashboard() {
-    useGoRealtime({
-        enabled: true,
-        domains: ['core', 'service_orders', 'appointments', 'part_sales', 'part_purchases'],
-        onEvent: () => {
-            router.reload({ preserveScroll: true, preserveState: true });
-        },
-    });
-
     return (
         <>
             <Head title='Dashboard' />
@@ -53,3 +44,4 @@ export default function Dashboard() {
 }
 
 Dashboard.layout = page => <DashboardLayout children={page} />
+

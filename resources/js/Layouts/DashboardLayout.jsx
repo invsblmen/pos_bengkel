@@ -1,15 +1,12 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { router, usePage } from "@inertiajs/react";
+﻿import React, { useEffect, useState } from "react";
+import { usePage } from "@inertiajs/react";
 import Sidebar from "@/Components/Dashboard/Sidebar";
 import Navbar from "@/Components/Dashboard/Navbar";
 import { Toaster } from "react-hot-toast";
 import { useTheme } from "@/Context/ThemeSwitcherContext";
-import { useGoRealtime } from "@/Hooks/useGoRealtime";
 
 export default function AppLayout({ children }) {
     const { darkMode, themeSwitcher } = useTheme();
-    const { url } = usePage();
-    const reloadTimerRef = useRef(null);
 
     const [sidebarOpen, setSidebarOpen] = useState(
         localStorage.getItem("sidebarOpen") === "true"
@@ -18,54 +15,6 @@ export default function AppLayout({ children }) {
     useEffect(() => {
         localStorage.setItem("sidebarOpen", sidebarOpen);
     }, [sidebarOpen]);
-
-    const shouldEnableGlobalRealtime = useMemo(() => {
-        if (!url?.startsWith("/dashboard")) return false;
-
-        // Keep print pages stable during printing.
-        return !/\/print$/.test(url);
-    }, [url]);
-
-    useGoRealtime({
-        enabled: shouldEnableGlobalRealtime,
-        domains: [
-            "customers",
-            "vehicles",
-            "suppliers",
-            "mechanics",
-            "services",
-            "service_categories",
-            "part_categories",
-            "parts",
-            "vouchers",
-            "service_orders",
-            "appointments",
-            "part_purchases",
-            "part_purchase_orders",
-            "part_sales",
-            "part_sales_orders",
-        ],
-        onEvent: () => {
-            if (reloadTimerRef.current) {
-                clearTimeout(reloadTimerRef.current);
-            }
-
-            reloadTimerRef.current = setTimeout(() => {
-                router.reload({
-                    preserveScroll: true,
-                    preserveState: true,
-                });
-            }, 700);
-        },
-    });
-
-    useEffect(() => {
-        return () => {
-            if (reloadTimerRef.current) {
-                clearTimeout(reloadTimerRef.current);
-            }
-        };
-    }, []);
 
     const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
@@ -102,3 +51,4 @@ export default function AppLayout({ children }) {
         </div>
     );
 }
+
