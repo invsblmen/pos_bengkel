@@ -1,13 +1,9 @@
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import Button from '@/Components/Dashboard/Button';
 import Search from '@/Components/Dashboard/Search';
 import Pagination from '@/Components/Dashboard/Pagination';
-import { useGoRealtime } from '@/Hooks/useGoRealtime';
-import { useRealtimeToggle } from '@/Hooks/useRealtimeToggle';
-import RealtimeControlBanner from '@/Components/Dashboard/RealtimeControlBanner';
-import RealtimeToggleButton from '@/Components/Dashboard/RealtimeToggleButton';
 import {
     IconCirclePlus,
     IconPencilCog,
@@ -56,7 +52,7 @@ function CategoryCard({ category, isHighlighted }) {
     return (
         <div className={`group rounded-2xl border overflow-hidden hover:shadow-lg hover:shadow-primary-500/10 transition-all duration-200 ${isHighlighted ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-300 dark:border-amber-700' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'}`}>
             <div className="p-4 bg-gradient-to-br from-primary-50 to-slate-50 dark:from-primary-900/20 dark:to-slate-800 border-b border-slate-200 dark:border-slate-800 flex items-center justify-center h-32">
-                <span className="text-6xl">{category.icon || '🔧'}</span>
+                <span className="text-6xl">{category.icon || 'ðŸ”§'}</span>
             </div>
             <div className="p-4">
                 <h3 className="text-base font-semibold text-slate-800 dark:text-slate-200 mb-1 line-clamp-2">{category.name}</h3>
@@ -83,77 +79,6 @@ function Index({ categories }) {
     const [liveServiceCategories, setLiveServiceCategories] = useState(categories?.data || []);
     const [quickSearch, setQuickSearch] = useState('');
     const [sortBy, setSortBy] = useState('latest');
-    const [realtimeEnabled, setRealtimeEnabled] = useRealtimeToggle();
-    const [highlightedIds, setHighlightedIds] = useState([]);
-    const [highlightExpiresAt, setHighlightExpiresAt] = useState(null);
-    const [countdownNow, setCountdownNow] = useState(Date.now());
-    const [goRealtimeEventMeta, setGoRealtimeEventMeta] = useState(null);
-    const reloadTimerRef = useRef(null);
-
-    const highlightSecondsLeft = highlightExpiresAt ? Math.max(0, Math.ceil((highlightExpiresAt - countdownNow) / 1000)) : 0;
-
-    const { status: goRealtimeStatus } = useGoRealtime({
-        enabled: realtimeEnabled,
-        domains: ['service_categories'],
-        onEvent: (payload) => {
-            const action = payload?.action || '';
-            const incoming = payload?.data || {};
-            const incomingId = String(payload?.id || incoming?.id || '');
-            if (!incomingId) return;
-
-            setGoRealtimeEventMeta({
-                action,
-                at: new Date(payload?.timestamp || Date.now()).toLocaleTimeString('id-ID'),
-            });
-
-            if (action === 'created') {
-                setLiveServiceCategories((prev) => {
-                    if (prev.some((c) => String(c.id) === incomingId)) return prev;
-                    return [incoming, ...prev];
-                });
-            } else if (action === 'updated') {
-                setLiveServiceCategories((prev) => prev.map((c) => (String(c.id) === incomingId ? { ...c, ...incoming } : c)));
-            } else if (action === 'deleted') {
-                setLiveServiceCategories((prev) => prev.filter((c) => String(c.id) !== incomingId));
-            }
-
-            setHighlightedIds((prev) => [...new Set([...prev, incomingId])]);
-            setHighlightExpiresAt(Date.now() + 6000);
-            setCountdownNow(Date.now());
-
-            clearTimeout(reloadTimerRef.current);
-            reloadTimerRef.current = setTimeout(() => {
-                router.reload({ preserveScroll: true, preserveState: true });
-            }, 300);
-        },
-    });
-
-    const realtimeStatusMeta = {
-        connected: { label: 'Terhubung', className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' },
-        connecting: { label: 'Menghubungkan...', className: 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300' },
-        disconnected: { label: 'Terputus', className: 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300' },
-        error: { label: 'Error', className: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300' },
-    };
-    const currentRealtimeStatus = realtimeEnabled
-        ? (realtimeStatusMeta[goRealtimeStatus] || { label: goRealtimeStatus || 'Tidak diketahui', className: 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300' })
-        : { label: 'Dimatikan', className: 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300' };
-
-    useEffect(() => {
-        if (!highlightExpiresAt) return;
-        const interval = setInterval(() => {
-            setCountdownNow(Date.now());
-            if (Date.now() >= highlightExpiresAt) {
-                setHighlightedIds([]);
-                setHighlightExpiresAt(null);
-                clearInterval(interval);
-            }
-        }, 1000);
-        return () => clearInterval(interval);
-    }, [highlightExpiresAt]);
-
-    useEffect(() => {
-        return () => clearTimeout(reloadTimerRef.current);
-    }, []);
 
     const summary = useMemo(() => {
         const total = liveServiceCategories.length;
@@ -207,7 +132,6 @@ function Index({ categories }) {
                         <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary-600 dark:text-primary-400">Service Category Management</p>
                         <h1 className="mt-2 text-2xl md:text-3xl font-black text-slate-900 dark:text-white">Kategori Layanan Servis</h1>
                         <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">Kelola struktur kategori layanan agar input servis lebih cepat, rapi, dan konsisten.</p>
-                        <RealtimeControlBanner enabled={realtimeEnabled} />
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
@@ -235,30 +159,7 @@ function Index({ categories }) {
                             </button>
                         </div>
                         <Search route={route('service-categories.index')} />
-                        <RealtimeToggleButton
-                            enabled={realtimeEnabled}
-                            goRealtimeStatus={goRealtimeStatus}
-                            onClick={() => setRealtimeEnabled((prev) => !prev)}
-                        />
                         <Button type="link" href={route('service-categories.create')} icon={<IconCirclePlus size={18} />} label="Tambah Kategori" />
-                    </div>
-                </div>
-
-                <div className="mt-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2.5 text-xs text-slate-600 dark:text-slate-300">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span>
-                            GO Realtime: <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${currentRealtimeStatus.className}`}>{currentRealtimeStatus.label}</span>
-                        </span>
-                        <span>
-                            {goRealtimeEventMeta
-                                ? `Event terakhir: ${goRealtimeEventMeta.action} (${goRealtimeEventMeta.at})`
-                                : 'Belum ada event realtime kategori layanan.'}
-                        </span>
-                        {highlightSecondsLeft > 0 && (
-                            <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-                                Highlight aktif ~{highlightSecondsLeft} dtk
-                            </span>
-                        )}
                     </div>
                 </div>
 
@@ -323,7 +224,7 @@ function Index({ categories }) {
                     {viewMode === 'grid' ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                             {filteredCategories.map((category) => (
-                                <CategoryCard key={category.id} category={category} isHighlighted={highlightedIds.includes(String(category.id))} />
+                                <CategoryCard key={category.id} category={category} isHighlighted={false} />
                             ))}
                         </div>
                     ) : (
@@ -342,10 +243,10 @@ function Index({ categories }) {
                                     </thead>
                                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                                         {filteredCategories.map((category, idx) => (
-                                            <tr key={category.id} className={`transition-colors ${highlightedIds.includes(String(category.id)) ? 'bg-amber-50 dark:bg-amber-900/20' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}>
+                                            <tr key={category.id} className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50">
                                                 <td className="px-4 py-4 text-sm text-slate-600 dark:text-slate-400">{idx + 1}</td>
                                                 <td className="px-4 py-4 whitespace-nowrap">
-                                                    <span className="text-3xl">{category.icon || '🔧'}</span>
+                                                    <span className="text-3xl">{category.icon || 'ðŸ”§'}</span>
                                                 </td>
                                                 <td className="px-4 py-4">
                                                     <div className="text-sm font-semibold text-slate-900 dark:text-white">{category.name}</div>
@@ -403,3 +304,5 @@ function Index({ categories }) {
 Index.layout = (page) => <DashboardLayout children={page} />;
 
 export default Index;
+
+

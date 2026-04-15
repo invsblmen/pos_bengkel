@@ -1,10 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import DashboardLayout from "@/Layouts/DashboardLayout";
 import { Head, Link, router, usePage } from "@inertiajs/react";
-import { useGoRealtime } from "@/Hooks/useGoRealtime";
+import { useRealtimeEvents } from "@/Hooks/useRealtimeEvents";
 import { useRealtimeToggle } from "@/Hooks/useRealtimeToggle";
-import RealtimeControlBanner from "@/Components/Dashboard/RealtimeControlBanner";
-import RealtimeToggleButton from "@/Components/Dashboard/RealtimeToggleButton";
 import {
     IconCalendar,
     IconChevronLeft,
@@ -161,7 +159,7 @@ export default function AppointmentCalendar({
         }, 250);
     };
 
-    const { status: goRealtimeStatus } = useGoRealtime({
+    const { status: realtimeStatus } = useRealtimeEvents({
         enabled: realtimeEnabled,
         domains: ["appointments"],
         onEvent: (payload) => {
@@ -384,7 +382,6 @@ export default function AppointmentCalendar({
                             <p className="text-sm text-white/90 mt-1">
                                 Tampilan compact untuk booking cepat, monitoring slot, dan kontrol agenda harian.
                             </p>
-                            <RealtimeControlBanner enabled={realtimeEnabled} />
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
                             <button
@@ -401,28 +398,6 @@ export default function AppointmentCalendar({
                                 Daftar Appointment
                             </Link>
                         </div>
-                    </div>
-                </div>
-
-                <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2.5 text-xs text-slate-600 dark:text-slate-300">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span>
-                            GO Realtime: <span className="font-semibold">{realtimeEnabled ? goRealtimeStatus : "disabled"}</span>
-                        </span>
-                        <RealtimeToggleButton
-                            enabled={realtimeEnabled}
-                            onClick={() => setRealtimeEnabled((prev) => !prev)}
-                        />
-                        <span>
-                            {goRealtimeEventMeta
-                                ? `Event terakhir: ${goRealtimeEventMeta.action} (${goRealtimeEventMeta.at})`
-                                : "Belum ada event realtime appointments."}
-                        </span>
-                        {highlightSecondsLeft > 0 && (
-                            <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-                                Highlight aktif ~{highlightSecondsLeft} dtk
-                            </span>
-                        )}
                     </div>
                 </div>
 
@@ -979,3 +954,5 @@ export default function AppointmentCalendar({
         </DashboardLayout>
     );
 }
+
+

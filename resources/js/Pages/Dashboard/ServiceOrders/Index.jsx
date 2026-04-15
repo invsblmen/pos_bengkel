@@ -1,11 +1,7 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import Pagination from '@/Components/Dashboard/Pagination';
-import { useGoRealtime } from '@/Hooks/useGoRealtime';
-import { useRealtimeToggle } from '@/Hooks/useRealtimeToggle';
-import RealtimeControlBanner from '@/Components/Dashboard/RealtimeControlBanner';
-import RealtimeToggleButton from '@/Components/Dashboard/RealtimeToggleButton';
 import {
     IconPlus,
     IconSearch,
@@ -103,111 +99,11 @@ export default function Index({ orders, stats, mechanics, filters }) {
     const [showFilters, setShowFilters] = useState(false);
     const [viewMode, setViewMode] = useState('table');
     const [liveServiceOrders, setLiveServiceOrders] = useState(orders?.data || []);
-    const [goRealtimeEventMeta, setGoRealtimeEventMeta] = useState(null);
-    const [highlightedOrderIds, setHighlightedOrderIds] = useState([]);
-    const [realtimeEnabled, setRealtimeEnabled] = useRealtimeToggle();
-    const reloadTimerRef = useRef(null);
-    const highlightTimerRef = useRef(null);
 
     useEffect(() => {
         setLiveServiceOrders(orders?.data || []);
     }, [orders?.data]);
 
-    useEffect(() => {
-        return () => {
-            if (reloadTimerRef.current) {
-                clearTimeout(reloadTimerRef.current);
-            }
-            if (highlightTimerRef.current) {
-                clearTimeout(highlightTimerRef.current);
-            }
-        };
-    }, []);
-
-    useEffect(() => {
-        if (realtimeEnabled) return;
-        if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current);
-        if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
-        setHighlightedOrderIds([]);
-    }, [realtimeEnabled]);
-
-    const { status: goRealtimeStatus } = useGoRealtime({
-        enabled: realtimeEnabled,
-        domains: ['service_orders'],
-        onEvent: (event) => {
-            if (event?.domain !== 'service_orders') return;
-
-            const orderId = Number(event?.id || 0);
-            if (!orderId) return;
-
-            const action = event?.action || '';
-            const data = event?.data || {};
-
-            if (action === 'deleted') {
-                setLiveServiceOrders((prev) => prev.filter((o) => Number(o.id) !== orderId));
-            }
-
-            if (action === 'status_changed') {
-                setLiveServiceOrders((prev) =>
-                    prev.map((o) =>
-                        Number(o.id) === orderId
-                            ? {
-                                  ...o,
-                                  status: data?.new_status || o.status,
-                                  odometer_km: data?.odometer_km ?? o.odometer_km,
-                              }
-                            : o
-                    )
-                );
-            }
-
-            if (action === 'items_changed' || action === 'updated') {
-                setLiveServiceOrders((prev) =>
-                    prev.map((o) =>
-                        Number(o.id) === orderId
-                            ? {
-                                  ...o,
-                                  _goRealtimeMeta: {
-                                      addedPartIds: data?.added_part_ids || [],
-                                      removedPartIds: data?.removed_part_ids || [],
-                                      changedQtyPartIds: data?.changed_qty_part_ids || [],
-                                  },
-                              }
-                            : o
-                    )
-                );
-
-                setHighlightedOrderIds((prev) => {
-                    if (prev.includes(orderId)) return prev;
-                    return [...prev, orderId];
-                });
-
-                if (highlightTimerRef.current) {
-                    clearTimeout(highlightTimerRef.current);
-                }
-                highlightTimerRef.current = setTimeout(() => {
-                    setHighlightedOrderIds([]);
-                }, 6000);
-
-                if (reloadTimerRef.current) {
-                    clearTimeout(reloadTimerRef.current);
-                }
-                reloadTimerRef.current = setTimeout(() => {
-                    router.reload({
-                        only: ['orders', 'stats'],
-                        preserveScroll: true,
-                        preserveState: true,
-                    });
-                }, 450);
-            }
-
-            setGoRealtimeEventMeta({
-                at: new Date().toLocaleTimeString('id-ID'),
-                action,
-                orderId,
-            });
-        },
-    });
 
     const handleFilter = (e) => {
         e?.preventDefault();
@@ -331,7 +227,6 @@ export default function Index({ orders, stats, mechanics, filters }) {
                             <p className="text-xs font-bold uppercase tracking-[0.15em] text-primary-600 dark:text-primary-400">Workshop Operations</p>
                             <h1 className="mt-1 text-2xl font-black text-slate-900 dark:text-white">Order Layanan Service</h1>
                             <p className="text-sm text-slate-600 dark:text-slate-400">Tampilan baru yang lebih compact untuk monitor dan update order lebih cepat.</p>
-                            <RealtimeControlBanner enabled={realtimeEnabled} />
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
                             <div className="flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-1">
@@ -495,26 +390,6 @@ export default function Index({ orders, stats, mechanics, filters }) {
                     )}
                 </div>
 
-                <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2.5 text-xs text-slate-600 dark:text-slate-300 flex items-center justify-between">
-                    <span>
-                        GO Realtime: <span className="font-semibold">{realtimeEnabled ? goRealtimeStatus : 'disabled'}</span>
-                    </span>
-                    <RealtimeToggleButton
-                        enabled={realtimeEnabled}
-                        onClick={() => setRealtimeEnabled((prev) => !prev)}
-                    />
-                    <span>
-                        {goRealtimeEventMeta
-                            ? `Event terakhir ${goRealtimeEventMeta.action} untuk order #${goRealtimeEventMeta.orderId} (${goRealtimeEventMeta.at})`
-                            : 'Belum ada event GO realtime diterima.'}
-                    </span>
-                    {highlightedOrderIds.length > 0 && (
-                        <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-                            {highlightedOrderIds.length} order sedang di-highlight
-                        </span>
-                    )}
-                </div>
-
                 <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
                     {liveServiceOrders && liveServiceOrders.length > 0 ? (
                         <>
@@ -536,12 +411,11 @@ export default function Index({ orders, stats, mechanics, filters }) {
                                                 const badge = statusMeta[order.status] || statusMeta.pending;
                                                 const alert = getMaintenanceAlertStatus(order);
                                                 const totalCost = Number(order.total || 0);
-                                                const isHighlighted = highlightedOrderIds.includes(Number(order.id));
 
                                                 return (
                                                     <tr
                                                         key={order.id}
-                                                        className={`${isHighlighted ? 'bg-amber-50/80 dark:bg-amber-900/20' : ''} hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors duration-500`}
+                                                        className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors duration-500"
                                                     >
                                                         <td className="px-4 py-3">
                                                             <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">{order.order_number}</div>
@@ -594,11 +468,10 @@ export default function Index({ orders, stats, mechanics, filters }) {
                                     {liveServiceOrders.map((order) => {
                                         const badge = statusMeta[order.status] || statusMeta.pending;
                                         const alert = getMaintenanceAlertStatus(order);
-                                        const isHighlighted = highlightedOrderIds.includes(Number(order.id));
                                         return (
                                             <div
                                                 key={order.id}
-                                                className={`rounded-xl border border-slate-200 dark:border-slate-800 p-4 ${isHighlighted ? 'bg-amber-50/80 dark:bg-amber-900/20' : 'bg-slate-50/60 dark:bg-slate-800/30'} transition-colors duration-500`}
+                                                className="rounded-xl border border-slate-200 dark:border-slate-800 p-4 bg-slate-50/60 dark:bg-slate-800/30 transition-colors duration-500"
                                             >
                                                 <div className="flex items-start justify-between gap-3">
                                                     <div>
@@ -662,3 +535,5 @@ export default function Index({ orders, stats, mechanics, filters }) {
 }
 
 Index.layout = (page) => <DashboardLayout children={page} />;
+
+

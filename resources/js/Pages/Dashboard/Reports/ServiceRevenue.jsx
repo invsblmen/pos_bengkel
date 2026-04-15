@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import DashboardLayout from "@/Layouts/DashboardLayout";
 import { Head, router } from "@inertiajs/react";
 import {
@@ -9,9 +9,6 @@ import {
 import { Card, CardBody, CardHeader, CardTitle } from "@/Components/Card";
 import { toDisplayDate } from "@/Utils/datetime";
 import { useRealtimeReportHistoryReload } from "@/Hooks/useRealtimeReportHistoryReload";
-import { useGoReportRealtime } from "@/Hooks/useGoReportRealtime";
-import { useRealtimeToggle } from "@/Hooks/useRealtimeToggle";
-import ReportRealtimeBar from "@/Components/Dashboard/ReportRealtimeBar";
 
 export default function ServiceRevenueReport({
     report_data,
@@ -19,8 +16,6 @@ export default function ServiceRevenueReport({
     summary,
 }) {
     useRealtimeReportHistoryReload();
-    const [realtimeEnabled, setRealtimeEnabled] = useRealtimeToggle();
-    const { connectionStatus, eventMeta, highlightSecondsLeft } = useGoReportRealtime({ enabled: realtimeEnabled });
     const [formData, setFormData] = useState({
         start_date: filters.start_date,
         end_date: filters.end_date,
@@ -77,13 +72,6 @@ export default function ServiceRevenueReport({
                         Export CSV
                     </button>
                 </div>
-                <ReportRealtimeBar
-                    enabled={realtimeEnabled}
-                    status={connectionStatus}
-                    eventMeta={eventMeta}
-                    highlightSecondsLeft={highlightSecondsLeft}
-                    onToggle={() => setRealtimeEnabled((prev) => !prev)}
-                />
 
                 {/* Filters */}
                 <Card>
@@ -325,3 +313,4 @@ export default function ServiceRevenueReport({
         </DashboardLayout>
     );
 }
+

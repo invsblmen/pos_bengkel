@@ -1,12 +1,8 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Head, router, Link } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import toast from 'react-hot-toast';
 import Pagination from '@/Components/Dashboard/Pagination';
-import { useGoRealtime } from '@/Hooks/useGoRealtime';
-import { useRealtimeToggle } from '@/Hooks/useRealtimeToggle';
-import RealtimeControlBanner from '@/Components/Dashboard/RealtimeControlBanner';
-import RealtimeToggleButton from '@/Components/Dashboard/RealtimeToggleButton';
 import {
     IconDatabaseOff,
     IconFilter,
@@ -34,96 +30,6 @@ export default function Index({ suppliers, filters }) {
     });
     const [showFilters, setShowFilters] = useState(false);
     const [liveItems, setLiveItems] = useState(suppliers?.data || []);
-
-
-
-
-
-
-
-    // Realtime state
-    const [realtimeEnabled, setRealtimeEnabled] = useRealtimeToggle();
-    const [highlightedIds, setHighlightedIds] = useState([]);
-    const [highlightExpiresAt, setHighlightExpiresAt] = useState(null);
-    const [countdownNow, setCountdownNow] = useState(Date.now());
-    const [goRealtimeEventMeta, setGoRealtimeEventMeta] = useState(null);
-    const reloadTimerRef = useRef(null);
-    const highlightTimerRef = useRef(null);
-
-    const highlightSecondsLeft = highlightExpiresAt ? Math.max(0, Math.ceil((highlightExpiresAt - countdownNow) / 1000)) : 0;
-    const realtimeStatusMeta = {
-        connected: { label: 'Terhubung', className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' },
-        connecting: { label: 'Menghubungkan...', className: 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300' },
-        disconnected: { label: 'Terputus', className: 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300' },
-        error: { label: 'Error', className: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300' },
-    };
-
-    // GO Realtime Hook
-    const { status: goRealtimeStatus } = useGoRealtime({
-        enabled: realtimeEnabled,
-        domains: ['suppliers'],
-        onEvent: (payload) => {
-            const incoming = payload?.data || {};
-            const action = payload?.action || '';
-            const incomingId = String(payload?.id || incoming?.id || '');
-            if (!incomingId) return;
-            setGoRealtimeEventMeta({
-                action: action || 'updated',
-                at: new Date(payload?.timestamp || Date.now()).toLocaleTimeString('id-ID'),
-            });
-
-            // Handle different event types
-            if (action === 'created' || action === 'updated') {
-                setHighlightedIds(prev => [...new Set([...prev, incomingId])]);
-                setHighlightExpiresAt(Date.now() + 6000);
-                setCountdownNow(Date.now());
-
-                if (action === 'created') {
-                    setLiveItems(prev => {
-                        if (prev.some(i => String(i.id) === incomingId)) return prev;
-                        return [incoming, ...prev];
-                    });
-                } else {
-                    setLiveItems(prev => prev.map(i => String(i.id) === incomingId ? { ...i, ...incoming } : i));
-                }
-            } else if (action === 'deleted') {
-                setLiveItems(prev => prev.filter(i => String(i.id) !== incomingId));
-                setHighlightedIds(prev => prev.filter(id => String(id) !== incomingId));
-            }
-
-            // Debounce reload
-            clearTimeout(reloadTimerRef.current);
-            reloadTimerRef.current = setTimeout(() => {
-                router.reload({ preserveScroll: true, preserveState: true });
-            }, 300);
-        },
-    });
-
-    const currentRealtimeStatus = realtimeEnabled
-        ? (realtimeStatusMeta[goRealtimeStatus] || { label: goRealtimeStatus || 'Tidak diketahui', className: 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300' })
-        : { label: 'Dimatikan', className: 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300' };
-
-    // Countdown timer
-    useEffect(() => {
-        if (!highlightExpiresAt) return;
-        const interval = setInterval(() => {
-            setCountdownNow(Date.now());
-            if (Date.now() >= highlightExpiresAt) {
-                setHighlightedIds([]);
-                setHighlightExpiresAt(null);
-                clearInterval(interval);
-            }
-        }, 1000);
-        return () => clearInterval(interval);
-    }, [highlightExpiresAt]);
-
-    // Cleanup
-    useEffect(() => {
-        return () => {
-            clearTimeout(reloadTimerRef.current);
-            clearTimeout(highlightTimerRef.current);
-        };
-    }, []);
     useEffect(() => {
         setFilterData({
             ...defaultFilters,
@@ -176,15 +82,9 @@ export default function Index({ suppliers, filters }) {
                         <div>
                             <h1 className="text-3xl font-bold text-white">Daftar Supplier</h1>
                             <p className="mt-1 text-sm text-white/80">{liveItems.length} supplier terdaftar</p>
-                            <RealtimeControlBanner enabled={realtimeEnabled} />
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
-                        <RealtimeToggleButton
-                            enabled={realtimeEnabled}
-                            goRealtimeStatus={goRealtimeStatus}
-                            onClick={() => setRealtimeEnabled((prev) => !prev)}
-                        />
                         <button
                             onClick={() => setShowFilters(!showFilters)}
                             className={`inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium transition ${
@@ -213,24 +113,6 @@ export default function Index({ suppliers, filters }) {
                             Tambah Supplier
                         </Link>
                     </div>
-                </div>
-            </div>
-
-            <div className="mb-6 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2.5 text-xs text-slate-600 dark:text-slate-300">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span>
-                        GO Realtime: <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${currentRealtimeStatus.className}`}>{currentRealtimeStatus.label}</span>
-                    </span>
-                    <span>
-                        {goRealtimeEventMeta
-                            ? `Event terakhir: ${goRealtimeEventMeta.action} (${goRealtimeEventMeta.at})`
-                            : 'Belum ada event realtime supplier.'}
-                    </span>
-                    {highlightSecondsLeft > 0 && (
-                        <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-                            Highlight aktif ~{highlightSecondsLeft} dtk
-                        </span>
-                    )}
                 </div>
             </div>
 
@@ -315,7 +197,7 @@ export default function Index({ suppliers, filters }) {
                                 {liveItems.map((s, idx) => (
                                     <tr
                                         key={s.id}
-                                            className={`transition-colors ${highlightedIds.includes(String(s.id)) ? 'bg-amber-50 dark:bg-amber-900/20' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}
+                                        className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50"
                                     >
                                         <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
                                             {idx + 1 + ((suppliers.current_page || 1) - 1) * (suppliers.per_page || liveItems.length)}
@@ -407,3 +289,5 @@ export default function Index({ suppliers, filters }) {
 }
 
 Index.layout = (page) => <DashboardLayout children={page} />;
+
+

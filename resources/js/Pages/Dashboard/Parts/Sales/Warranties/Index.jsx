@@ -1,11 +1,7 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import Pagination from '@/Components/Dashboard/Pagination';
-import { useGoRealtime } from '@/Hooks/useGoRealtime';
-import { useRealtimeToggle } from '@/Hooks/useRealtimeToggle';
-import RealtimeControlBanner from '@/Components/Dashboard/RealtimeControlBanner';
-import RealtimeToggleButton from '@/Components/Dashboard/RealtimeToggleButton';
 import {
     IconShieldCheck,
     IconSearch,
@@ -57,14 +53,6 @@ function sourceLabel(sourceType) {
 }
 
 export default function Index({ warranties, summary, filters, customers = [], vehicles = [], mechanics = [] }) {
-    const [realtimeEnabled, setRealtimeEnabled] = useRealtimeToggle();
-    const [highlightedIds, setHighlightedIds] = useState([]);
-    const [highlightExpiresAt, setHighlightExpiresAt] = useState(null);
-    const [countdownNow, setCountdownNow] = useState(Date.now());
-    const [goRealtimeEventMeta, setGoRealtimeEventMeta] = useState(null);
-    const reloadTimerRef = useRef(null);
-
-    const highlightSecondsLeft = highlightExpiresAt ? Math.max(0, Math.ceil((highlightExpiresAt - countdownNow) / 1000)) : 0;
     const currentFilters = {
         search: filters?.search || '',
         warranty_status: filters?.warranty_status || 'all',
@@ -78,57 +66,6 @@ export default function Index({ warranties, summary, filters, customers = [], ve
         expiring_in_days: Number(filters?.expiring_in_days || 30),
     };
 
-    const { status: goRealtimeStatus } = useGoRealtime({
-        enabled: realtimeEnabled,
-        domains: ['part_sales', 'service_orders'],
-        onEvent: (payload) => {
-            const action = payload?.action || '';
-            const incomingId = String(payload?.id || payload?.data?.id || '');
-
-            setGoRealtimeEventMeta({
-                action,
-                at: new Date(payload?.timestamp || Date.now()).toLocaleTimeString('id-ID'),
-            });
-
-            if (incomingId) {
-                setHighlightedIds((prev) => [...new Set([...prev, incomingId])]);
-                setHighlightExpiresAt(Date.now() + 6000);
-                setCountdownNow(Date.now());
-            }
-
-            clearTimeout(reloadTimerRef.current);
-            reloadTimerRef.current = setTimeout(() => {
-                router.reload({ only: ['warranties', 'summary'], preserveScroll: true, preserveState: true });
-            }, 300);
-        },
-    });
-
-    const realtimeStatusMeta = {
-        connected: { label: 'Terhubung', className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' },
-        connecting: { label: 'Menghubungkan...', className: 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300' },
-        disconnected: { label: 'Terputus', className: 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300' },
-        error: { label: 'Error', className: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300' },
-    };
-    const currentRealtimeStatus = realtimeEnabled
-        ? (realtimeStatusMeta[goRealtimeStatus] || { label: goRealtimeStatus || 'Tidak diketahui', className: 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300' })
-        : { label: 'Dimatikan', className: 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300' };
-
-    useEffect(() => {
-        if (!highlightExpiresAt) return;
-        const interval = setInterval(() => {
-            setCountdownNow(Date.now());
-            if (Date.now() >= highlightExpiresAt) {
-                setHighlightedIds([]);
-                setHighlightExpiresAt(null);
-                clearInterval(interval);
-            }
-        }, 1000);
-        return () => clearInterval(interval);
-    }, [highlightExpiresAt]);
-
-    useEffect(() => {
-        return () => clearTimeout(reloadTimerRef.current);
-    }, []);
 
     const statusOptions = [
         { value: 'all', label: 'Semua' },
@@ -259,7 +196,6 @@ export default function Index({ warranties, summary, filters, customers = [], ve
                                 Manajemen Garansi Terpadu
                             </h1>
                             <p className="text-cyan-100 mt-1">Pantau garansi Part Sale dan Service Order dari satu halaman.</p>
-                            <RealtimeControlBanner enabled={realtimeEnabled} />
                         </div>
                         <div className="flex items-center gap-2">
                             <Link
@@ -282,30 +218,7 @@ export default function Index({ warranties, summary, filters, customers = [], ve
                             >
                                 <IconRefresh size={16} /> Refresh
                             </button>
-                            <RealtimeToggleButton
-                                enabled={realtimeEnabled}
-                                goRealtimeStatus={goRealtimeStatus}
-                                onClick={() => setRealtimeEnabled((prev) => !prev)}
-                            />
                         </div>
-                    </div>
-                </div>
-
-                <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2.5 text-xs text-slate-600 dark:text-slate-300">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span>
-                            GO Realtime: <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${currentRealtimeStatus.className}`}>{currentRealtimeStatus.label}</span>
-                        </span>
-                        <span>
-                            {goRealtimeEventMeta
-                                ? `Event terakhir: ${goRealtimeEventMeta.action} (${goRealtimeEventMeta.at})`
-                                : 'Belum ada event realtime garansi.'}
-                        </span>
-                        {highlightSecondsLeft > 0 && (
-                            <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-                                Highlight aktif ~{highlightSecondsLeft} dtk
-                            </span>
-                        )}
                     </div>
                 </div>
 
@@ -499,10 +412,10 @@ export default function Index({ warranties, summary, filters, customers = [], ve
                                     const canClaim = item.resolved_status === 'active';
 
                                     return (
-                                        <tr key={item.id} className={`transition-colors ${highlightedIds.includes(String(item.id)) ? 'bg-amber-50 dark:bg-amber-900/20' : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'}`}>
+                                        <tr key={item.id} className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/40">
                                             <td className="px-5 py-4">
                                                 <div className="font-bold text-cyan-700 dark:text-cyan-400">{item.reference_number || '-'}</div>
-                                                <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">{sourceLabel(item.source_type)} • {formatDate(item.source_date)}</div>
+                                                <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">{sourceLabel(item.source_type)} â€¢ {formatDate(item.source_date)}</div>
                                             </td>
                                             <td className="px-5 py-4">
                                                 <div className="font-semibold text-slate-900 dark:text-white">{item.customer_name || '-'}</div>
@@ -516,7 +429,7 @@ export default function Index({ warranties, summary, filters, customers = [], ve
                                             <td className="px-5 py-4">
                                                 <div className="font-semibold text-slate-900 dark:text-white">{item.item_name || '-'}</div>
                                                 <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                                                    {(item.item_type || '').toLowerCase() === 'service' ? 'Layanan' : 'Sparepart'} {item.item_number && item.item_number !== '-' ? `• ${item.item_number}` : ''}
+                                                    {(item.item_type || '').toLowerCase() === 'service' ? 'Layanan' : 'Sparepart'} {item.item_number && item.item_number !== '-' ? `â€¢ ${item.item_number}` : ''}
                                                 </div>
                                             </td>
                                             <td className="px-5 py-4 text-right">
@@ -569,3 +482,5 @@ export default function Index({ warranties, summary, filters, customers = [], ve
         </DashboardLayout>
     );
 }
+
+

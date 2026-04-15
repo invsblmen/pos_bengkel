@@ -1,17 +1,12 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import DashboardLayout from "@/Layouts/DashboardLayout";
 import { Head, router } from "@inertiajs/react";
 import { IconAlertTriangle } from "@tabler/icons-react";
 import { Card, CardBody, CardHeader, CardTitle } from "@/Components/Card";
 import { useRealtimeReportHistoryReload } from "@/Hooks/useRealtimeReportHistoryReload";
-import { useGoReportRealtime } from "@/Hooks/useGoReportRealtime";
-import { useRealtimeToggle } from "@/Hooks/useRealtimeToggle";
-import ReportRealtimeBar from "@/Components/Dashboard/ReportRealtimeBar";
 
 export default function PartsInventoryReport({ parts, filters, summary }) {
     useRealtimeReportHistoryReload();
-    const [realtimeEnabled, setRealtimeEnabled] = useRealtimeToggle();
-    const { connectionStatus, eventMeta, highlightSecondsLeft } = useGoReportRealtime({ enabled: realtimeEnabled });
     const [selectedStatus, setSelectedStatus] = useState(filters.status);
 
     const handleStatusChange = (status) => {
@@ -35,13 +30,6 @@ export default function PartsInventoryReport({ parts, filters, summary }) {
                         Analisis stok dan nilai inventori sparepart
                     </p>
                 </div>
-                <ReportRealtimeBar
-                    enabled={realtimeEnabled}
-                    status={connectionStatus}
-                    eventMeta={eventMeta}
-                    highlightSecondsLeft={highlightSecondsLeft}
-                    onToggle={() => setRealtimeEnabled((prev) => !prev)}
-                />
 
                 {/* Summary */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -212,3 +200,4 @@ export default function PartsInventoryReport({ parts, filters, summary }) {
         </DashboardLayout>
     );
 }
+

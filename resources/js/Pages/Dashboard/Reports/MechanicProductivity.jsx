@@ -4,9 +4,6 @@ import { Head, router } from "@inertiajs/react";
 import { IconDownload } from "@tabler/icons-react";
 import { Card, CardBody, CardHeader, CardTitle } from "@/Components/Card";
 import { useRealtimeReportHistoryReload } from "@/Hooks/useRealtimeReportHistoryReload";
-import { useGoReportRealtime } from "@/Hooks/useGoReportRealtime";
-import { useRealtimeToggle } from "@/Hooks/useRealtimeToggle";
-import ReportRealtimeBar from "@/Components/Dashboard/ReportRealtimeBar";
 
 export default function MechanicProductivityReport({
     mechanics,
@@ -14,8 +11,7 @@ export default function MechanicProductivityReport({
     summary,
 }) {
     useRealtimeReportHistoryReload();
-    const [realtimeEnabled, setRealtimeEnabled] = useRealtimeToggle();
-    const { connectionStatus, eventMeta, highlightSecondsLeft } = useGoReportRealtime({ enabled: realtimeEnabled });
+
     const [formData, setFormData] = useState({
         start_date: filters.start_date,
         end_date: filters.end_date,
@@ -47,7 +43,6 @@ export default function MechanicProductivityReport({
             <Head title="Laporan Produktivitas Mekanik" />
 
             <div className="space-y-6">
-                {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
                         <h1 className="text-3xl font-bold">
@@ -65,15 +60,7 @@ export default function MechanicProductivityReport({
                         Export CSV
                     </button>
                 </div>
-                <ReportRealtimeBar
-                    enabled={realtimeEnabled}
-                    status={connectionStatus}
-                    eventMeta={eventMeta}
-                    highlightSecondsLeft={highlightSecondsLeft}
-                    onToggle={() => setRealtimeEnabled((prev) => !prev)}
-                />
 
-                {/* Filters */}
                 <Card>
                     <CardBody>
                         <form onSubmit={handleFilterSubmit} className="space-y-4">
@@ -117,7 +104,6 @@ export default function MechanicProductivityReport({
                     </CardBody>
                 </Card>
 
-                {/* Summary */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <Card>
                         <CardBody>
@@ -175,7 +161,6 @@ export default function MechanicProductivityReport({
                     </Card>
                 </div>
 
-                {/* Mechanics Table */}
                 <Card>
                     <CardHeader>
                         <CardTitle>Performa Per Mekanik</CardTitle>
@@ -185,79 +170,33 @@ export default function MechanicProductivityReport({
                             <table className="w-full text-sm">
                                 <thead className="border-b">
                                     <tr>
-                                        <th className="text-left py-3 px-4 font-semibold">
-                                            Nama
-                                        </th>
-                                        <th className="text-left py-3 px-4 font-semibold">
-                                            Spesialisasi
-                                        </th>
-                                        <th className="text-center py-3 px-4 font-semibold">
-                                            Total Pesanan
-                                        </th>
-                                        <th className="text-right py-3 px-4 font-semibold">
-                                            Total Pendapatan
-                                        </th>
-                                        <th className="text-right py-3 px-4 font-semibold">
-                                            Rata-rata Pesanan
-                                        </th>
-                                        <th className="text-right py-3 px-4 font-semibold">
-                                            Auto Diskon
-                                        </th>
-                                        <th className="text-right py-3 px-4 font-semibold">
-                                            Insentif
-                                        </th>
-                                        <th className="text-right py-3 px-4 font-semibold">
-                                            Gaji Estimasi
-                                        </th>
+                                        <th className="text-left py-3 px-4 font-semibold">Nama</th>
+                                        <th className="text-left py-3 px-4 font-semibold">Spesialisasi</th>
+                                        <th className="text-center py-3 px-4 font-semibold">Total Pesanan</th>
+                                        <th className="text-right py-3 px-4 font-semibold">Total Pendapatan</th>
+                                        <th className="text-right py-3 px-4 font-semibold">Rata-rata Pesanan</th>
+                                        <th className="text-right py-3 px-4 font-semibold">Auto Diskon</th>
+                                        <th className="text-right py-3 px-4 font-semibold">Insentif</th>
+                                        <th className="text-right py-3 px-4 font-semibold">Gaji Estimasi</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
                                     {mechanics.length > 0 ? (
                                         mechanics.map((mechanic) => (
-                                            <tr
-                                                key={mechanic.id}
-                                                className="hover:bg-gray-50 dark:hover:bg-gray-900"
-                                            >
-                                                <td className="py-3 px-4 font-medium">
-                                                    {mechanic.name}
-                                                </td>
-                                                <td className="py-3 px-4 text-gray-600 dark:text-gray-400">
-                                                    {mechanic.specialty || "-"}
-                                                </td>
-                                                <td className="py-3 px-4 text-center">
-                                                    {mechanic.total_orders}
-                                                </td>
-                                                <td className="py-3 px-4 text-right font-semibold">
-                                                    Rp{" "}
-                                                    {mechanic.total_revenue.toLocaleString(
-                                                        "id-ID"
-                                                    )}
-                                                </td>
-                                                <td className="py-3 px-4 text-right">
-                                                    Rp{" "}
-                                                    {mechanic.average_order_value.toLocaleString(
-                                                        "id-ID"
-                                                    )}
-                                                </td>
-                                                <td className="py-3 px-4 text-right text-amber-600">
-                                                    Rp {(mechanic.total_auto_discount || 0).toLocaleString("id-ID")}
-                                                </td>
-                                                <td className="py-3 px-4 text-right text-green-600 font-semibold">
-                                                    Rp {(mechanic.total_incentive || 0).toLocaleString("id-ID")}
-                                                </td>
-                                                <td className="py-3 px-4 text-right font-bold">
-                                                    Rp {(mechanic.total_salary || 0).toLocaleString("id-ID")}
-                                                </td>
+                                            <tr key={mechanic.id} className="hover:bg-gray-50 dark:hover:bg-gray-900">
+                                                <td className="py-3 px-4 font-medium">{mechanic.name}</td>
+                                                <td className="py-3 px-4 text-gray-600 dark:text-gray-400">{mechanic.specialty || "-"}</td>
+                                                <td className="py-3 px-4 text-center">{mechanic.total_orders}</td>
+                                                <td className="py-3 px-4 text-right font-semibold">Rp {mechanic.total_revenue.toLocaleString("id-ID")}</td>
+                                                <td className="py-3 px-4 text-right">Rp {mechanic.average_order_value.toLocaleString("id-ID")}</td>
+                                                <td className="py-3 px-4 text-right text-amber-600">Rp {(mechanic.total_auto_discount || 0).toLocaleString("id-ID")}</td>
+                                                <td className="py-3 px-4 text-right text-green-600 font-semibold">Rp {(mechanic.total_incentive || 0).toLocaleString("id-ID")}</td>
+                                                <td className="py-3 px-4 text-right font-bold">Rp {(mechanic.total_salary || 0).toLocaleString("id-ID")}</td>
                                             </tr>
                                         ))
                                     ) : (
                                         <tr>
-                                            <td
-                                                colSpan="8"
-                                                className="py-6 text-center text-gray-500"
-                                            >
-                                                Tidak ada data
-                                            </td>
+                                            <td colSpan="8" className="py-6 text-center text-gray-500">Tidak ada data</td>
                                         </tr>
                                     )}
                                 </tbody>

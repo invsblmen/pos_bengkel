@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import {
@@ -13,58 +13,14 @@ import {
     IconCurrencyDollar,
 } from '@tabler/icons-react';
 import { toDisplayDateTime } from '@/Utils/datetime';
-import { useGoRealtime } from '@/Hooks/useGoRealtime';
-import { useRealtimeToggle } from '@/Hooks/useRealtimeToggle';
-import RealtimeControlBanner from '@/Components/Dashboard/RealtimeControlBanner';
-import RealtimeToggleButton from '@/Components/Dashboard/RealtimeToggleButton';
 import toast from 'react-hot-toast';
 
 export default function Show({ order, warrantyRegistrations = {}, permissions = {} }) {
     const [liveOrder, setLiveOrder] = useState(order);
-    const [goRealtimeEventMeta, setGoRealtimeEventMeta] = useState(null);
-    const [highlightedPartIds, setHighlightedPartIds] = useState([]);
-    const [highlightedServiceIds, setHighlightedServiceIds] = useState([]);
-    const [highlightExpiresAt, setHighlightExpiresAt] = useState(null);
-    const [countdownNow, setCountdownNow] = useState(Date.now());
-    const [realtimeEnabled, setRealtimeEnabled] = useRealtimeToggle();
-    const reloadTimerRef = useRef(null);
-    const highlightTimerRef = useRef(null);
 
     useEffect(() => {
         setLiveOrder(order);
     }, [order]);
-
-    useEffect(() => {
-        return () => {
-            if (reloadTimerRef.current) {
-                clearTimeout(reloadTimerRef.current);
-            }
-            if (highlightTimerRef.current) {
-                clearTimeout(highlightTimerRef.current);
-            }
-        };
-    }, []);
-
-    useEffect(() => {
-        if (!highlightExpiresAt) {
-            return undefined;
-        }
-
-        const interval = setInterval(() => {
-            setCountdownNow(Date.now());
-        }, 1000);
-
-        return () => clearInterval(interval);
-    }, [highlightExpiresAt]);
-
-    useEffect(() => {
-        if (realtimeEnabled) return;
-        if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current);
-        if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
-        setHighlightedPartIds([]);
-        setHighlightedServiceIds([]);
-        setHighlightExpiresAt(null);
-    }, [realtimeEnabled]);
 
     const currentOrder = liveOrder || order;
 
@@ -155,81 +111,6 @@ export default function Show({ order, warrantyRegistrations = {}, permissions = 
         );
     };
 
-    const { status: goRealtimeStatus } = useGoRealtime({
-        enabled: realtimeEnabled,
-        domains: ['service_orders'],
-        onEvent: (event) => {
-            if (event?.domain !== 'service_orders') return;
-            if (Number(event?.id || 0) !== Number(order?.id || 0)) return;
-
-            const action = event?.action || '';
-            const data = event?.data || {};
-
-            if (action === 'deleted') {
-                toast.error('Service order ini telah dihapus. Kembali ke daftar.');
-                router.visit(route('service-orders.index'));
-                return;
-            }
-
-            if (action === 'status_changed') {
-                setLiveOrder((prev) => ({
-                    ...prev,
-                    status: data?.new_status || prev?.status,
-                    odometer_km: data?.odometer_km ?? prev?.odometer_km,
-                }));
-            }
-
-            if (action === 'items_changed' || action === 'updated') {
-                const partIds = Array.from(
-                    new Set([
-                        ...(Array.isArray(data?.added_part_ids) ? data.added_part_ids : []),
-                        ...(Array.isArray(data?.removed_part_ids) ? data.removed_part_ids : []),
-                        ...(Array.isArray(data?.changed_qty_part_ids) ? data.changed_qty_part_ids : []),
-                    ])
-                )
-                    .map((id) => Number(id))
-                    .filter((id) => Number.isFinite(id) && id > 0);
-
-                const serviceIds = Array.from(
-                    new Set([
-                        ...(Array.isArray(data?.added_service_ids) ? data.added_service_ids : []),
-                        ...(Array.isArray(data?.removed_service_ids) ? data.removed_service_ids : []),
-                    ])
-                )
-                    .map((id) => Number(id))
-                    .filter((id) => Number.isFinite(id) && id > 0);
-
-                setHighlightedPartIds(partIds);
-                setHighlightedServiceIds(serviceIds);
-
-                if (highlightTimerRef.current) {
-                    clearTimeout(highlightTimerRef.current);
-                }
-                setHighlightExpiresAt(Date.now() + 6000);
-                highlightTimerRef.current = setTimeout(() => {
-                    setHighlightedPartIds([]);
-                    setHighlightedServiceIds([]);
-                    setHighlightExpiresAt(null);
-                }, 6000);
-
-                if (reloadTimerRef.current) {
-                    clearTimeout(reloadTimerRef.current);
-                }
-                reloadTimerRef.current = setTimeout(() => {
-                    router.reload({
-                        only: ['order', 'warrantyRegistrations'],
-                        preserveState: true,
-                        preserveScroll: true,
-                    });
-                }, 450);
-            }
-
-            setGoRealtimeEventMeta({
-                at: new Date().toLocaleTimeString('id-ID'),
-                action,
-            });
-        },
-    });
 
     const statusBadge = getStatusBadge(currentOrder.status);
     const details = currentOrder.details || [];
@@ -262,9 +143,6 @@ export default function Show({ order, warrantyRegistrations = {}, permissions = 
     };
 
     const mechanicHref = getMechanicHref(currentOrder.mechanic?.id);
-    const highlightSecondsLeft = highlightExpiresAt
-        ? Math.max(0, Math.ceil((highlightExpiresAt - countdownNow) / 1000))
-        : 0;
 
     return (
         <>
@@ -277,7 +155,6 @@ export default function Show({ order, warrantyRegistrations = {}, permissions = 
                             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Service Order</p>
                             <h1 className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">Order #{currentOrder.order_number}</h1>
                             <p className="mt-1 text-sm text-gray-500">{currentOrder.customer?.name || 'Tanpa pelanggan'} - {currentOrder.vehicle?.plate_number || 'Tanpa kendaraan'}</p>
-                            <RealtimeControlBanner enabled={realtimeEnabled} />
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2">
@@ -292,28 +169,6 @@ export default function Show({ order, warrantyRegistrations = {}, permissions = 
                                 <IconPencil size={16} /> Edit
                             </Link>
                         </div>
-                    </div>
-                </div>
-
-                <div className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span>
-                            GO Realtime: <span className="font-semibold">{realtimeEnabled ? goRealtimeStatus : 'disabled'}</span>
-                        </span>
-                        <RealtimeToggleButton
-                            enabled={realtimeEnabled}
-                            onClick={() => setRealtimeEnabled((prev) => !prev)}
-                        />
-                        <span>
-                            {goRealtimeEventMeta
-                                ? `Event terakhir: ${goRealtimeEventMeta.action} (${goRealtimeEventMeta.at})`
-                                : 'Belum ada event realtime masuk untuk order ini.'}
-                        </span>
-                        {highlightSecondsLeft > 0 && (
-                            <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-                                Highlight aktif ~{highlightSecondsLeft} dtk
-                            </span>
-                        )}
                     </div>
                 </div>
 
@@ -417,23 +272,11 @@ export default function Show({ order, warrantyRegistrations = {}, permissions = 
                             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                                 {details.map((detail) => {
                                     const warranty = getWarrantyMeta(detail);
-                                    const partId = Number(detail.part?.id || 0);
-                                    const serviceId = Number(detail.service?.id || 0);
-                                    const isChanged =
-                                        (partId > 0 && highlightedPartIds.includes(partId)) ||
-                                        (serviceId > 0 && highlightedServiceIds.includes(serviceId));
-
                                     return (
-                                        <tr
-                                            key={detail.id}
-                                            className={isChanged ? 'bg-amber-50/80 dark:bg-amber-900/20 transition-colors duration-500' : ''}
-                                        >
+                                        <tr key={detail.id}>
                                             <td className="px-4 py-3 text-sm">
                                                 <div className="font-medium text-gray-900 dark:text-gray-100">{detail.service?.title || detail.part?.name || '-'}</div>
-                                                <div className="text-xs text-gray-500">
-                                                    {detail.service ? 'Layanan' : detail.part ? 'Sparepart' : '-'}
-                                                    {isChanged ? ' • update realtime' : ''}
-                                                </div>
+                                                <div className="text-xs text-gray-500">{detail.service ? 'Layanan' : detail.part ? 'Sparepart' : '-'}</div>
                                             </td>
                                             <td className="px-4 py-3 text-center text-sm">{detail.qty}</td>
                                             <td className="px-4 py-3 text-right text-sm">{formatPrice(detail.price)}</td>
@@ -531,3 +374,5 @@ export default function Show({ order, warrantyRegistrations = {}, permissions = 
 }
 
 Show.layout = (page) => <DashboardLayout children={page} />;
+
+

@@ -4,14 +4,10 @@ import { Head, router } from "@inertiajs/react";
 import { Card, CardBody, CardHeader, CardTitle } from "@/Components/Card";
 import { IconDownload } from "@tabler/icons-react";
 import { useRealtimeReportHistoryReload } from "@/Hooks/useRealtimeReportHistoryReload";
-import { useGoReportRealtime } from "@/Hooks/useGoReportRealtime";
-import { useRealtimeToggle } from "@/Hooks/useRealtimeToggle";
-import ReportRealtimeBar from "@/Components/Dashboard/ReportRealtimeBar";
 
 export default function MechanicPayroll({ mechanics, filters, summary }) {
     useRealtimeReportHistoryReload();
-    const [realtimeEnabled, setRealtimeEnabled] = useRealtimeToggle();
-    const { connectionStatus, eventMeta, highlightSecondsLeft } = useGoReportRealtime({ enabled: realtimeEnabled });
+
     const [formData, setFormData] = useState({
         start_date: filters.start_date,
         end_date: filters.end_date,
@@ -55,13 +51,6 @@ export default function MechanicPayroll({ mechanics, filters, summary }) {
                         Export CSV
                     </button>
                 </div>
-                <ReportRealtimeBar
-                    enabled={realtimeEnabled}
-                    status={connectionStatus}
-                    eventMeta={eventMeta}
-                    highlightSecondsLeft={highlightSecondsLeft}
-                    onToggle={() => setRealtimeEnabled((prev) => !prev)}
-                />
 
                 <Card>
                     <CardBody>
@@ -112,7 +101,7 @@ export default function MechanicPayroll({ mechanics, filters, summary }) {
                                 <thead className="border-b">
                                     <tr>
                                         <th className="text-left py-3 px-4">Nama</th>
-                                        <th className="text-left py-3 px-4">No Pegawai</th>
+                                        <th className="text-left py-3 px-4">No. Pegawai</th>
                                         <th className="text-center py-3 px-4">Order</th>
                                         <th className="text-center py-3 px-4">Menit Kerja</th>
                                         <th className="text-right py-3 px-4">Tarif/Jam</th>

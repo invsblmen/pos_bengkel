@@ -1,12 +1,9 @@
-import React, { useEffect, useRef, useState } from "react";
+﻿import React, { useEffect, useRef, useState } from "react";
 import DashboardLayout from "@/Layouts/DashboardLayout";
 import { Head, router } from "@inertiajs/react";
 import { Card, CardBody, CardHeader, CardTitle } from "@/Components/Card";
 import { IconChartInfographic, IconDownload, IconFilter } from "@tabler/icons-react";
 import { useRealtimeReportHistoryReload } from "@/Hooks/useRealtimeReportHistoryReload";
-import { useGoReportRealtime } from "@/Hooks/useGoReportRealtime";
-import { useRealtimeToggle } from "@/Hooks/useRealtimeToggle";
-import ReportRealtimeBar from "@/Components/Dashboard/ReportRealtimeBar";
 
 const formatCurrency = (value = 0) =>
     new Intl.NumberFormat("id-ID", {
@@ -99,8 +96,6 @@ const isSameFilters = (left, right) => {
 
 export default function OverallReport({ summary, filters, transactions, statusOptions = [], statusSummary = [] }) {
     useRealtimeReportHistoryReload();
-    const [realtimeEnabled, setRealtimeEnabled] = useRealtimeToggle();
-    const { connectionStatus, eventMeta, highlightSecondsLeft } = useGoReportRealtime({ enabled: realtimeEnabled });
     const startDateInputRef = useRef(null);
     const [savedFilterActive, setSavedFilterActive] = useState(false);
 
@@ -252,14 +247,6 @@ export default function OverallReport({ summary, filters, transactions, statusOp
             <Head title="Laporan Keseluruhan" />
 
             <div className="space-y-6">
-                <ReportRealtimeBar
-                    enabled={realtimeEnabled}
-                    status={connectionStatus}
-                    eventMeta={eventMeta}
-                    highlightSecondsLeft={highlightSecondsLeft}
-                    onToggle={() => setRealtimeEnabled((prev) => !prev)}
-                />
-
                 <div className="flex items-center justify-between">
                     <div>
                         <h1 className="text-3xl font-bold">Laporan Keseluruhan</h1>
@@ -614,3 +601,4 @@ export default function OverallReport({ summary, filters, transactions, statusOp
         </DashboardLayout>
     );
 }
+

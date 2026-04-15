@@ -1,12 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import Pagination from '@/Components/Dashboard/Pagination';
 import { IconFilter, IconSearch, IconX, IconCirclePlus, IconDatabaseOff, IconLayoutGrid, IconList, IconPencil, IconShoppingCart, IconReceipt } from '@tabler/icons-react';
-import { useGoRealtime } from '@/Hooks/useGoRealtime';
-import { useRealtimeToggle } from '@/Hooks/useRealtimeToggle';
-import RealtimeControlBanner from '@/Components/Dashboard/RealtimeControlBanner';
-import RealtimeToggleButton from '@/Components/Dashboard/RealtimeToggleButton';
 
 const defaultFilters = { search: '', status: '', payment_status: '', customer_id: '' };
 
@@ -27,13 +23,13 @@ const paymentColors = {
 };
 
 const statusLabel = {
-    draft: '📝 Draft',
-    confirmed: '✅ Dikonfirmasi',
-    waiting_stock: '📦 Pemesanan',
-    ready_to_notify: '🔔 Siap Diberitahu',
-    waiting_pickup: '🛵 Menunggu Diambil',
-    completed: '🎯 Selesai',
-    cancelled: '❌ Dibatalkan',
+    draft: 'ðŸ“ Draft',
+    confirmed: 'âœ… Dikonfirmasi',
+    waiting_stock: 'ðŸ“¦ Pemesanan',
+    ready_to_notify: 'ðŸ”” Siap Diberitahu',
+    waiting_pickup: 'ðŸ›µ Menunggu Diambil',
+    completed: 'ðŸŽ¯ Selesai',
+    cancelled: 'âŒ Dibatalkan',
 };
 
 export default function Index({ sales, filters, customers = [] }) {
@@ -45,87 +41,10 @@ export default function Index({ sales, filters, customers = [] }) {
     const [viewMode, setViewMode] = useState('card');
     const [liveSales, setLiveSales] = useState(sales?.data || []);
 
-    const [realtimeEnabled, setRealtimeEnabled] = useRealtimeToggle();
-    const [highlightedIds, setHighlightedIds] = useState([]);
-    const [highlightExpiresAt, setHighlightExpiresAt] = useState(null);
-    const [countdownNow, setCountdownNow] = useState(Date.now());
-    const [goRealtimeEventMeta, setGoRealtimeEventMeta] = useState(null);
-    const reloadTimerRef = useRef(null);
-    const highlightTimerRef = useRef(null);
-
-    const highlightSecondsLeft = highlightExpiresAt ? Math.max(0, Math.ceil((highlightExpiresAt - countdownNow) / 1000)) : 0;
-    const realtimeStatusMeta = {
-        connected: { label: 'Terhubung', className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' },
-        connecting: { label: 'Menghubungkan...', className: 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300' },
-        disconnected: { label: 'Terputus', className: 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300' },
-        error: { label: 'Error', className: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300' },
-    };
-
-    const { status: goRealtimeStatus } = useGoRealtime({
-        enabled: realtimeEnabled,
-        domains: ['part_sales'],
-        onEvent: (payload) => {
-            const action = payload?.action || '';
-            const incoming = payload?.data || {};
-            const incomingId = String(payload?.id || incoming?.id || '');
-            if (!incomingId) return;
-
-            setGoRealtimeEventMeta({
-                action,
-                at: new Date(payload?.timestamp || Date.now()).toLocaleTimeString('id-ID'),
-            });
-
-            if (action === 'created') {
-                setLiveSales((prev) => {
-                    if (prev.some((sale) => String(sale.id) === incomingId)) return prev;
-                    return [incoming, ...prev];
-                });
-            } else if (action === 'updated' || action === 'status_changed' || action === 'payment_updated') {
-                setLiveSales((prev) => prev.map((sale) => (String(sale.id) === incomingId ? { ...sale, ...incoming } : sale)));
-            } else if (action === 'deleted') {
-                setLiveSales((prev) => prev.filter((sale) => String(sale.id) !== incomingId));
-            }
-
-            if (action !== 'deleted') {
-                setHighlightedIds((prev) => [...new Set([...prev, incomingId])]);
-                setHighlightExpiresAt(Date.now() + 6000);
-                setCountdownNow(Date.now());
-            }
-
-            clearTimeout(reloadTimerRef.current);
-            reloadTimerRef.current = setTimeout(() => {
-                router.reload({ only: ['sales'], preserveScroll: true, preserveState: true });
-            }, 300);
-        },
-    });
-
-    const currentRealtimeStatus = realtimeEnabled
-        ? (realtimeStatusMeta[goRealtimeStatus] || { label: goRealtimeStatus || 'Tidak diketahui', className: 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300' })
-        : { label: 'Dimatikan', className: 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300' };
-
     useEffect(() => {
         setLiveSales(sales?.data || []);
     }, [sales?.data]);
 
-    useEffect(() => {
-        if (!highlightExpiresAt) return;
-        const interval = setInterval(() => {
-            setCountdownNow(Date.now());
-            if (Date.now() >= highlightExpiresAt) {
-                setHighlightedIds([]);
-                setHighlightExpiresAt(null);
-                clearInterval(interval);
-            }
-        }, 1000);
-        return () => clearInterval(interval);
-    }, [highlightExpiresAt]);
-
-    useEffect(() => {
-        return () => {
-            clearTimeout(reloadTimerRef.current);
-            clearTimeout(highlightTimerRef.current);
-        };
-    }, []);
 
     useEffect(() => {
         setFilterData({
@@ -181,7 +100,6 @@ export default function Index({ sales, filters, customers = [] }) {
                                         Penjualan Sparepart
                                     </h1>
                                     <p className="text-emerald-100 mt-1">{liveSales.length} transaksi penjualan</p>
-                                    <RealtimeControlBanner enabled={realtimeEnabled} />
                                 </div>
                             </div>
                             <div className="grid grid-cols-2 gap-4 lg:flex lg:gap-6">
@@ -243,30 +161,7 @@ export default function Index({ sales, filters, customers = [] }) {
                                     <IconCirclePlus size={20} /> Penjualan Baru
                                 </button>
                             </Link>
-                            <RealtimeToggleButton
-                                enabled={realtimeEnabled}
-                                goRealtimeStatus={goRealtimeStatus}
-                                onClick={() => setRealtimeEnabled((prev) => !prev)}
-                            />
                         </div>
-                    </div>
-                </div>
-
-                <div className="mb-6 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2.5 text-xs text-slate-600 dark:text-slate-300">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span>
-                            GO Realtime: <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${currentRealtimeStatus.className}`}>{currentRealtimeStatus.label}</span>
-                        </span>
-                        <span>
-                            {goRealtimeEventMeta
-                                ? `Event terakhir: ${goRealtimeEventMeta.action} (${goRealtimeEventMeta.at})`
-                                : 'Belum ada event realtime penjualan sparepart.'}
-                        </span>
-                        {highlightSecondsLeft > 0 && (
-                            <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-                                Highlight aktif ~{highlightSecondsLeft} dtk
-                            </span>
-                        )}
                     </div>
                 </div>
 
@@ -323,13 +218,13 @@ export default function Index({ sales, filters, customers = [] }) {
                                             className="w-full h-11 px-4 rounded-xl border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all font-medium"
                                         >
                                             <option value="">Semua Status</option>
-                                            <option value="draft">📝 Draft</option>
-                                            <option value="confirmed">✅ Dikonfirmasi</option>
-                                            <option value="waiting_stock">📦 Pemesanan</option>
-                                            <option value="ready_to_notify">🔔 Siap Diberitahu</option>
-                                            <option value="waiting_pickup">🛵 Menunggu Diambil</option>
-                                            <option value="completed">🎯 Selesai</option>
-                                            <option value="cancelled">❌ Dibatalkan</option>
+                                            <option value="draft">ðŸ“ Draft</option>
+                                            <option value="confirmed">âœ… Dikonfirmasi</option>
+                                            <option value="waiting_stock">ðŸ“¦ Pemesanan</option>
+                                            <option value="ready_to_notify">ðŸ”” Siap Diberitahu</option>
+                                            <option value="waiting_pickup">ðŸ›µ Menunggu Diambil</option>
+                                            <option value="completed">ðŸŽ¯ Selesai</option>
+                                            <option value="cancelled">âŒ Dibatalkan</option>
                                         </select>
                                     </div>
                                     <div>
@@ -340,9 +235,9 @@ export default function Index({ sales, filters, customers = [] }) {
                                             className="w-full h-11 px-4 rounded-xl border-2 border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all font-medium"
                                         >
                                             <option value="">Semua Pembayaran</option>
-                                            <option value="unpaid">○ Belum Bayar</option>
-                                            <option value="partial">◐ Sebagian</option>
-                                            <option value="paid">✓ Lunas</option>
+                                            <option value="unpaid">â—‹ Belum Bayar</option>
+                                            <option value="partial">â— Sebagian</option>
+                                            <option value="paid">âœ“ Lunas</option>
                                         </select>
                                     </div>
                                 </div>
@@ -373,7 +268,7 @@ export default function Index({ sales, filters, customers = [] }) {
                     viewMode === 'card' ? (
                         <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
                                 {liveSales.map((sale) => (
-                                    <div key={sale.id} className={`group rounded-2xl border-2 bg-gradient-to-br shadow-md hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] overflow-hidden ${highlightedIds.includes(String(sale.id)) ? 'border-amber-300 dark:border-amber-700 from-amber-50 to-amber-100 dark:from-amber-900/20 dark:to-amber-800/20' : 'border-slate-200 dark:border-slate-800 from-white to-slate-50 dark:from-slate-900 dark:to-slate-800 hover:border-emerald-300 dark:hover:border-emerald-700'}`}>
+                                    <div key={sale.id} className="group rounded-2xl border-2 bg-gradient-to-br shadow-md hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] overflow-hidden border-slate-200 dark:border-slate-800 from-white to-slate-50 dark:from-slate-900 dark:to-slate-800 hover:border-emerald-300 dark:hover:border-emerald-700">
                                         <div className="bg-gradient-to-r from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-800/20 px-5 py-4 border-b-2 border-emerald-200 dark:border-emerald-700/30">
                                             <div className="flex items-center justify-between">
                                                 <Link href={route('part-sales.show', sale.id)} className="text-lg font-bold text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 transition-colors">
@@ -407,7 +302,7 @@ export default function Index({ sales, filters, customers = [] }) {
                                                     <span className={`inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-bold border-2 shadow-sm ${
                                                         paymentColors[sale.payment_status] || paymentColors.unpaid
                                                     }`}>
-                                                        {sale.payment_status === 'paid' ? '✓ Lunas' : sale.payment_status === 'partial' ? '◐ Sebagian' : '○ Belum Bayar'}
+                                                        {sale.payment_status === 'paid' ? 'âœ“ Lunas' : sale.payment_status === 'partial' ? 'â— Sebagian' : 'â—‹ Belum Bayar'}
                                                     </span>
                                                 </div>
                                             </div>
@@ -449,7 +344,7 @@ export default function Index({ sales, filters, customers = [] }) {
                                     </thead>
                                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                                         {liveSales.map((sale) => (
-                                            <tr key={sale.id} className={`transition-colors ${highlightedIds.includes(String(sale.id)) ? 'bg-amber-50 dark:bg-amber-900/20' : 'hover:bg-emerald-50 dark:hover:bg-slate-800/50'}`}>
+                                            <tr key={sale.id} className="transition-colors hover:bg-emerald-50 dark:hover:bg-slate-800/50">
                                                 <td className="px-6 py-4 text-sm font-bold text-emerald-600 dark:text-emerald-400">
                                                     <Link href={route('part-sales.show', sale.id)} className="hover:underline">
                                                         {sale.sale_number}
@@ -473,7 +368,7 @@ export default function Index({ sales, filters, customers = [] }) {
                                                     <span className={`inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-bold border-2 shadow-sm ${
                                                         paymentColors[sale.payment_status] || paymentColors.unpaid
                                                     }`}>
-                                                        {sale.payment_status === 'paid' ? '✓ Lunas' : sale.payment_status === 'partial' ? '◐ Sebagian' : '○ Belum Bayar'}
+                                                        {sale.payment_status === 'paid' ? 'âœ“ Lunas' : sale.payment_status === 'partial' ? 'â— Sebagian' : 'â—‹ Belum Bayar'}
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-4 text-center">
@@ -535,3 +430,5 @@ export default function Index({ sales, filters, customers = [] }) {
 }
 
 Index.layout = (page) => <DashboardLayout children={page} />;
+
+

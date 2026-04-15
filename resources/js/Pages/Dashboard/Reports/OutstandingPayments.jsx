@@ -1,18 +1,13 @@
-import React from "react";
+﻿import React from "react";
 import DashboardLayout from "@/Layouts/DashboardLayout";
 import { Head, Link } from "@inertiajs/react";
 import { IconClock, IconAlertCircle } from "@tabler/icons-react";
 import { toDisplayDate } from "@/Utils/datetime";
 import { Card, CardBody, CardHeader, CardTitle } from "@/Components/Card";
 import { useRealtimeReportHistoryReload } from "@/Hooks/useRealtimeReportHistoryReload";
-import { useGoReportRealtime } from "@/Hooks/useGoReportRealtime";
-import { useRealtimeToggle } from "@/Hooks/useRealtimeToggle";
-import ReportRealtimeBar from "@/Components/Dashboard/ReportRealtimeBar";
 
 export default function OutstandingPaymentsReport({ orders, summary }) {
     useRealtimeReportHistoryReload();
-    const [realtimeEnabled, setRealtimeEnabled] = useRealtimeToggle();
-    const { connectionStatus, eventMeta, highlightSecondsLeft } = useGoReportRealtime({ enabled: realtimeEnabled });
     const paidStatusColors = {
         pending: "bg-yellow-100 text-yellow-700",
         partial: "bg-orange-100 text-orange-700",
@@ -41,13 +36,6 @@ export default function OutstandingPaymentsReport({ orders, summary }) {
                         </p>
                     </div>
                 </div>
-                <ReportRealtimeBar
-                    enabled={realtimeEnabled}
-                    status={connectionStatus}
-                    eventMeta={eventMeta}
-                    highlightSecondsLeft={highlightSecondsLeft}
-                    onToggle={() => setRealtimeEnabled((prev) => !prev)}
-                />
 
                 {/* Summary */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -221,3 +209,4 @@ export default function OutstandingPaymentsReport({ orders, summary }) {
         </DashboardLayout>
     );
 }
+

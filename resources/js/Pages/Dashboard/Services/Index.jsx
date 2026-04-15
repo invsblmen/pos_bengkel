@@ -1,14 +1,10 @@
-import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { useGoRealtime } from '@/Hooks/useGoRealtime';
-import { useRealtimeToggle } from '@/Hooks/useRealtimeToggle';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import Button from '@/Components/Dashboard/Button';
 import Search from '@/Components/Dashboard/Search';
 import Pagination from '@/Components/Dashboard/Pagination';
 import Modal from '@/Components/Dashboard/Modal';
-import RealtimeControlBanner from '@/Components/Dashboard/RealtimeControlBanner';
-import RealtimeToggleButton from '@/Components/Dashboard/RealtimeToggleButton';
 import toast from 'react-hot-toast';
 import {
     IconCirclePlus,
@@ -99,7 +95,7 @@ function ServiceCard({ service, checked, onToggle, isHighlighted }) {
             <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
                 <div className="flex items-center justify-between mb-2 gap-2 pl-6">
                     <span className="px-2.5 py-1 text-xs font-medium bg-primary-100 dark:bg-primary-900/50 text-primary-700 dark:text-primary-400 rounded-md inline-flex items-center gap-1">
-                        <span>{service.category?.icon || '🔧'}</span>
+                        <span>{service.category?.icon || 'ðŸ”§'}</span>
                         <span>{service.category?.name || 'Uncategorized'}</span>
                     </span>
                     <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${status.class}`}>
@@ -149,24 +145,6 @@ function Index({ services, categories = [] }) {
     const [sortBy, setSortBy] = useState('latest');
     const [selectedIds, setSelectedIds] = useState([]);
     const [showQuickCreate, setShowQuickCreate] = useState(false);
-
-
-        // Realtime state
-        const [realtimeEnabled, setRealtimeEnabled] = useRealtimeToggle();
-        const [highlightedIds, setHighlightedIds] = useState([]);
-        const [highlightExpiresAt, setHighlightExpiresAt] = useState(null);
-        const [countdownNow, setCountdownNow] = useState(Date.now());
-        const [goRealtimeEventMeta, setGoRealtimeEventMeta] = useState(null);
-        const reloadTimerRef = useRef(null);
-        const highlightTimerRef = useRef(null);
-
-        const highlightSecondsLeft = highlightExpiresAt ? Math.max(0, Math.ceil((highlightExpiresAt - countdownNow) / 1000)) : 0;
-        const realtimeStatusMeta = {
-            connected: { label: 'Terhubung', className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' },
-            connecting: { label: 'Menghubungkan...', className: 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300' },
-            disconnected: { label: 'Terputus', className: 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300' },
-            error: { label: 'Error', className: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300' },
-        };
     const {
         data: quickData,
         setData: setQuickData,
@@ -189,80 +167,6 @@ function Index({ services, categories = [] }) {
         mechanic_incentives: [],
     });
 
-
-
-
-
-
-
-
-        // GO Realtime Hook
-        const { status: goRealtimeStatus } = useGoRealtime({
-            enabled: realtimeEnabled,
-            domains: ['services'],
-            onEvent: (payload) => {
-                const incoming = payload?.data || {};
-                const action = payload?.action || '';
-                const incomingId = String(payload?.id || incoming?.id || '');
-                if (!incomingId) return;
-                setGoRealtimeEventMeta({
-                    action: action || 'updated',
-                    at: new Date(payload?.timestamp || Date.now()).toLocaleTimeString('id-ID'),
-                });
-
-                // Handle different event types
-                if (action === 'created' || action === 'updated') {
-                    setHighlightedIds(prev => [...new Set([...prev, incomingId])]);
-                    setHighlightExpiresAt(Date.now() + 6000);
-                    setCountdownNow(Date.now());
-
-                    if (action === 'created') {
-                        setLiveServices(prev => {
-                            if (prev.some(s => String(s.id) === incomingId)) return prev;
-                            return [incoming, ...prev];
-                        });
-                    } else {
-                        setLiveServices(prev => prev.map(s => String(s.id) === incomingId ? { ...s, ...incoming } : s));
-                    }
-                } else if (action === 'deleted') {
-                    setLiveServices(prev => prev.filter(s => String(s.id) !== incomingId));
-                    setSelectedIds(prev => prev.filter(id => String(id) !== incomingId));
-                    setHighlightedIds(prev => prev.filter(id => String(id) !== incomingId));
-                }
-
-                // Debounce reload
-                clearTimeout(reloadTimerRef.current);
-                reloadTimerRef.current = setTimeout(() => {
-                    router.reload({ preserveScroll: true, preserveState: true });
-                }, 300);
-            },
-        });
-
-        const currentRealtimeStatus = realtimeEnabled
-            ? (realtimeStatusMeta[goRealtimeStatus] || { label: goRealtimeStatus || 'Tidak diketahui', className: 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300' })
-            : { label: 'Dimatikan', className: 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300' };
-
-        // Countdown timer
-        useEffect(() => {
-            if (!highlightExpiresAt) return;
-            const interval = setInterval(() => {
-                setCountdownNow(Date.now());
-                if (Date.now() >= highlightExpiresAt) {
-                    setHighlightedIds([]);
-                    setHighlightExpiresAt(null);
-                    clearInterval(interval);
-                }
-            }, 1000);
-            return () => clearInterval(interval);
-        }, [highlightExpiresAt]);
-
-        // Cleanup
-        useEffect(() => {
-            return () => {
-                clearTimeout(reloadTimerRef.current);
-                clearTimeout(highlightTimerRef.current);
-            };
-        }, []);
     const computedSummary = useMemo(() => {
         const total = liveServices.length;
         const active = liveServices.filter((item) => item.status === 'active').length;
@@ -275,7 +179,7 @@ function Index({ services, categories = [] }) {
         return categories.map((category) => ({
             id: category.id,
             name: category.name,
-            icon: category.icon || '🔧',
+            icon: category.icon || 'ðŸ”§',
         }));
     }, [categories]);
 
@@ -517,8 +421,7 @@ function Index({ services, categories = [] }) {
                     <div>
                         <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary-600 dark:text-primary-400">Workshop Service Catalog</p>
                         <h1 className="mt-2 text-2xl md:text-3xl font-black text-slate-900 dark:text-white">Daftar Layanan Bengkel</h1>
-                        <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">Kelola paket servis dengan filter cepat, realtime update, bulk action, export, dan quick create.</p>
-                        <RealtimeControlBanner enabled={realtimeEnabled} />
+                        <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">Kelola paket servis dengan filter cepat, bulk action, export, dan quick create.</p>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
@@ -554,30 +457,7 @@ function Index({ services, categories = [] }) {
                             <IconCategory2 size={18} />
                             Kategori Layanan
                         </Link>
-                        <RealtimeToggleButton
-                            enabled={realtimeEnabled}
-                            goRealtimeStatus={goRealtimeStatus}
-                            onClick={() => setRealtimeEnabled((prev) => !prev)}
-                        />
                         <Button type="link" href={route('services.create')} icon={<IconCirclePlus size={18} />} label="Tambah Layanan" />
-                    </div>
-                </div>
-
-                <div className="mt-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2.5 text-xs text-slate-600 dark:text-slate-300">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span>
-                            GO Realtime: <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${currentRealtimeStatus.className}`}>{currentRealtimeStatus.label}</span>
-                        </span>
-                        <span>
-                            {goRealtimeEventMeta
-                                ? `Event terakhir: ${goRealtimeEventMeta.action} (${goRealtimeEventMeta.at})`
-                                : 'Belum ada event realtime layanan.'}
-                        </span>
-                        {highlightSecondsLeft > 0 && (
-                            <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-                                Highlight aktif ~{highlightSecondsLeft} dtk
-                            </span>
-                        )}
                     </div>
                 </div>
 
@@ -694,7 +574,7 @@ function Index({ services, categories = [] }) {
                                         service={service}
                                         checked={selectedIds.includes(service.id)}
                                         onToggle={toggleSelect}
-                                        isHighlighted={highlightedIds.includes(String(service.id))}
+                                        isHighlighted={false}
                                     />
                             ))}
                         </div>
@@ -721,7 +601,7 @@ function Index({ services, categories = [] }) {
                                             const status = statusBadge[service.status] || statusBadge.active;
 
                                             return (
-                                                <tr key={service.id} className={`transition-colors ${highlightedIds.includes(String(service.id)) ? 'bg-amber-50 dark:bg-amber-900/20' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}>
+                                                <tr key={service.id} className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50">
                                                     <td className="px-4 py-4 text-sm text-slate-600 dark:text-slate-400">
                                                         <input
                                                             type="checkbox"
@@ -738,7 +618,7 @@ function Index({ services, categories = [] }) {
                                                     </td>
                                                     <td className="px-4 py-4 whitespace-nowrap">
                                                         <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-primary-100 dark:bg-primary-900/50 text-primary-700 dark:text-primary-400 rounded-full">
-                                                            <span>{service.category?.icon || '🔧'}</span>
+                                                            <span>{service.category?.icon || 'ðŸ”§'}</span>
                                                             <span>{service.category?.name || '-'}</span>
                                                         </span>
                                                     </td>
@@ -889,3 +769,5 @@ function Index({ services, categories = [] }) {
 Index.layout = (page) => <DashboardLayout children={page} />;
 
 export default Index;
+
+
