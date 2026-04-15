@@ -2,8 +2,6 @@ import React, { useState, useEffect, useRef } from "react";
 import DashboardLayout from "@/Layouts/DashboardLayout";
 import { Head, usePage, Link, router } from "@inertiajs/react";
 import Button from "@/Components/Dashboard/Button";
-import { useGoRealtime } from "@/Hooks/useGoRealtime";
-import { useRealtimeToggle } from "@/Hooks/useRealtimeToggle";
 import {
     IconCirclePlus,
     IconDatabaseOff,
@@ -25,13 +23,9 @@ import Table from "@/Components/Dashboard/Table";
 import Pagination from "@/Components/Dashboard/Pagination";
 
 // Customer Card for Grid View
-function CustomerCard({ customer, isHighlighted }) {
+function CustomerCard({ customer }) {
     return (
-        <div className={`group relative rounded-xl border p-5 transition-all duration-300 hover:-translate-y-0.5 overflow-hidden ${
-            isHighlighted
-                ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-300 dark:border-amber-700 hover:shadow-lg hover:border-amber-400 dark:hover:border-amber-600'
-                : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:shadow-lg hover:border-primary-300 dark:hover:border-primary-700'
-        }`}>
+        <div className="group relative rounded-xl border p-5 transition-all duration-300 hover:-translate-y-0.5 overflow-hidden bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:shadow-lg hover:border-primary-300 dark:hover:border-primary-700">
             {/* Gradient Background Decoration */}
             <div className="absolute top-0 right-0 w-28 h-28 bg-gradient-to-br from-primary-100/50 to-accent-100/50 dark:from-primary-900/20 dark:to-accent-900/20 rounded-full blur-2xl -z-10 group-hover:scale-105 transition-transform duration-300"></div>
 
@@ -143,12 +137,7 @@ export default function Index({ customers }) {
     const [viewMode, setViewMode] = useState("grid");
     const [perPage, setPerPage] = useState(customers.per_page || 8);
     const [liveItems, setLiveItems] = useState(customers?.data || []);
-    const [realtimeEnabled, setRealtimeEnabled] = useRealtimeToggle();
-    const [highlightedCustomerIds, setHighlightedCustomerIds] = useState([]);
-    const [highlightExpiresAt, setHighlightExpiresAt] = useState(null);
-    const [countdownNow, setCountdownNow] = useState(Date.now());
-    const reloadTimerRef = useRef(null);
-    const highlightTimerRef = useRef(null);
+
 
     // Check if there's an active filter/search
     const hasActiveFilter = new URLSearchParams(window.location.search).has('search');
@@ -159,66 +148,6 @@ export default function Index({ customers }) {
             setPerPage(customers.per_page);
         }
     }, [customers.per_page]);
-
-    useEffect(() => {
-        return () => {
-            if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current);
-            if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
-        };
-    }, []);
-
-    useEffect(() => {
-        if (!highlightExpiresAt) return undefined;
-        const interval = setInterval(() => setCountdownNow(Date.now()), 1000);
-        return () => clearInterval(interval);
-    }, [highlightExpiresAt]);
-
-    useEffect(() => {
-        if (realtimeEnabled) return;
-        if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current);
-        if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
-        setHighlightedCustomerIds([]);
-        setHighlightExpiresAt(null);
-    }, [realtimeEnabled]);
-
-    const scheduleReload = () => {
-        if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current);
-        reloadTimerRef.current = setTimeout(() => {
-            router.reload({
-                only: ['customers'],
-                preserveScroll: true,
-                preserveState: true,
-            });
-        }, 300);
-    };
-
-    const { status: goRealtimeStatus } = useGoRealtime({
-        enabled: realtimeEnabled,
-        domains: ['customers'],
-        onEvent: (payload) => {
-            if (!payload || payload.domain !== 'customers') return;
-            const action = payload.action || '';
-            if (!['created', 'updated', 'deleted'].includes(action)) return;
-
-            const customerId = payload.id || payload?.data?.customer_id || payload?.data?.id;
-            if (customerId) {
-                const normalizedId = String(customerId);
-                setHighlightedCustomerIds((prev) => {
-                    const merged = new Set(prev);
-                    merged.add(normalizedId);
-                    return Array.from(merged);
-                });
-                const expiresAt = Date.now() + 6000;
-                setHighlightExpiresAt(expiresAt);
-                setCountdownNow(Date.now());
-                if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
-                highlightTimerRef.current = setTimeout(() => setHighlightExpiresAt(null), 6000);
-            }
-            scheduleReload();
-        },
-    });
-
-    const highlightSecondsLeft = highlightExpiresAt ? Math.max(0, Math.ceil((highlightExpiresAt - countdownNow) / 1000)) : 0;
 
     const handlePerPageChange = (newPerPage) => {
         setPerPage(newPerPage);
@@ -273,7 +202,7 @@ export default function Index({ customers }) {
                     <div className="w-full sm:w-96">
                         <Search
                             url={route("customers.index")}
-                            placeholder="🔍 Cari nama, telepon, atau email..."
+                            placeholder="ðŸ” Cari nama, telepon, atau email..."
                         />
                     </div>
                     {/* Clear Filter Button */}
@@ -340,16 +269,12 @@ export default function Index({ customers }) {
                 viewMode === "grid" ? (
                     /* Grid View */
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-                        {liveItems.map((customer) => {
-                            const isHighlighted = highlightedCustomerIds.includes(String(customer.id)) && highlightSecondsLeft > 0;
-                            return (
-                                <CustomerCard
-                                    key={customer.id}
-                                    customer={customer}
-                                    isHighlighted={isHighlighted}
-                                />
-                            );
-                        })}
+                        {liveItems.map((customer) => (
+                            <CustomerCard
+                                key={customer.id}
+                                customer={customer}
+                            />
+                        ))}
                     </div>
                 ) : (
                     /* List View */
@@ -494,3 +419,4 @@ export default function Index({ customers }) {
 }
 
 Index.layout = (page) => <DashboardLayout children={page} />;
+
