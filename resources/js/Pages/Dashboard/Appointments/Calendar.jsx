@@ -1,8 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import DashboardLayout from "@/Layouts/DashboardLayout";
 import { Head, Link, router, usePage } from "@inertiajs/react";
-import { useRealtimeEvents } from "@/Hooks/useRealtimeEvents";
-import { useRealtimeToggle } from "@/Hooks/useRealtimeToggle";
 import {
     IconCalendar,
     IconChevronLeft,
@@ -71,13 +69,6 @@ export default function AppointmentCalendar({
 
     const [selectedDate, setSelectedDate] = useState(null);
     const [showModal, setShowModal] = useState(false);
-    const [realtimeEnabled, setRealtimeEnabled] = useRealtimeToggle();
-    const [goRealtimeEventMeta, setGoRealtimeEventMeta] = useState(null);
-    const [highlightedAppointmentIds, setHighlightedAppointmentIds] = useState([]);
-    const [highlightExpiresAt, setHighlightExpiresAt] = useState(null);
-    const [countdownNow, setCountdownNow] = useState(Date.now());
-    const reloadTimerRef = useRef(null);
-    const highlightTimerRef = useRef(null);
 
     const [selectedMechanic, setSelectedMechanic] = useState("");
     const [selectedSlot, setSelectedSlot] = useState("");
@@ -109,100 +100,6 @@ export default function AppointmentCalendar({
         typeof value === "string"
             ? new Date(`${value}T00:00:00`)
             : new Date(value);
-
-    useEffect(() => {
-        return () => {
-            if (reloadTimerRef.current) {
-                clearTimeout(reloadTimerRef.current);
-            }
-            if (highlightTimerRef.current) {
-                clearTimeout(highlightTimerRef.current);
-            }
-        };
-    }, []);
-
-    useEffect(() => {
-        if (!highlightExpiresAt) {
-            return undefined;
-        }
-
-        const interval = setInterval(() => {
-            setCountdownNow(Date.now());
-        }, 1000);
-
-        return () => clearInterval(interval);
-    }, [highlightExpiresAt]);
-
-    useEffect(() => {
-        if (realtimeEnabled) return;
-        if (reloadTimerRef.current) {
-            clearTimeout(reloadTimerRef.current);
-        }
-        if (highlightTimerRef.current) {
-            clearTimeout(highlightTimerRef.current);
-        }
-        setHighlightedAppointmentIds([]);
-        setHighlightExpiresAt(null);
-    }, [realtimeEnabled]);
-
-    const scheduleReload = () => {
-        if (reloadTimerRef.current) {
-            clearTimeout(reloadTimerRef.current);
-        }
-
-        reloadTimerRef.current = setTimeout(() => {
-            router.reload({
-                only: ["calendar_days"],
-                preserveScroll: true,
-                preserveState: true,
-            });
-        }, 250);
-    };
-
-    const { status: realtimeStatus } = useRealtimeEvents({
-        enabled: realtimeEnabled,
-        domains: ["appointments"],
-        onEvent: (payload) => {
-            if (!payload || payload.domain !== "appointments") {
-                return;
-            }
-
-            const action = payload.action || "";
-            if (!["created", "updated", "deleted", "status_changed"].includes(action)) {
-                return;
-            }
-
-            setGoRealtimeEventMeta({
-                action,
-                at: new Date(payload.timestamp || Date.now()).toLocaleTimeString("id-ID"),
-            });
-
-            const appointmentId = payload.id || payload?.data?.appointment_id || payload?.data?.id;
-            if (appointmentId) {
-                const normalizedId = String(appointmentId);
-                setHighlightedAppointmentIds((prev) => {
-                    const merged = new Set(prev);
-                    merged.add(normalizedId);
-                    return Array.from(merged);
-                });
-
-                const expiresAt = Date.now() + 6000;
-                setHighlightExpiresAt(expiresAt);
-                setCountdownNow(Date.now());
-
-                if (highlightTimerRef.current) {
-                    clearTimeout(highlightTimerRef.current);
-                }
-                highlightTimerRef.current = setTimeout(() => {
-                    setHighlightedAppointmentIds([]);
-                    setHighlightExpiresAt(null);
-                }, 6000);
-            }
-            scheduleReload();
-        },
-    });
-
-    const highlightSecondsLeft = highlightExpiresAt ? Math.max(0, Math.ceil((highlightExpiresAt - countdownNow) / 1000)) : 0;
 
     const dayAppointmentsWithFilter = (day) => {
         if (!day || !day.appointments) return [];

@@ -1,8 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
-import { useRealtimeEvents } from '@/Hooks/useRealtimeEvents';
-import { useRealtimeToggle } from '@/Hooks/useRealtimeToggle';
 import {
     IconArrowLeft,
     IconPencil,
@@ -33,60 +31,9 @@ export default function Show({ part, stock_history }) {
     const [typeFilter, setTypeFilter] = useState('all');
     const [directionFilter, setDirectionFilter] = useState('all');
     const [searchQuery, setSearchQuery] = useState('');
-    const [realtimeEnabled, setRealtimeEnabled] = useRealtimeToggle();
-    const [goRealtimeEventMeta, setGoRealtimeEventMeta] = useState(null);
-    const [highlightExpiresAt, setHighlightExpiresAt] = useState(null);
-    const [countdownNow, setCountdownNow] = useState(Date.now());
-    const reloadTimerRef = useRef(null);
-    const highlightTimerRef = useRef(null);
 
     useEffect(() => setLivePart(part), [part]);
 
-    useEffect(() => {
-        return () => {
-            if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current);
-            if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
-        };
-    }, []);
-
-    useEffect(() => {
-        if (!highlightExpiresAt) return undefined;
-        const interval = setInterval(() => setCountdownNow(Date.now()), 1000);
-        return () => clearInterval(interval);
-    }, [highlightExpiresAt]);
-
-    useEffect(() => {
-        if (realtimeEnabled) return;
-        if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current);
-        if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
-        setHighlightExpiresAt(null);
-    }, [realtimeEnabled]);
-
-    const scheduleReload = () => {
-        if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current);
-        reloadTimerRef.current = setTimeout(() => {
-            router.reload({ only: ['part', 'stock_history'], preserveScroll: true, preserveState: true });
-        }, 300);
-    };
-
-    const { status: realtimeStatus } = useRealtimeEvents({
-        enabled: realtimeEnabled,
-        domains: ['parts'],
-        onEvent: (payload) => {
-            if (!payload || payload.domain !== 'parts') return;
-            const action = payload.action || '';
-            if (!['created', 'updated', 'deleted'].includes(action)) return;
-            setGoRealtimeEventMeta({ action, at: new Date(payload.timestamp || Date.now()).toLocaleTimeString('id-ID') });
-            const expiresAt = Date.now() + 6000;
-            setHighlightExpiresAt(expiresAt);
-            setCountdownNow(Date.now());
-            if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
-            highlightTimerRef.current = setTimeout(() => setHighlightExpiresAt(null), 6000);
-            scheduleReload();
-        },
-    });
-
-    const highlightSecondsLeft = highlightExpiresAt ? Math.max(0, Math.ceil((highlightExpiresAt - countdownNow) / 1000)) : 0;
     const currentData = livePart || part;
 
     const formatPrice = (price) => {

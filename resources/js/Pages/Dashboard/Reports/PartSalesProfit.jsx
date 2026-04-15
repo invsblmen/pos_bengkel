@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Head, router } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import {
@@ -10,14 +10,9 @@ import {
     IconX
 } from '@tabler/icons-react';
 import { useRealtimeReportHistoryReload } from '@/Hooks/useRealtimeReportHistoryReload';
-import { useGoReportRealtime } from '@/Hooks/useGoReportRealtime';
-import { useRealtimeToggle } from '@/Hooks/useRealtimeToggle';
-import ReportRealtimeBar from '@/Components/Dashboard/ReportRealtimeBar';
 
 export default function PartSalesProfit({ sales, summary, topParts, filters }) {
     useRealtimeReportHistoryReload();
-    const [realtimeEnabled, setRealtimeEnabled] = useRealtimeToggle();
-    const { connectionStatus, eventMeta, highlightSecondsLeft } = useGoReportRealtime({ enabled: realtimeEnabled });
     const [showFilters, setShowFilters] = useState(false);
     const [formFilters, setFormFilters] = useState({
         start_date: filters.start_date || '',
@@ -91,13 +86,6 @@ export default function PartSalesProfit({ sales, summary, topParts, filters }) {
                         Filter
                     </button>
                 </div>
-                <ReportRealtimeBar
-                    enabled={realtimeEnabled}
-                    status={connectionStatus}
-                    eventMeta={eventMeta}
-                    highlightSecondsLeft={highlightSecondsLeft}
-                    onToggle={() => setRealtimeEnabled((prev) => !prev)}
-                />
 
             {/* Filter Panel */}
             {showFilters && (
@@ -357,3 +345,4 @@ export default function PartSalesProfit({ sales, summary, topParts, filters }) {
 }
 
 PartSalesProfit.layout = (page) => <DashboardLayout children={page} />;
+
