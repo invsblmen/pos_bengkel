@@ -25,6 +25,14 @@ const transactionLabel = {
     change_given: "Kembalian Diberikan",
 };
 
+const getTransactionLabel = (transaction) => {
+    if (transaction.source === "cash-denomination-exchange") {
+        return "Tukar Pecahan";
+    }
+
+    return transactionLabel[transaction.transaction_type] || transaction.transaction_type;
+};
+
 const modeOptions = [
     {
         id: "stock",
@@ -37,9 +45,9 @@ const modeOptions = [
         description: "Masukkan nominal, lalu pecah otomatis agar input lebih cepat.",
     },
     {
-        id: "settlement",
-        title: "Pembayaran Cash",
-        description: "Hitung penerimaan, saran kembalian, dan simpan transaksi pelanggan.",
+        id: "exchange",
+        title: "Tukar Pecahan",
+        description: "Catat uang keluar dan masuk dengan nilai sama tanpa mengubah saldo total kas.",
     },
 ];
 
@@ -62,6 +70,9 @@ export default function CashDrawer({ denominations = [], summary = {}, recentTra
     const [transactionDescription, setTransactionDescription] = useState("");
     const [transactionAmount, setTransactionAmount] = useState(0);
     const [transactionDenoms, setTransactionDenoms] = useState(() => createDenominationMap(0));
+    const [exchangeDescription, setExchangeDescription] = useState("");
+    const [exchangeOutDenoms, setExchangeOutDenoms] = useState(() => createDenominationMap(0));
+    const [exchangeInDenoms, setExchangeInDenoms] = useState(() => createDenominationMap(0));
     const [dueAmount, setDueAmount] = useState(0);
     const [receivedAmount, setReceivedAmount] = useState(0);
     const [receivedDenoms, setReceivedDenoms] = useState(() => createDenominationMap(0));
@@ -104,6 +115,8 @@ export default function CashDrawer({ denominations = [], summary = {}, recentTra
     };
 
     const transactionTotal = calculateTotalFromInput(transactionDenoms);
+    const exchangeOutTotal = calculateTotalFromInput(exchangeOutDenoms);
+    const exchangeInTotal = calculateTotalFromInput(exchangeInDenoms);
     const receivedTotal = calculateTotalFromInput(receivedDenoms);
     const stockTotal = calculateTotalFromInput(stockInputs);
     const expectedChange = Math.max(0, receivedTotal - Number(dueAmount || 0));
@@ -169,6 +182,9 @@ export default function CashDrawer({ denominations = [], summary = {}, recentTra
         setTransactionDescription("");
         setTransactionAmount(0);
         setTransactionDenoms(resetMap(0));
+        setExchangeDescription("");
+        setExchangeOutDenoms(resetMap(0));
+        setExchangeInDenoms(resetMap(0));
         setDueAmount(0);
         setReceivedAmount(0);
         setReceivedDenoms(resetMap(0));
@@ -247,6 +263,42 @@ export default function CashDrawer({ denominations = [], summary = {}, recentTra
                 onError: (errors) => {
                     const message = errors?.denominations || errors?.error || "Gagal mencatat transaksi kas.";
                     toast.error(message);
+                },
+            }
+        );
+    };
+
+    const submitExchange = (event) => {
+        event.preventDefault();
+
+        if (exchangeOutTotal <= 0 || exchangeInTotal <= 0) {
+            toast.error("Isi pecahan keluar dan pecahan masuk terlebih dahulu.");
+            return;
+        }
+
+        if (exchangeOutTotal !== exchangeInTotal) {
+            toast.error("Total pecahan keluar dan masuk harus sama.");
+            return;
+        }
+
+        router.post(
+            route("cash-management.exchange"),
+            {
+                description: exchangeDescription,
+                cash_out: buildDenominationPayload(exchangeOutDenoms),
+                cash_in: buildDenominationPayload(exchangeInDenoms),
+            },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    toast.success("Tukar pecahan kas berhasil dicatat.");
+                    setExchangeDescription("");
+                    setExchangeOutDenoms(resetMap(0));
+                    setExchangeInDenoms(resetMap(0));
+                },
+                onError: (errors) => {
+                    const message = errors?.cash_out || errors?.cash_in || errors?.error || "Gagal mencatat tukar pecahan kas.";
+                    toast.error(Array.isArray(message) ? message[0] : message);
                 },
             }
         );
@@ -424,7 +476,7 @@ export default function CashDrawer({ denominations = [], summary = {}, recentTra
                                     <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-50">Mode Kerja</h2>
                                     <p className="text-sm text-slate-500 dark:text-slate-400">Pilih satu fokus kerja agar input lebih cepat dan tidak bercampur.</p>
                                 </div>
-                                <div className="inline-flex rounded-2xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-800 dark:bg-slate-950">
+                                <div className="flex flex-wrap rounded-2xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-800 dark:bg-slate-950">
                                     {modeOptions.map((mode) => (
                                         <button
                                             key={mode.id}
@@ -627,150 +679,124 @@ export default function CashDrawer({ denominations = [], summary = {}, recentTra
                                 </div>
                             )}
 
-                            {activeMode === "settlement" && (
+                            {activeMode === "exchange" && (
                                 <div className="space-y-5">
                                     <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
                                         <div>
-                                            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-50">Pembayaran Cash dan Kembalian</h2>
+                                            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-50">Tukar Pecahan Kas</h2>
                                             <p className="text-sm text-slate-500 dark:text-slate-400">
-                                                Input nominal tagihan dan uang diterima, lalu minta saran kembalian berdasarkan stok pecahan yang tersedia.
+                                                Gunakan saat saldo total tetap sama, tetapi komposisi uang berubah. Contoh: keluar 1 x Rp2.000, masuk 2 x Rp1.000.
                                             </p>
                                         </div>
                                         <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:bg-slate-950 dark:text-slate-300">
-                                            Kembalian estimasi: <span className="font-semibold text-slate-900 dark:text-slate-50">{formatCurrency(expectedChange)}</span>
+                                            Selisih: <span className={`font-semibold ${exchangeOutTotal === exchangeInTotal ? "text-emerald-600 dark:text-emerald-300" : "text-rose-600 dark:text-rose-300"}`}>
+                                                {formatCurrency(Math.abs(exchangeOutTotal - exchangeInTotal))}
+                                            </span>
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                        <div className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950">
-                                            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Total Tagihan</label>
-                                            <input
-                                                type="number"
-                                                min={0}
-                                                value={dueAmount}
-                                                onChange={(event) => setDueAmount(Number(event.target.value || 0))}
-                                                className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-emerald-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50"
-                                            />
-                                        </div>
-                                        <div className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950">
-                                            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Nominal Diterima</label>
-                                            <input
-                                                type="number"
-                                                min={0}
-                                                value={receivedAmount}
-                                                onChange={(event) => setReceivedAmount(Number(event.target.value || 0))}
-                                                className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-emerald-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50"
-                                            />
-                                        </div>
-                                    </div>
+                                    <form onSubmit={submitExchange} className="space-y-5">
+                                        <input
+                                            type="text"
+                                            value={exchangeDescription}
+                                            onChange={(event) => setExchangeDescription(event.target.value)}
+                                            placeholder="Catatan opsional, misal: Tukar Rp2.000 menjadi 2 x Rp1.000 untuk kembalian"
+                                            className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-emerald-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50"
+                                        />
 
-                                    {renderAmountChips(setQuickAmount(setReceivedAmount), receivedAmount, autoFillReceivedCash)}
-
-                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950">
-                                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Uang diterima terhitung</p>
-                                            <p className="mt-2 text-xl font-semibold text-slate-900 dark:text-slate-50">{formatCurrency(receivedTotal)}</p>
-                                            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Dihitung dari pecahan yang diisi.</p>
-                                        </div>
-                                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950">
-                                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Kembalian estimasi</p>
-                                            <p className="mt-2 text-xl font-semibold text-slate-900 dark:text-slate-50">{formatCurrency(expectedChange)}</p>
-                                            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Berguna sebelum menekan simpan.</p>
-                                        </div>
-                                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950">
-                                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Status input</p>
-                                            <p className="mt-2 text-xl font-semibold text-slate-900 dark:text-slate-50">
-                                                {receivedTotal >= Number(dueAmount || 0) ? "Siap diproses" : "Perlu nominal tambahan"}
-                                            </p>
-                                            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Gunakan tombol saran jika kembalian perlu dirinci.</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                                        {denominations.map((denomination) => (
-                                            <div
-                                                key={`recv-${denomination.id}`}
-                                                className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950"
-                                            >
-                                                <p className="text-sm font-semibold text-slate-900 dark:text-slate-50">{formatCurrency(denomination.value)}</p>
-                                                <p className="mt-1 text-xs text-slate-500">Pecahan uang diterima</p>
-                                                <input
-                                                    type="number"
-                                                    min={0}
-                                                    value={receivedDenoms[denomination.id] ?? 0}
-                                                    onChange={(event) =>
-                                                        setReceivedDenoms((previous) => ({
-                                                            ...previous,
-                                                            [denomination.id]: Number(event.target.value || 0),
-                                                        }))
-                                                    }
-                                                    className="mt-4 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-center text-sm font-semibold text-slate-900 outline-none transition focus:border-emerald-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50"
-                                                />
-                                            </div>
-                                        ))}
-                                    </div>
-
-                                    <div className="flex flex-col gap-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-4 dark:border-slate-700 dark:bg-slate-950 lg:flex-row lg:items-center lg:justify-between">
-                                        <p className="text-sm text-slate-600 dark:text-slate-300">
-                                            Gunakan saran kembalian jika ingin alokasi pecahan yang lebih rapi sebelum transaksi disimpan.
-                                        </p>
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            <button
-                                                type="button"
-                                                onClick={suggestChange}
-                                                disabled={loadingSuggest}
-                                                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
-                                            >
-                                                <IconCalculator size={16} />
-                                                {loadingSuggest ? "Menghitung..." : "Saran Kembalian"}
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={settleSale}
-                                                disabled={loadingSettle}
-                                                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                                            >
-                                                <IconCash size={16} />
-                                                {loadingSettle ? "Menyimpan..." : "Simpan Transaksi Cash"}
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    {changeMessage && (
-                                        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200">
-                                            {changeMessage}
-                                        </div>
-                                    )}
-
-                                    {changeSuggestion && (
-                                        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-                                            <div className="flex items-center justify-between gap-3">
-                                                <p className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                                                    Saran Kembalian ({changeSuggestion.exact ? "Pas" : "Tidak Pas"})
-                                                </p>
-                                                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${changeSuggestion.exact ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
-                                                    {formatCurrency(changeSuggestion.allocated_amount)} dialokasikan
-                                                </span>
-                                            </div>
-                                            <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                                                {changeSuggestion.remaining > 0
-                                                    ? `Sisa belum terpenuhi: ${formatCurrency(changeSuggestion.remaining)}`
-                                                    : "Semua kembalian berhasil dialokasikan."}
-                                            </p>
-                                            <div className="mt-3 space-y-2">
-                                                {(changeSuggestion.items || []).map((item) => (
-                                                    <div key={`sug-${item.denomination_id}-${item.value}`} className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-sm dark:bg-slate-950">
-                                                        <span>
-                                                            {formatCurrency(item.value)} x {item.quantity}
-                                                        </span>
-                                                        <span className="font-semibold">{formatCurrency(item.line_total)}</span>
+                                        <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+                                            <div className="space-y-4 rounded-2xl border border-rose-200 bg-rose-50/70 p-4 dark:border-rose-900/50 dark:bg-rose-950/20">
+                                                <div className="flex items-center justify-between gap-3">
+                                                    <div>
+                                                        <h3 className="text-sm font-semibold text-rose-800 dark:text-rose-200">Pecahan Keluar</h3>
+                                                        <p className="text-xs text-rose-700/80 dark:text-rose-200/70">Uang yang diambil dari drawer.</p>
                                                     </div>
-                                                ))}
+                                                    <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-rose-700 dark:bg-slate-900 dark:text-rose-200">
+                                                        {formatCurrency(exchangeOutTotal)}
+                                                    </span>
+                                                </div>
+
+                                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                                    {denominations.map((denomination) => (
+                                                        <div key={`exchange-out-${denomination.id}`} className="rounded-xl border border-rose-100 bg-white p-3 dark:border-rose-900/40 dark:bg-slate-900">
+                                                            <div className="flex items-center justify-between gap-2">
+                                                                <p className="text-sm font-semibold text-slate-900 dark:text-slate-50">{formatCurrency(denomination.value)}</p>
+                                                                <p className="text-[11px] text-slate-500">Stok {denomination.quantity}</p>
+                                                            </div>
+                                                            <input
+                                                                type="number"
+                                                                min={0}
+                                                                max={denomination.quantity}
+                                                                value={exchangeOutDenoms[denomination.id] ?? 0}
+                                                                onChange={(event) =>
+                                                                    setExchangeOutDenoms((previous) => ({
+                                                                        ...previous,
+                                                                        [denomination.id]: Number(event.target.value || 0),
+                                                                    }))
+                                                                }
+                                                                className="mt-3 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-center text-sm font-semibold text-slate-900 outline-none transition focus:border-rose-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50"
+                                                            />
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-4 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/20">
+                                                <div className="flex items-center justify-between gap-3">
+                                                    <div>
+                                                        <h3 className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">Pecahan Masuk</h3>
+                                                        <p className="text-xs text-emerald-700/80 dark:text-emerald-200/70">Uang pengganti yang masuk ke drawer.</p>
+                                                    </div>
+                                                    <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-emerald-700 dark:bg-slate-900 dark:text-emerald-200">
+                                                        {formatCurrency(exchangeInTotal)}
+                                                    </span>
+                                                </div>
+
+                                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                                    {denominations.map((denomination) => (
+                                                        <div key={`exchange-in-${denomination.id}`} className="rounded-xl border border-emerald-100 bg-white p-3 dark:border-emerald-900/40 dark:bg-slate-900">
+                                                            <p className="text-sm font-semibold text-slate-900 dark:text-slate-50">{formatCurrency(denomination.value)}</p>
+                                                            <p className="text-[11px] text-slate-500">Jumlah masuk</p>
+                                                            <input
+                                                                type="number"
+                                                                min={0}
+                                                                value={exchangeInDenoms[denomination.id] ?? 0}
+                                                                onChange={(event) =>
+                                                                    setExchangeInDenoms((previous) => ({
+                                                                        ...previous,
+                                                                        [denomination.id]: Number(event.target.value || 0),
+                                                                    }))
+                                                                }
+                                                                className="mt-3 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-center text-sm font-semibold text-slate-900 outline-none transition focus:border-emerald-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50"
+                                                            />
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             </div>
                                         </div>
-                                    )}
+
+                                        <div className="flex flex-col gap-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-4 dark:border-slate-700 dark:bg-slate-950 lg:flex-row lg:items-center lg:justify-between">
+                                            <div className="space-y-1 text-sm text-slate-600 dark:text-slate-300">
+                                                <p>Keluar: <span className="font-semibold text-slate-900 dark:text-slate-50">{formatCurrency(exchangeOutTotal)}</span></p>
+                                                <p>Masuk: <span className="font-semibold text-slate-900 dark:text-slate-50">{formatCurrency(exchangeInTotal)}</span></p>
+                                                <p className={exchangeOutTotal === exchangeInTotal ? "text-emerald-600 dark:text-emerald-300" : "text-rose-600 dark:text-rose-300"}>
+                                                    {exchangeOutTotal === exchangeInTotal ? "Saldo kas tetap seimbang." : "Total keluar dan masuk harus sama sebelum disimpan."}
+                                                </p>
+                                            </div>
+                                            <button
+                                                type="submit"
+                                                disabled={exchangeOutTotal <= 0 || exchangeOutTotal !== exchangeInTotal}
+                                                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                            >
+                                                <IconRefresh size={16} />
+                                                Simpan Tukar Pecahan
+                                            </button>
+                                        </div>
+                                    </form>
                                 </div>
                             )}
+
+                            
                         </div>
                     </div>
 
@@ -822,7 +848,7 @@ export default function CashDrawer({ denominations = [], summary = {}, recentTra
                                             <div className="flex items-start justify-between gap-3">
                                                 <div>
                                                     <p className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                                                        {transactionLabel[transaction.transaction_type] || transaction.transaction_type}
+                                                        {getTransactionLabel(transaction)}
                                                     </p>
                                                     <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                                                         {transaction.happened_at || "-"}

@@ -8,6 +8,7 @@ use App\Events\AppointmentUpdated;
 use App\Http\Controllers\Controller;
 use App\Models\Appointment;
 use App\Models\Mechanic;
+use App\Support\DispatchesBroadcastSafely;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
@@ -16,6 +17,8 @@ use Illuminate\Support\Str;
 
 class AppointmentController extends Controller
 {
+    use DispatchesBroadcastSafely;
+
     /**
      * Display appointments list view
      */
@@ -355,7 +358,10 @@ class AppointmentController extends Controller
             'notes' => $request->notes,
         ]);
 
-        broadcast(new AppointmentUpdated($appointment->fresh()->toArray()));
+        $this->dispatchBroadcastSafely(
+            fn () => broadcast(new AppointmentUpdated($appointment->fresh()->toArray())),
+            AppointmentUpdated::class
+        );
 
         return redirect()->route('appointments.calendar')->with('success', 'Appointment berhasil diperbarui.');
     }

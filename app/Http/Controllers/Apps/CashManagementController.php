@@ -244,6 +244,127 @@ class CashManagementController extends Controller
         return back()->with('success', 'Transaksi kas berhasil dicatat.');
     }
 
+    public function exchangeDenominations(Request $request)
+    {
+        $validated = $request->validate([
+            'description' => 'nullable|string|max:500',
+            'cash_out' => 'required|array|min:1',
+            'cash_out.*.denomination_id' => 'required|exists:cash_denominations,id',
+            'cash_out.*.quantity' => 'required|integer|min:0',
+            'cash_in' => 'required|array|min:1',
+            'cash_in.*.denomination_id' => 'required|exists:cash_denominations,id',
+            'cash_in.*.quantity' => 'required|integer|min:0',
+        ]);
+
+        DB::transaction(function () use ($validated, $request) {
+            $cashOutRows = collect($validated['cash_out'])
+                ->map(function ($row) {
+                    $denominationId = (int) $row['denomination_id'];
+                    $quantity = (int) $row['quantity'];
+                    $value = (int) CashDenomination::whereKey($denominationId)->value('value');
+
+                    return [
+                        'denomination_id' => $denominationId,
+                        'quantity' => $quantity,
+                        'value' => $value,
+                        'line_total' => $value * $quantity,
+                    ];
+                })
+                ->filter(fn ($row) => $row['quantity'] > 0)
+                ->values();
+
+            $cashInRows = collect($validated['cash_in'])
+                ->map(function ($row) {
+                    $denominationId = (int) $row['denomination_id'];
+                    $quantity = (int) $row['quantity'];
+                    $value = (int) CashDenomination::whereKey($denominationId)->value('value');
+
+                    return [
+                        'denomination_id' => $denominationId,
+                        'quantity' => $quantity,
+                        'value' => $value,
+                        'line_total' => $value * $quantity,
+                    ];
+                })
+                ->filter(fn ($row) => $row['quantity'] > 0)
+                ->values();
+
+            $totalOut = (int) $cashOutRows->sum('line_total');
+            $totalIn = (int) $cashInRows->sum('line_total');
+
+            if ($totalOut <= 0 || $totalIn <= 0) {
+                throw ValidationException::withMessages([
+                    'cash_out' => ['Isi minimal satu pecahan keluar dan satu pecahan masuk.'],
+                ]);
+            }
+
+            if ($totalOut !== $totalIn) {
+                throw ValidationException::withMessages([
+                    'cash_in' => ['Total pecahan keluar dan masuk harus sama agar saldo kas tetap seimbang.'],
+                ]);
+            }
+
+            foreach ($cashOutRows as $row) {
+                $drawer = CashDrawerDenomination::firstOrCreate(
+                    ['denomination_id' => $row['denomination_id']],
+                    ['quantity' => 0]
+                );
+
+                if ((int) $drawer->quantity < $row['quantity']) {
+                    throw ValidationException::withMessages([
+                        'cash_out' => ["Stok pecahan Rp " . number_format($row['value'], 0, ',', '.') . " tidak mencukupi untuk ditukar."],
+                    ]);
+                }
+            }
+
+            $transaction = CashTransaction::create([
+                'transaction_type' => 'adjustment',
+                'amount' => 0,
+                'source' => 'cash-denomination-exchange',
+                'description' => $validated['description'] ?? 'Tukar pecahan kas',
+                'meta' => [
+                    'total_in' => $totalIn,
+                    'total_out' => $totalOut,
+                    'net_adjustment' => 0,
+                    'exchange' => true,
+                ],
+                'happened_at' => now(),
+                'created_by' => $request->user()->id,
+            ]);
+
+            foreach ($cashOutRows as $row) {
+                CashTransactionItem::create([
+                    'cash_transaction_id' => $transaction->id,
+                    'denomination_id' => $row['denomination_id'],
+                    'direction' => 'out',
+                    'quantity' => $row['quantity'],
+                    'line_total' => $row['line_total'],
+                ]);
+
+                $drawer = CashDrawerDenomination::where('denomination_id', $row['denomination_id'])->first();
+                $drawer->update(['quantity' => (int) $drawer->quantity - $row['quantity']]);
+            }
+
+            foreach ($cashInRows as $row) {
+                CashTransactionItem::create([
+                    'cash_transaction_id' => $transaction->id,
+                    'denomination_id' => $row['denomination_id'],
+                    'direction' => 'in',
+                    'quantity' => $row['quantity'],
+                    'line_total' => $row['line_total'],
+                ]);
+
+                $drawer = CashDrawerDenomination::firstOrCreate(
+                    ['denomination_id' => $row['denomination_id']],
+                    ['quantity' => 0]
+                );
+                $drawer->update(['quantity' => (int) $drawer->quantity + $row['quantity']]);
+            }
+        });
+
+        return back()->with('success', 'Tukar pecahan kas berhasil dicatat.');
+    }
+
     public function suggestChange(Request $request, CashChangeSuggestionService $service)
     {
         $validated = $request->validate([

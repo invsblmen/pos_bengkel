@@ -34,6 +34,7 @@ export default function Show({ purchase }) {
     };
 
     const formatDate = (dateString) => (dateString ? toDisplayDate(dateString) : '-');
+    const roundingAdjustment = Number(purchase.rounding_adjustment || 0);
 
     const canChangeStatus = () => {
         return purchase.status !== 'cancelled' && purchase.status !== 'received';
@@ -227,6 +228,15 @@ export default function Show({ purchase }) {
                                                 Tax {purchase.tax_type === 'percent' ? `(${purchase.tax_value}%)` : '(Fixed)'}
                                             </span>
                                             <span className="font-medium text-green-600">+{formatCurrency(purchase.tax_amount)}</span>
+                                        </div>
+                                    )}
+
+                                    {roundingAdjustment !== 0 && (
+                                        <div className="flex justify-between text-sm border-t border-slate-100 dark:border-slate-800 pt-2">
+                                            <span className="text-slate-500 dark:text-slate-400">Pembulatan</span>
+                                            <span className={`font-medium ${roundingAdjustment > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                {roundingAdjustment > 0 ? '+' : ''}{formatCurrency(roundingAdjustment)}
+                                            </span>
                                         </div>
                                     )}
 
@@ -482,6 +492,12 @@ export default function Show({ purchase }) {
                                         <div className="flex justify-between text-slate-600">
                                             <span>Pajak</span>
                                             <span>+{formatCurrency(purchase.tax_amount)}</span>
+                                        </div>
+                                    )}
+                                    {roundingAdjustment !== 0 && (
+                                        <div className="flex justify-between text-slate-600">
+                                            <span>Pembulatan</span>
+                                            <span>{roundingAdjustment > 0 ? '+' : ''}{formatCurrency(roundingAdjustment)}</span>
                                         </div>
                                     )}
                                     <div className="flex justify-between text-lg font-bold text-slate-900 pt-2 border-t border-slate-200">

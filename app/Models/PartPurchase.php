@@ -16,8 +16,9 @@ class PartPurchase extends Model
         'status',
         'total_amount',
         'notes',
+        'payment_method', 'paid_amount', 'remaining_amount', 'payment_status',
         'discount_type', 'discount_value', 'discount_amount',
-        'tax_type', 'tax_value', 'tax_amount', 'grand_total',
+        'tax_type', 'tax_value', 'tax_amount', 'rounding_adjustment', 'grand_total',
         'unit_cost', 'margin_type', 'margin_value', 'promo_discount_type', 'promo_discount_value',
         'updated_by'
     ];
@@ -29,7 +30,12 @@ class PartPurchase extends Model
         'total_amount' => 'integer',
         'discount_amount' => 'integer',
         'tax_amount' => 'integer',
+        'rounding_adjustment' => 'integer',
         'grand_total' => 'integer',
+        'payment_method' => 'string',
+        'paid_amount' => 'integer',
+        'remaining_amount' => 'integer',
+        'payment_status' => 'string',
         'unit_cost' => 'integer',
         'margin_value' => 'decimal:2',
         'promo_discount_value' => 'decimal:2',
@@ -98,7 +104,21 @@ class PartPurchase extends Model
         $this->total_amount = $subtotal;
         $this->discount_amount = $totals['discount_amount'];
         $this->tax_amount = $totals['tax_amount'];
+        $this->rounding_adjustment = $totals['rounding_adjustment'];
         $this->grand_total = $totals['grand_total'];
+
+        $paidAmount = max(0, (int) ($this->paid_amount ?? 0));
+        $this->paid_amount = $paidAmount;
+        $this->remaining_amount = max(0, $this->grand_total - $paidAmount);
+
+        if ($paidAmount >= $this->grand_total) {
+            $this->payment_status = 'paid';
+            $this->remaining_amount = 0;
+        } elseif ($paidAmount > 0) {
+            $this->payment_status = 'partial';
+        } else {
+            $this->payment_status = 'unpaid';
+        }
 
         return $this;
     }

@@ -60,6 +60,7 @@ export default function Print({ order, businessProfile }) {
     const subtotal = Number(order?.total) || 0;
     const discount = Number(order?.discount_amount) || 0;
     const tax = Number(order?.tax_amount) || 0;
+    const roundingAdjustment = Number(order?.rounding_adjustment) || 0;
     const grandTotal = Number(order?.grand_total ?? order?.total ?? 0);
     const businessName = businessProfile?.business_name || "SERVICE";
     const businessPhone = businessProfile?.business_phone || "";
@@ -92,12 +93,14 @@ export default function Print({ order, businessProfile }) {
                     },
                 };
             }),
+            subtotal,
             discount: discount,
+            rounding_adjustment: roundingAdjustment,
             grand_total: grandTotal,
             cash: grandTotal,
             change: 0,
         };
-    }, [order, discount, grandTotal]);
+    }, [order, subtotal, discount, roundingAdjustment, grandTotal]);
 
     const handlePrint = () => window.print();
 
@@ -364,6 +367,12 @@ export default function Print({ order, businessProfile }) {
                                             <div className="flex justify-between text-slate-600 dark:text-slate-400">
                                                 <span>Pajak</span>
                                                 <span>+ {formatPrice(tax)}</span>
+                                            </div>
+                                        )}
+                                        {roundingAdjustment !== 0 && (
+                                            <div className="flex justify-between text-slate-600 dark:text-slate-400">
+                                                <span>Pembulatan</span>
+                                                <span>{roundingAdjustment > 0 ? '+ ' : ''}{formatPrice(roundingAdjustment)}</span>
                                             </div>
                                         )}
                                         <div className="flex justify-between text-lg font-bold text-slate-900 dark:text-white pt-1 border-t border-slate-200 dark:border-slate-700 print:text-sm">

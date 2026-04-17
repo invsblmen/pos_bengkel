@@ -209,6 +209,8 @@ class ServiceOrderController extends Controller
             'maintenance_type' => 'nullable|string',
             'next_service_km' => 'nullable|integer|min:0',
             'next_service_date' => 'nullable|date',
+            'payment_method' => 'nullable|in:cash,credit',
+            'paid_amount' => 'nullable|integer|min:0',
             'tags' => 'nullable|array',
             'tags.*' => 'integer|exists:tags,id',
             'items' => 'required|array|min:1',
@@ -262,6 +264,8 @@ class ServiceOrderController extends Controller
                 'maintenance_type' => $request->maintenance_type,
                 'next_service_km' => $request->next_service_km,
                 'next_service_date' => $request->next_service_date,
+                'payment_method' => $request->payment_method ?? 'cash',
+                'paid_amount' => $request->paid_amount ?? 0,
                 'total' => 0,
                 'discount_type' => $request->discount_type ?? 'none',
                 'discount_value' => $request->discount_value ?? 0,
@@ -421,6 +425,8 @@ class ServiceOrderController extends Controller
             'maintenance_type' => 'nullable|string',
             'next_service_km' => 'nullable|integer|min:0',
             'next_service_date' => 'nullable|date',
+            'payment_method' => 'nullable|in:cash,credit',
+            'paid_amount' => 'nullable|integer|min:0',
             'tags' => 'nullable|array',
             'tags.*' => 'integer|exists:tags,id',
             'items' => 'required|array|min:1',
@@ -455,6 +461,8 @@ class ServiceOrderController extends Controller
             'maintenance_type' => $request->maintenance_type,
             'next_service_km' => $request->next_service_km,
             'next_service_date' => $request->next_service_date,
+            'payment_method' => $request->payment_method ?? $order->payment_method ?? 'cash',
+            'paid_amount' => $request->paid_amount ?? $order->paid_amount ?? 0,
             'discount_type' => $request->discount_type ?? 'none',
             'discount_value' => $request->discount_value ?? 0,
             'voucher_id' => null,
@@ -854,4 +862,3 @@ class ServiceOrderController extends Controller
     }
 
 }
-

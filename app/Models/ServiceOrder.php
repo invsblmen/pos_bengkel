@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Services\CashRoundingService;
 use App\Services\DiscountTaxService;
 
 class ServiceOrder extends Model
@@ -19,7 +20,8 @@ class ServiceOrder extends Model
         'maintenance_type', 'next_service_km', 'next_service_date',
         'discount_type', 'discount_value', 'discount_amount',
         'voucher_id', 'voucher_code', 'voucher_discount_amount',
-        'tax_type', 'tax_value', 'tax_amount', 'grand_total'
+        'tax_type', 'tax_value', 'tax_amount', 'rounding_adjustment', 'grand_total',
+        'payment_method', 'paid_amount', 'remaining_amount', 'payment_status'
     ];
 
     protected $casts = [
@@ -36,7 +38,12 @@ class ServiceOrder extends Model
         'voucher_id' => 'integer',
         'voucher_discount_amount' => 'integer',
         'tax_amount' => 'integer',
+        'rounding_adjustment' => 'integer',
         'grand_total' => 'integer',
+        'payment_method' => 'string',
+        'paid_amount' => 'integer',
+        'remaining_amount' => 'integer',
+        'payment_status' => 'string',
     ];
 
     public function customer()
@@ -103,7 +110,22 @@ class ServiceOrder extends Model
         $this->total = $subtotal;
         $this->discount_amount = $itemDiscount + $transactionDiscount;
         $this->tax_amount = $taxAmount;
-        $this->grand_total = $taxBase + $taxAmount;
+        $rounding = CashRoundingService::roundToCashDenomination($taxBase + $taxAmount);
+        $this->rounding_adjustment = $rounding['rounding_adjustment'];
+        $this->grand_total = $rounding['grand_total'];
+
+        $paidAmount = max(0, (int) ($this->paid_amount ?? 0));
+        $this->paid_amount = $paidAmount;
+        $this->remaining_amount = max(0, $this->grand_total - $paidAmount);
+
+        if ($paidAmount >= $this->grand_total) {
+            $this->payment_status = 'paid';
+            $this->remaining_amount = 0;
+        } elseif ($paidAmount > 0) {
+            $this->payment_status = 'partial';
+        } else {
+            $this->payment_status = 'unpaid';
+        }
 
         return $this;
     }

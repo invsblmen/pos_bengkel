@@ -32,6 +32,22 @@ const statusLabel = {
     cancelled: 'âŒ Dibatalkan',
 };
 
+const cleanStatusLabel = {
+    draft: 'Draft',
+    confirmed: 'Dikonfirmasi',
+    waiting_stock: 'Pemesanan',
+    ready_to_notify: 'Siap Diberitahu',
+    waiting_pickup: 'Menunggu Diambil',
+    completed: 'Selesai',
+    cancelled: 'Dibatalkan',
+};
+
+const paymentLabel = {
+    unpaid: 'Belum Bayar',
+    partial: 'Sebagian',
+    paid: 'Lunas',
+};
+
 export default function Index({ sales, filters, customers = [] }) {
     const [filterData, setFilterData] = useState({
         ...defaultFilters,
@@ -277,7 +293,7 @@ export default function Index({ sales, filters, customers = [] }) {
                                                 <span className={`inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-bold border-2 shadow-sm ${
                                                     statusColors[sale.status] || 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-slate-800 dark:text-gray-200'
                                                 }`}>
-                                                    {statusLabel[sale.status] || sale.status}
+                                                    {cleanStatusLabel[sale.status] || sale.status}
                                                 </span>
                                             </div>
                                             <div className="mt-3 space-y-2 text-sm">
@@ -302,7 +318,7 @@ export default function Index({ sales, filters, customers = [] }) {
                                                     <span className={`inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-bold border-2 shadow-sm ${
                                                         paymentColors[sale.payment_status] || paymentColors.unpaid
                                                     }`}>
-                                                        {sale.payment_status === 'paid' ? 'âœ“ Lunas' : sale.payment_status === 'partial' ? 'â— Sebagian' : 'â—‹ Belum Bayar'}
+                                                        <span className="text-xs">{paymentLabel[sale.payment_status] || paymentLabel.unpaid}</span>
                                                     </span>
                                                 </div>
                                             </div>
@@ -361,14 +377,14 @@ export default function Index({ sales, filters, customers = [] }) {
                                                     <span className={`inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-bold border-2 shadow-sm ${
                                                         statusColors[sale.status] || 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-slate-800 dark:text-gray-200'
                                                     }`}>
-                                                        {statusLabel[sale.status] || sale.status}
+                                                        {cleanStatusLabel[sale.status] || sale.status}
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-4 text-center">
                                                     <span className={`inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-bold border-2 shadow-sm ${
                                                         paymentColors[sale.payment_status] || paymentColors.unpaid
                                                     }`}>
-                                                        {sale.payment_status === 'paid' ? 'âœ“ Lunas' : sale.payment_status === 'partial' ? 'â— Sebagian' : 'â—‹ Belum Bayar'}
+                                                        <span className="text-xs">{paymentLabel[sale.payment_status] || paymentLabel.unpaid}</span>
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-4 text-center">
@@ -430,5 +446,3 @@ export default function Index({ sales, filters, customers = [] }) {
 }
 
 Index.layout = (page) => <DashboardLayout children={page} />;
-
-

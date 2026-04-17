@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
+import TransactionPaymentSection from '@/Components/TransactionPaymentSection';
 import {
     IconArrowLeft, IconTrash, IconPlus, IconSearch,
     IconShoppingCart, IconReceipt, IconCash, IconCheck,
@@ -9,6 +10,7 @@ import {
 import toast from 'react-hot-toast';
 import { todayLocalDate } from '@/Utils/datetime';
 import AddSupplierModal from '@/Components/Dashboard/AddSupplierModal';
+import { roundToCashDenomination } from '@/Utils/cashRounding';
 
 export default function Create({ suppliers = [], parts = [], categories = [] }) {
     const [localSuppliers, setLocalSuppliers] = useState(suppliers);
@@ -24,6 +26,8 @@ export default function Create({ suppliers = [], parts = [], categories = [] }) 
         discount_value: 0,
         tax_type: 'percent',
         tax_value: 0,
+        payment_method: 'cash',
+        paid_amount: 0,
     });
 
     const [selectedPart, setSelectedPart] = useState(null);
@@ -123,11 +127,13 @@ export default function Create({ suppliers = [], parts = [], categories = [] }) 
         }
 
         const fallbackPrice = getPartPrice(part);
+        const partNumber = getPartNumber(part);
         setData('items', [
             ...data.items,
             {
                 part_id: partId,
                 part_name: partName || `Part #${partId}`,
+                part_number: partNumber,
                 quantity: itemQty,
                 unit_price: itemPrice || fallbackPrice,
                 discount_type: itemDiscountType,
@@ -205,7 +211,8 @@ export default function Create({ suppliers = [], parts = [], categories = [] }) 
     };
 
     const taxAmount = calculateTax();
-    const totalAmount = afterDiscount + taxAmount;
+    const rawTotalAmount = afterDiscount + taxAmount;
+    const { roundingAdjustment, grandTotal: totalAmount } = roundToCashDenomination(rawTotalAmount);
 
     return (
         <>
@@ -520,11 +527,6 @@ export default function Create({ suppliers = [], parts = [], categories = [] }) 
                                                             {item.part_number && (
                                                                 <div className="text-xs text-slate-500 dark:text-slate-400">Kode: {item.part_number}</div>
                                                             )}
-                                                            {discountAmount > 0 && (
-                                                                <div className="text-[10px] text-red-600 dark:text-red-400 mt-0.5 font-medium">
-                                                                    -{formatCurrency(discountAmount)}
-                                                                </div>
-                                                            )}
                                                             {errors[`items.${index}.part_id`] && <p className="text-xs text-red-500 mt-1">{errors[`items.${index}.part_id`]}</p>}
                                                         </td>
                                                         <td className="px-2 py-1.5 text-center">
@@ -590,8 +592,15 @@ export default function Create({ suppliers = [], parts = [], categories = [] }) 
                                                                 </div>
                                                             </div>
                                                         </td>
-                                                        <td className="px-2 py-1.5 text-right font-bold text-emerald-600 dark:text-emerald-400 text-sm">
-                                                            {formatCurrency(calculateItemTotal(item))}
+                                                        <td className="px-2 py-1.5 text-right">
+                                                            {discountAmount > 0 && (
+                                                                <div className="text-[10px] text-red-600 dark:text-red-400 font-semibold">
+                                                                    Diskon: -{formatCurrency(discountAmount)}
+                                                                </div>
+                                                            )}
+                                                            <div className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">
+                                                                {formatCurrency(calculateItemTotal(item))}
+                                                            </div>
                                                         </td>
                                                         <td className="px-2 py-1.5 text-center last:rounded-r-lg">
                                                             <button
@@ -621,11 +630,6 @@ export default function Create({ suppliers = [], parts = [], categories = [] }) 
                                                         <p className="font-bold text-slate-900 dark:text-white">{item.part_name}</p>
                                                         {item.part_number && (
                                                             <p className="text-xs text-slate-500 dark:text-slate-400">Kode: {item.part_number}</p>
-                                                        )}
-                                                        {discountAmount > 0 && (
-                                                            <p className="text-[10px] text-red-600 dark:text-red-400 mt-0.5 font-medium">
-                                                                -{formatCurrency(discountAmount)}
-                                                            </p>
                                                         )}
                                                         {errors[`items.${index}.part_id`] && <p className="text-xs text-red-500 mt-1">{errors[`items.${index}.part_id`]}</p>}
                                                     </div>
@@ -662,8 +666,15 @@ export default function Create({ suppliers = [], parts = [], categories = [] }) 
                                                     </div>
                                                     <div>
                                                         <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1 block">Total</label>
-                                                        <div className="h-8 px-2 rounded-md bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700 flex items-center justify-end font-bold text-emerald-600 dark:text-emerald-400 text-xs">
+                                                        <div className="min-h-8 px-2 py-1 rounded-md bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700 flex flex-col items-end justify-center">
+                                                            {discountAmount > 0 && (
+                                                                <span className="text-[10px] font-semibold text-red-600 dark:text-red-400">
+                                                                    Diskon: -{formatCurrency(discountAmount)}
+                                                                </span>
+                                                            )}
+                                                            <span className="font-bold text-emerald-600 dark:text-emerald-400 text-xs">
                                                             {formatCurrency(calculateItemTotal(item))}
+                                                            </span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -887,11 +898,34 @@ export default function Create({ suppliers = [], parts = [], categories = [] }) 
                                             <span className="text-slate-600 dark:text-slate-400 font-medium">Pajak</span>
                                             <span className="font-bold text-green-600 dark:text-green-400">+{formatCurrency(taxAmount)}</span>
                                         </div>
+                                        {roundingAdjustment !== 0 && (
+                                            <div className="flex items-center justify-between pb-3 border-b border-emerald-200 dark:border-emerald-700/30">
+                                                <span className="text-slate-600 dark:text-slate-400 font-medium">Pembulatan</span>
+                                                <span className={`font-bold ${roundingAdjustment > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                                    {roundingAdjustment > 0 ? '+' : ''}{formatCurrency(roundingAdjustment)}
+                                                </span>
+                                            </div>
+                                        )}
                                         <div className="flex items-center justify-between pt-2 border-t-2 border-emerald-300 dark:border-emerald-600">
                                             <span className="text-lg font-bold text-slate-900 dark:text-white">Total</span>
                                             <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(totalAmount)}</span>
                                         </div>
                                     </div>
+
+                                    <TransactionPaymentSection
+                                        title="Pembayaran Pembelian"
+                                        paymentMethod={data.payment_method}
+                                        paidAmount={data.paid_amount}
+                                        totalAmount={totalAmount}
+                                        onPaymentMethodChange={(value) => {
+                                            setData('payment_method', value);
+                                            if (value === 'credit') {
+                                                setData('paid_amount', 0);
+                                            }
+                                        }}
+                                        onPaidAmountChange={(value) => setData('paid_amount', value)}
+                                        formatCurrency={formatCurrency}
+                                    />
 
                                     <div className="pt-6">
                                         <button

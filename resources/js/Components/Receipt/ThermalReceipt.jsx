@@ -30,9 +30,10 @@ export default function ThermalReceipt({
     const items = transaction?.details ?? [];
 
     // Calculate totals
-    const subtotal = transaction?.grand_total + (transaction?.discount || 0);
-    const discount = transaction?.discount || 0;
-    const total = transaction?.grand_total || 0;
+    const discount = Number(transaction?.discount || 0);
+    const roundingAdjustment = Number(transaction?.rounding_adjustment || 0);
+    const total = Number(transaction?.grand_total || 0);
+    const subtotal = Number(transaction?.subtotal ?? (total + discount - roundingAdjustment));
     const cash = transaction?.cash || 0;
     const change = transaction?.change || 0;
 
@@ -138,6 +139,12 @@ export default function ThermalReceipt({
                         <span>-{formatPrice(discount)}</span>
                     </div>
                 )}
+                {roundingAdjustment !== 0 && (
+                    <div className="flex justify-between">
+                        <span>Pembulatan</span>
+                        <span>{roundingAdjustment > 0 ? "+" : ""}{formatPrice(roundingAdjustment)}</span>
+                    </div>
+                )}
                 <div className="flex justify-between font-bold text-sm">
                     <span>TOTAL</span>
                     <span>{formatPrice(total)}</span>
@@ -234,6 +241,10 @@ export function ThermalReceipt58mm({
     const statusLabel = thermalStatusMap[transaction?.status] || (transaction?.status || '-');
 
     const items = transaction?.details ?? [];
+    const discount = Number(transaction?.discount || 0);
+    const roundingAdjustment = Number(transaction?.rounding_adjustment || 0);
+    const total = Number(transaction?.grand_total || 0);
+    const subtotal = Number(transaction?.subtotal ?? (total + discount - roundingAdjustment));
     const line = "-".repeat(24);
     const mergedSocialLine = businessSocialInfo?.mergedLine || '';
     const footerSocials = businessSocialInfo?.socials || businessSocials;
@@ -265,9 +276,25 @@ export function ThermalReceipt58mm({
             ))}
 
             <pre>{line}</pre>
+            <div className="flex justify-between">
+                <span>Subtotal</span>
+                <span>{formatPrice(subtotal)}</span>
+            </div>
+            {discount > 0 && (
+                <div className="flex justify-between">
+                    <span>Diskon</span>
+                    <span>-{formatPrice(discount)}</span>
+                </div>
+            )}
+            {roundingAdjustment !== 0 && (
+                <div className="flex justify-between">
+                    <span>Pembulatan</span>
+                    <span>{roundingAdjustment > 0 ? "+" : ""}{formatPrice(roundingAdjustment)}</span>
+                </div>
+            )}
             <div className="flex justify-between font-bold">
                 <span>TOTAL</span>
-                <span>{formatPrice(transaction?.grand_total)}</span>
+                <span>{formatPrice(total)}</span>
             </div>
             <div className="flex justify-between">
                 <span>Bayar</span>

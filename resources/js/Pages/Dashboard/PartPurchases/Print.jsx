@@ -18,6 +18,7 @@ export default function Print({ purchase, businessProfile }) {
     const subtotal = Number(purchase?.total_amount || 0);
     const discountAmount = Number(purchase?.discount_amount || 0);
     const taxAmount = Number(purchase?.tax_amount || 0);
+    const roundingAdjustment = Number(purchase?.rounding_adjustment || 0);
     const grandTotal = Number(purchase?.grand_total || subtotal - discountAmount + taxAmount);
 
     const businessName = businessProfile?.business_name || 'POS BENGKEL';
@@ -40,12 +41,14 @@ export default function Print({ purchase, businessProfile }) {
                 title: detail.part?.name || '-',
             },
         })),
+        subtotal,
         discount: discountAmount,
+        rounding_adjustment: roundingAdjustment,
         grand_total: grandTotal,
         cash: grandTotal,
         change: 0,
         payment_method: 'cash',
-    }), [purchase, discountAmount, grandTotal]);
+    }), [purchase, subtotal, discountAmount, roundingAdjustment, grandTotal]);
 
     return (
         <>
@@ -248,6 +251,12 @@ export default function Print({ purchase, businessProfile }) {
                                             <div className="flex justify-between text-slate-600 dark:text-slate-400">
                                                 <span>Pajak</span>
                                                 <span>+ {formatCurrency(taxAmount)}</span>
+                                            </div>
+                                        )}
+                                        {roundingAdjustment !== 0 && (
+                                            <div className="flex justify-between text-slate-600 dark:text-slate-400">
+                                                <span>Pembulatan</span>
+                                                <span>{roundingAdjustment > 0 ? '+ ' : ''}{formatCurrency(roundingAdjustment)}</span>
                                             </div>
                                         )}
                                         <div className="flex justify-between text-lg font-bold text-slate-900 dark:text-white pt-1 border-t border-slate-200 dark:border-slate-700 print:text-sm">

@@ -1,11 +1,11 @@
 import React from 'react';
 import { Head, useForm, Link } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
-import { IconArrowLeft, IconDeviceFloppy, IconTrash } from '@tabler/icons-react';
+import { IconArrowLeft, IconDeviceFloppy, IconPlus, IconTrash, IconX } from '@tabler/icons-react';
 import toast from 'react-hot-toast';
 
 function Edit({ auth, service, categories, mechanics, services }) {
-    const { data, setData, post, processing, errors } = useForm({
+    const { data, setData, transform, post, processing, errors } = useForm({
         service_category_id: service.service_category_id || '',
         name: service.name || '',
         description: service.description || '',
@@ -13,8 +13,10 @@ function Edit({ auth, service, categories, mechanics, services }) {
         duration: service.duration || '',
         complexity_level: service.complexity_level || 'simple',
         required_tools: Array.isArray(service.required_tools)
-            ? service.required_tools.join(', ')
-            : service.required_tools || '',
+            ? service.required_tools
+            : (typeof service.required_tools === 'string' && service.required_tools.trim()
+                ? service.required_tools.split(',').map((tool) => tool.trim()).filter(Boolean)
+                : []),
         status: service.status || 'active',
         has_warranty: !!service.has_warranty,
         warranty_duration_days: service.warranty_duration_days ?? '',
@@ -25,6 +27,20 @@ function Edit({ auth, service, categories, mechanics, services }) {
         mechanic_incentives: service.mechanic_incentives || [],
         _method: 'PUT',
     });
+
+    const [toolInput, setToolInput] = React.useState('');
+
+    const addRequiredTool = () => {
+        const nextTool = toolInput.trim();
+        if (!nextTool || data.required_tools.includes(nextTool)) return;
+
+        setData('required_tools', [...data.required_tools, nextTool]);
+        setToolInput('');
+    };
+
+    const removeRequiredTool = (index) => {
+        setData('required_tools', data.required_tools.filter((_, i) => i !== index));
+    };
 
     const addPriceAdjustment = () => {
         setData('price_adjustments', [
@@ -63,29 +79,23 @@ function Edit({ auth, service, categories, mechanics, services }) {
     const handleSubmit = (e) => {
         e.preventDefault();
 
-        const toolsArray = data.required_tools
-            ? (Array.isArray(data.required_tools)
-                ? data.required_tools
-                : data.required_tools.split(',').map(tool => tool.trim()).filter(Boolean))
-            : [];
+        const pendingTool = toolInput.trim();
+
+        transform((formData) => ({
+            ...formData,
+            required_tools: pendingTool && !formData.required_tools.includes(pendingTool)
+                ? [...formData.required_tools, pendingTool]
+                : formData.required_tools,
+            price_adjustments: formData.price_adjustments.filter((item) => item.trigger_service_id),
+            mechanic_incentives: formData.incentive_mode === 'by_mechanic'
+                ? formData.mechanic_incentives.filter((item) => item.mechanic_id)
+                : [],
+        }));
 
         post(route('services.update', service.id), {
-            service_category_id: data.service_category_id,
-            name: data.name,
-            description: data.description,
-            price: data.price,
-            duration: data.duration,
-            complexity_level: data.complexity_level,
-            required_tools: toolsArray,
-            status: data.status,
-            incentive_mode: data.incentive_mode,
-            default_incentive_percentage: data.default_incentive_percentage,
-            price_adjustments: data.price_adjustments.filter((item) => item.trigger_service_id),
-            mechanic_incentives: data.incentive_mode === 'by_mechanic'
-                ? data.mechanic_incentives.filter((item) => item.mechanic_id)
-                : [],
             preserveScroll: true,
             onSuccess: () => {
+                setToolInput('');
                 toast.success('Layanan berhasil diperbarui!');
             },
             onError: () => {
@@ -281,22 +291,59 @@ function Edit({ auth, service, categories, mechanics, services }) {
                             {/* Tools & Status Row */}
                             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                                 <div>
-                                    <label htmlFor="required_tools" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                         Alat yang Dibutuhkan
                                     </label>
-                                    <input
-                                        type="text"
-                                        id="required_tools"
-                                        value={data.required_tools}
-                                        onChange={(e) => setData('required_tools', e.target.value)}
-                                        className={`w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-primary-500 transition-colors ${
-                                            errors.required_tools
-                                                ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
-                                                : 'border-gray-200 dark:border-gray-700 focus:border-transparent'
-                                        } bg-white dark:bg-gray-900 text-gray-900 dark:text-white`}
-                                        placeholder="Kunci pas, Kunci inggris, Dongkrak"
-                                    />
-                                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Pisahkan dengan koma</p>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            value={toolInput}
+                                            onChange={(e) => setToolInput(e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    addRequiredTool();
+                                                }
+                                            }}
+                                            className={`flex-1 px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-primary-500 transition-colors ${
+                                                errors.required_tools
+                                                    ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
+                                                    : 'border-gray-200 dark:border-gray-700 focus:border-transparent'
+                                            } bg-white dark:bg-gray-900 text-gray-900 dark:text-white`}
+                                            placeholder="Contoh: Kunci pas"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={addRequiredTool}
+                                            className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary-500 hover:bg-primary-600 text-white rounded-xl transition-colors"
+                                        >
+                                            <IconPlus size={18} />
+                                            <span className="hidden sm:inline">Tambah</span>
+                                        </button>
+                                    </div>
+                                    {data.required_tools.length > 0 ? (
+                                        <div className="mt-3 flex flex-wrap gap-2">
+                                            {data.required_tools.map((tool, index) => (
+                                                <span
+                                                    key={`${tool}-${index}`}
+                                                    className="inline-flex items-center gap-2 rounded-lg border border-primary-200 bg-primary-50 px-3 py-1.5 text-sm font-medium text-primary-700 dark:border-primary-800 dark:bg-primary-900/20 dark:text-primary-300"
+                                                >
+                                                    {tool}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeRequiredTool(index)}
+                                                        className="rounded p-0.5 hover:bg-primary-200 dark:hover:bg-primary-800"
+                                                        aria-label={`Hapus ${tool}`}
+                                                    >
+                                                        <IconX size={14} />
+                                                    </button>
+                                                </span>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="mt-2 text-sm italic text-gray-400 dark:text-gray-500">Belum ada alat ditambahkan</p>
+                                    )}
+                                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Ketik nama alat lalu tekan Enter atau tombol Tambah.</p>
                                     {errors.required_tools && (
                                         <p className="mt-1 text-sm text-red-500">{errors.required_tools}</p>
                                     )}

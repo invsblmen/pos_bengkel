@@ -125,6 +125,7 @@ export default function Show({ sale, businessProfile, cashDenominations = [] }) 
     const discountAmount = sale.discount_amount || 0;
     const voucherDiscountAmount = sale.voucher_discount_amount || 0;
     const taxAmount = sale.tax_amount || 0;
+    const roundingAdjustment = Number(sale.rounding_adjustment || 0);
     const grandTotal = sale.grand_total ?? subtotal - discountAmount - voucherDiscountAmount + taxAmount;
     const minimumDownPaymentReminder = Math.ceil(grandTotal * 0.5);
     const paidAmount = sale.paid_amount || 0;
@@ -509,6 +510,14 @@ export default function Show({ sale, businessProfile, cashDenominations = [] }) 
                                             <span className="text-slate-600 dark:text-slate-400 font-medium">Pajak</span>
                                             <span className="font-bold text-green-600 dark:text-green-400">+{formatCurrency(taxAmount)}</span>
                                         </div>
+                                        {roundingAdjustment !== 0 && (
+                                            <div className="flex items-center justify-between pb-3 border-b border-emerald-200 dark:border-emerald-700/30">
+                                                <span className="text-slate-600 dark:text-slate-400 font-medium">Pembulatan</span>
+                                                <span className={`font-bold ${roundingAdjustment > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                                    {roundingAdjustment > 0 ? '+' : ''}{formatCurrency(roundingAdjustment)}
+                                                </span>
+                                            </div>
+                                        )}
                                         <div className="flex items-center justify-between pt-2 pb-4 border-b-2 border-emerald-300 dark:border-emerald-600">
                                             <span className="text-lg font-bold text-slate-900 dark:text-white">Total</span>
                                             <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(grandTotal)}</span>
@@ -742,6 +751,7 @@ export default function Show({ sale, businessProfile, cashDenominations = [] }) 
                                     <div className="flex justify-between"><span>Diskon</span><span>-{formatCurrency(discountAmount)}</span></div>
                                     {voucherDiscountAmount > 0 && <div className="flex justify-between"><span>Voucher {sale.voucher_code ? `(${sale.voucher_code})` : ''}</span><span>-{formatCurrency(voucherDiscountAmount)}</span></div>}
                                     <div className="flex justify-between"><span>Pajak</span><span>+{formatCurrency(taxAmount)}</span></div>
+                                    {roundingAdjustment !== 0 && <div className="flex justify-between"><span>Pembulatan</span><span>{roundingAdjustment > 0 ? '+' : ''}{formatCurrency(roundingAdjustment)}</span></div>}
                                     <div className="flex justify-between border-t border-slate-300 pt-2 font-semibold text-base"><span>Total</span><span>{formatCurrency(grandTotal)}</span></div>
                                 </div>
                             </div>
@@ -793,6 +803,7 @@ export default function Show({ sale, businessProfile, cashDenominations = [] }) 
                                 <div className="flex justify-between"><span>Diskon</span><span>-{formatCurrency(discountAmount)}</span></div>
                                 {voucherDiscountAmount > 0 && <div className="flex justify-between"><span>Voucher {sale.voucher_code ? `(${sale.voucher_code})` : ''}</span><span>-{formatCurrency(voucherDiscountAmount)}</span></div>}
                                 <div className="flex justify-between"><span>Pajak</span><span>+{formatCurrency(taxAmount)}</span></div>
+                                {roundingAdjustment !== 0 && <div className="flex justify-between"><span>Pembulatan</span><span>{roundingAdjustment > 0 ? '+' : ''}{formatCurrency(roundingAdjustment)}</span></div>}
                                 <div className="flex justify-between font-bold text-sm pt-1"><span>Total</span><span>{formatCurrency(grandTotal)}</span></div>
                                 <div className="flex justify-between"><span>Bayar</span><span>{formatCurrency(paidAmount)}</span></div>
                                 <div className="flex justify-between"><span>Sisa</span><span>{formatCurrency(remainingAmount)}</span></div>

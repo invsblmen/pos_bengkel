@@ -17,6 +17,10 @@ const getPartStock = (part) => {
     return part.stock ?? part.qty ?? 0;
 };
 
+const getPartNumber = (part) => {
+    return part?.part_number || part?.part_no || part?.code || '';
+};
+
 export default function ServiceGrid({
     services,
     parts,
@@ -81,7 +85,8 @@ export default function ServiceGrid({
                 qty: p.qty || 1,
                 price: p.price || 0,
                 discount_mode: p.discount_type || 'nominal',
-                discount_value: p.discount_value || 0
+                discount_value: p.discount_value || 0,
+                part_number: p.part_number || ''
             }));
             setServiceParts(mappedParts);
             setIsEditMode(true);
@@ -115,6 +120,7 @@ export default function ServiceGrid({
 
         const selectedPart = parts.find((p) => p.id === parseInt(inputPart.part_id));
         const defaultPrice = selectedPart?.sell_price || 0;
+        const partNumber = getPartNumber(selectedPart);
 
         setServiceParts([
             ...serviceParts,
@@ -123,7 +129,8 @@ export default function ServiceGrid({
                 qty: Number(inputPart.qty) || 1,
                 price: Number(inputPart.price) || defaultPrice,
                 discount_mode: inputPart.discount_mode || 'nominal',
-                discount_value: Number(inputPart.discount_value) || 0
+                discount_value: Number(inputPart.discount_value) || 0,
+                part_number: partNumber
             }
         ]);
 
@@ -207,7 +214,8 @@ export default function ServiceGrid({
                 qty: p.qty,
                 price: p.price,
                 discount_type: p.discount_mode === 'nominal' ? 'fixed' : p.discount_mode,
-                discount_value: p.discount_value
+                discount_value: p.discount_value,
+                part_number: p.part_number
             }))
         };
 
@@ -345,8 +353,8 @@ export default function ServiceGrid({
                                         value={partDraft.part_id}
                                         onChange={handleDraftPartSelect}
                                         options={parts}
-                                        displayField={(p) => `${p.name} - ${formatCurrency(p.sell_price)}`}
-                                        searchFields={['name', 'part_number']}
+                                        displayField={(p) => `${p.name} (${getPartNumber(p) || 'Tanpa kode'}) - ${formatCurrency(p.sell_price)}`}
+                                        searchFields={['name', 'part_number', 'code', 'barcode']}
                                         placeholder="Cari sparepart..."
                                         onCreateNew={() => onQuickCreatePart?.(null)}
                                         createLabel="Tambah Part"
@@ -354,11 +362,15 @@ export default function ServiceGrid({
                                         getOptionDisabled={(p) => getPartStock(p) === 0}
                                         renderOption={(p, isDisabled) => {
                                             const stock = getPartStock(p);
+                                            const partNumber = getPartNumber(p);
                                             return (
                                                 <div className="flex items-center justify-between gap-2">
-                                                    <span className={isDisabled ? 'text-gray-400 dark:text-gray-500' : ''}>
-                                                        {p.name} - {formatCurrency(p.sell_price)}
-                                                    </span>
+                                                    <div className={isDisabled ? 'text-gray-400 dark:text-gray-500' : ''}>
+                                                        <div>{p.name} - {formatCurrency(p.sell_price)}</div>
+                                                        <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                                                            {partNumber ? `Kode: ${partNumber}` : 'Tanpa kode'} · Stok: {stock}
+                                                        </div>
+                                                    </div>
                                                     {stock === 0 && (
                                                         <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700 dark:bg-red-900/30 dark:text-red-400">
                                                             Stok Habis
@@ -474,6 +486,7 @@ export default function ServiceGrid({
                                                 const selectedPart = parts.find((p) => p.id === parseInt(part.part_id));
                                                 const selectedPartStock = selectedPart ? getPartStock(selectedPart) : null;
                                                 const selectedPartName = selectedPart?.name || `Part #${part.part_id}`;
+                                                const selectedPartNumber = getPartNumber(selectedPart) || part.part_number;
                                                 const partPrice = parseFloat(part.price) || 0;
                                                 const partQty = parseInt(part.qty) || 1;
                                                 const partDiscountAmount = part.discount_mode === 'percent'
@@ -485,7 +498,12 @@ export default function ServiceGrid({
                                                     <tr key={index} className="align-middle bg-slate-50 shadow-sm ring-1 ring-slate-200/70 dark:bg-slate-800/40 dark:ring-slate-700/70">
                                                         <td className="px-2.5 py-2 rounded-l-lg">
                                                             <div className="flex items-center gap-1.5">
-                                                                <div className="truncate font-semibold text-slate-800 dark:text-slate-100" title={selectedPartName}>{selectedPartName}</div>
+                                                                <div className="min-w-0">
+                                                                    <div className="truncate font-semibold text-slate-800 dark:text-slate-100" title={selectedPartName}>{selectedPartName}</div>
+                                                                    {selectedPartNumber && (
+                                                                        <div className="truncate text-[11px] text-slate-500 dark:text-slate-400">Kode: {selectedPartNumber}</div>
+                                                                    )}
+                                                                </div>
                                                                 {selectedPartStock !== null && (
                                                                     <span
                                                                         className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
@@ -581,6 +599,7 @@ export default function ServiceGrid({
                                         const selectedPart = parts.find((p) => p.id === parseInt(part.part_id));
                                         const selectedPartStock = selectedPart ? getPartStock(selectedPart) : null;
                                         const selectedPartName = selectedPart?.name || `Part #${part.part_id}`;
+                                        const selectedPartNumber = getPartNumber(selectedPart) || part.part_number;
                                         const partPrice = parseFloat(part.price) || 0;
                                         const partQty = parseInt(part.qty) || 1;
                                         const partDiscountAmount = part.discount_mode === 'percent'
@@ -592,7 +611,12 @@ export default function ServiceGrid({
                                             <div key={index} className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/40">
                                                 <div className="flex items-start justify-between gap-2">
                                                     <div className="flex items-center gap-1.5">
-                                                        <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{selectedPartName}</p>
+                                                        <div>
+                                                            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{selectedPartName}</p>
+                                                            {selectedPartNumber && (
+                                                                <p className="text-xs text-slate-500 dark:text-slate-400">Kode: {selectedPartNumber}</p>
+                                                            )}
+                                                        </div>
                                                         {selectedPartStock !== null && (
                                                             <span
                                                                 className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300"

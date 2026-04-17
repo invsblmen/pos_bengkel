@@ -15,7 +15,10 @@ return [
     |
     */
 
-    'default' => env('BROADCAST_CONNECTION', 'null'),
+    // Prefer explicit `BROADCAST_DRIVER`, fallback to `BROADCAST_CONNECTION`,
+    // and default to `log` when neither is set (useful for local development
+    // when WebSockets/Pusher are not configured).
+    'default' => env('BROADCAST_DRIVER', env('BROADCAST_CONNECTION', 'log')),
 
     /*
     |--------------------------------------------------------------------------

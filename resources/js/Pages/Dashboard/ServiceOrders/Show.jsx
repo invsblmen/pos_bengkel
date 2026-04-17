@@ -119,6 +119,7 @@ export default function Show({ order, warrantyRegistrations = {}, permissions = 
     const discountAmount = Number(currentOrder.discount_amount || 0);
     const voucherAmount = Number(currentOrder.voucher_discount_amount || 0);
     const taxAmount = Number(currentOrder.tax_amount || 0);
+    const roundingAdjustment = Number(currentOrder.rounding_adjustment || 0);
     const grandTotal = Number(currentOrder.grand_total || currentOrder.total || 0);
 
     const warrantyActiveCount = details.reduce((sum, detail) => {
@@ -332,6 +333,14 @@ export default function Show({ order, warrantyRegistrations = {}, permissions = 
                                         <td className="px-4 py-2 text-right text-sm font-semibold text-emerald-600">+{formatPrice(taxAmount)}</td>
                                     </tr>
                                 )}
+                                {roundingAdjustment !== 0 && (
+                                    <tr>
+                                        <td colSpan="4" className="px-4 py-2 text-right text-xs text-gray-500">Pembulatan</td>
+                                        <td className={`px-4 py-2 text-right text-sm font-semibold ${roundingAdjustment > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                            {roundingAdjustment > 0 ? '+' : ''}{formatPrice(roundingAdjustment)}
+                                        </td>
+                                    </tr>
+                                )}
                                 <tr className="border-t border-gray-300 dark:border-gray-600">
                                     <td colSpan="4" className="px-4 py-3 text-right text-sm font-semibold text-gray-900 dark:text-gray-100">Grand Total</td>
                                     <td className="px-4 py-3 text-right text-base font-bold text-primary-700 dark:text-primary-300">{formatPrice(grandTotal)}</td>
@@ -374,5 +383,4 @@ export default function Show({ order, warrantyRegistrations = {}, permissions = 
 }
 
 Show.layout = (page) => <DashboardLayout children={page} />;
-
 

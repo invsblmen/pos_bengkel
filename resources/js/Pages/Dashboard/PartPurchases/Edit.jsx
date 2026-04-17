@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { Head, router } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import toast from 'react-hot-toast';
+import TransactionPaymentSection from '@/Components/TransactionPaymentSection';
 import { IconPlus, IconTrash, IconArrowLeft, IconPencil, IconTruck, IconCheck, IconAlertTriangle, IconPercentage, IconReceipt, IconShoppingCart, IconSearch, IconDiscount, IconCash } from '@tabler/icons-react';
 import { todayLocalDate, extractDateFromISO } from '@/Utils/datetime';
 import AddSupplierModal from '@/Components/Dashboard/AddSupplierModal';
+import { roundToCashDenomination } from '@/Utils/cashRounding';
 
 export default function Edit({ purchase, suppliers, parts, categories = [] }) {
     const [localSuppliers, setLocalSuppliers] = useState(suppliers);
@@ -20,6 +22,7 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
         items: purchase.details?.map(detail => ({
             part_id: detail.part_id,
             part_name: detail.part?.name || '',
+            part_number: detail.part?.part_number || detail.part?.code || '',
             quantity: detail.quantity,
             unit_price: detail.unit_price,
             discount_type: (detail.discount_type === 'none' || !detail.discount_type) ? 'percent' : detail.discount_type,
@@ -34,6 +37,8 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
         discount_value: purchase.discount_value || 0,
         tax_type: (purchase.tax_type === 'none' || !purchase.tax_type) ? 'percent' : purchase.tax_type,
         tax_value: purchase.tax_value || 0,
+        payment_method: purchase.payment_method || 'cash',
+        paid_amount: purchase.paid_amount || 0,
     });
 
     const [errors, setErrors] = useState({});
@@ -62,6 +67,7 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
         const part = localParts.find(p => p.id === item.part_id) || {
             id: item.part_id,
             name: item.part_name,
+            part_number: item.part_number,
             buy_price: item.unit_price,
         };
         setSelectedPart(part);
@@ -97,6 +103,7 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
         const newItem = {
             part_id: selectedPart.id,
             part_name: selectedPart.name,
+            part_number: selectedPart.part_number || selectedPart.code || '',
             quantity: parseInt(itemQty),
             unit_price: parseInt(itemPrice),
             discount_type: itemDiscountType,
@@ -214,7 +221,8 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
         return 0;
     })();
 
-    const grandTotal = afterDiscount + taxAmount;
+    const rawGrandTotal = afterDiscount + taxAmount;
+    const { roundingAdjustment, grandTotal } = roundToCashDenomination(rawGrandTotal);
 
     const formatCurrency = (value) => {
         return new Intl.NumberFormat('id-ID', {
@@ -657,10 +665,8 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
                                                         <tr key={idx} className="bg-white dark:bg-slate-900/70 shadow-sm ring-1 ring-slate-200/60 dark:ring-slate-800/60">
                                                             <td className="px-2 py-1.5 first:rounded-l-lg">
                                                                 <div className="font-semibold text-slate-900 dark:text-white text-sm">{item.part_name}</div>
-                                                                {discountAmount > 0 && (
-                                                                    <div className="text-[10px] text-red-600 dark:text-red-400 mt-0.5 font-medium">
-                                                                        -{formatCurrency(discountAmount)}
-                                                                    </div>
+                                                                {item.part_number && (
+                                                                    <div className="text-xs text-slate-500 dark:text-slate-400">Kode: {item.part_number}</div>
                                                                 )}
                                                             </td>
                                                             <td className="px-2 py-1.5 text-center">
@@ -726,8 +732,15 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
                                                                     </div>
                                                                 </div>
                                                             </td>
-                                                            <td className="px-2 py-1.5 text-right font-bold text-emerald-600 dark:text-emerald-400 text-sm">
-                                                                {formatCurrency(itemTotal)}
+                                                            <td className="px-2 py-1.5 text-right">
+                                                                {discountAmount > 0 && (
+                                                                    <div className="text-[10px] text-red-600 dark:text-red-400 font-semibold">
+                                                                        Diskon: -{formatCurrency(discountAmount)}
+                                                                    </div>
+                                                                )}
+                                                                <div className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">
+                                                                    {formatCurrency(itemTotal)}
+                                                                </div>
                                                             </td>
                                                             <td className="px-2 py-1.5 text-center last:rounded-r-lg">
                                                                 <button
@@ -756,10 +769,8 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
                                                     <div className="flex justify-between items-start mb-3">
                                                         <div className="flex-1">
                                                             <div className="font-semibold text-slate-900 dark:text-white text-sm">{item.part_name}</div>
-                                                            {discountAmount > 0 && (
-                                                                <div className="text-[10px] text-red-600 dark:text-red-400 mt-1 font-medium">
-                                                                    Diskon: -{formatCurrency(discountAmount)}
-                                                                </div>
+                                                            {item.part_number && (
+                                                                <div className="text-xs text-slate-500 dark:text-slate-400">Kode: {item.part_number}</div>
                                                             )}
                                                         </div>
                                                         <button
@@ -844,7 +855,14 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
                                                     <div className="pt-3 border-t border-slate-200 dark:border-slate-700">
                                                         <div className="flex justify-between">
                                                             <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Total:</span>
-                                                            <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(itemTotal)}</span>
+                                                            <div className="text-right">
+                                                                {discountAmount > 0 && (
+                                                                    <div className="text-[10px] text-red-600 dark:text-red-400 font-semibold">
+                                                                        Diskon: -{formatCurrency(discountAmount)}
+                                                                    </div>
+                                                                )}
+                                                                <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(itemTotal)}</span>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1011,10 +1029,35 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
                                             <span className="font-bold text-green-600 dark:text-green-400">+{formatCurrency(taxAmount)}</span>
                                         </div>
                                     )}
+                                    {roundingAdjustment !== 0 && (
+                                        <div className="flex items-center justify-between pb-3 border-b border-emerald-200 dark:border-emerald-700/30">
+                                            <span className="text-slate-600 dark:text-slate-400 font-medium">Pembulatan</span>
+                                            <span className={`font-bold ${roundingAdjustment > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                                {roundingAdjustment > 0 ? '+' : ''}{formatCurrency(roundingAdjustment)}
+                                            </span>
+                                        </div>
+                                    )}
                                     <div className="flex items-center justify-between pt-2">
                                         <span className="text-base font-bold text-emerald-900 dark:text-white">Grand Total</span>
                                         <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(grandTotal)}</span>
                                     </div>
+                                </div>
+
+                                <div className="mt-6">
+                                    <TransactionPaymentSection
+                                        title="Pembayaran Pembelian"
+                                        paymentMethod={formData.payment_method}
+                                        paidAmount={formData.paid_amount}
+                                        totalAmount={grandTotal}
+                                        onPaymentMethodChange={(value) => {
+                                            handleChange('payment_method', value);
+                                            if (value === 'credit') {
+                                                handleChange('paid_amount', 0);
+                                            }
+                                        }}
+                                        onPaidAmountChange={(value) => handleChange('paid_amount', value)}
+                                        formatCurrency={formatCurrency}
+                                    />
                                 </div>
                             </div>
                         </div>

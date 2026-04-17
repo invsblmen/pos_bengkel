@@ -17,8 +17,10 @@ use App\Services\DiscountTaxService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class PartPurchaseController extends Controller
 {
@@ -98,6 +100,8 @@ class PartPurchaseController extends Controller
             'purchase_date' => 'required|date',
             'expected_delivery_date' => 'nullable|date',
             'notes' => 'nullable|string',
+            'payment_method' => 'nullable|in:cash,credit',
+            'paid_amount' => 'nullable|integer|min:0',
             'items' => 'required|array|min:1',
             'items.*.part_id' => 'required|exists:parts,id',
             'items.*.quantity' => 'required|integer|min:1',
@@ -148,6 +152,8 @@ class PartPurchaseController extends Controller
                 'status' => 'pending',
                 'total_amount' => $totalAmount,
                 'notes' => $validated['notes'] ?? null,
+                'payment_method' => $validated['payment_method'] ?? 'cash',
+                'paid_amount' => $validated['paid_amount'] ?? 0,
                 'discount_type' => $validated['discount_type'] ?? 'none',
                 'discount_value' => $validated['discount_value'] ?? 0,
                 'tax_type' => $validated['tax_type'] ?? 'none',
@@ -186,7 +192,7 @@ class PartPurchaseController extends Controller
 
             DB::commit();
 
-            broadcast(new PartPurchaseCreated($purchase->fresh()->toArray()));
+            $this->safeBroadcast(new PartPurchaseCreated($purchase->fresh()->toArray()));
 
             $this->notifyPendingPurchase($purchase, 'created');
 
@@ -262,6 +268,8 @@ class PartPurchaseController extends Controller
             'purchase_date' => 'required|date',
             'expected_delivery_date' => 'nullable|date',
             'notes' => 'nullable|string',
+            'payment_method' => 'nullable|in:cash,credit',
+            'paid_amount' => 'nullable|integer|min:0',
             'items' => 'required|array|min:1',
             'items.*.part_id' => 'required|exists:parts,id',
             'items.*.quantity' => 'required|integer|min:1',
@@ -286,6 +294,8 @@ class PartPurchaseController extends Controller
                 'purchase_date' => $validated['purchase_date'],
                 'expected_delivery_date' => $validated['expected_delivery_date'],
                 'notes' => $validated['notes'],
+                'payment_method' => $validated['payment_method'] ?? $purchase->payment_method ?? 'cash',
+                'paid_amount' => $validated['paid_amount'] ?? $purchase->paid_amount ?? 0,
                 'discount_type' => $validated['discount_type'] ?? 'none',
                 'discount_value' => $validated['discount_value'] ?? 0,
                 'tax_type' => $validated['tax_type'] ?? 'none',
@@ -323,7 +333,7 @@ class PartPurchaseController extends Controller
 
             DB::commit();
 
-            broadcast(new PartPurchaseUpdated($purchase->fresh()->toArray()));
+            $this->safeBroadcast(new PartPurchaseUpdated($purchase->fresh()->toArray()));
 
             return redirect()->route('part-purchases.show', $purchase->id)
                 ->with('success', 'Purchase updated successfully');
@@ -418,5 +428,17 @@ class PartPurchaseController extends Controller
         }
 
         Notification::send($recipients, new PartPurchasePendingNotification($purchase, $context));
+    }
+
+    private function safeBroadcast(object $event): void
+    {
+        try {
+            broadcast($event);
+        } catch (Throwable $e) {
+            Log::warning('Part purchase broadcast failed; continuing without realtime update.', [
+                'event' => $event::class,
+                'message' => $e->getMessage(),
+            ]);
+        }
     }
 }

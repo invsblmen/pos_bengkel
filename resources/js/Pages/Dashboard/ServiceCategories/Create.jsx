@@ -102,10 +102,10 @@ function Create({ auth }) {
                                         value={data.icon}
                                         onChange={(e) => setData('icon', e.target.value)}
                                         className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                                        placeholder="🔧 atau wrench"
+                                        placeholder="Contoh: 🔧"
                                     />
                                     <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                        Gunakan emoji atau nama icon
+                                        Gunakan emoji jika ingin tampil sebagai simbol. Jika kosong, sistem akan memakai ikon default.
                                     </p>
                                 </div>
 

@@ -326,6 +326,9 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth']], function () {
     Route::post('/cash-management/transactions', [CashManagementController::class, 'storeTransaction'])
         ->middleware('permission:cash-management-manage')
         ->name('cash-management.transactions.store');
+    Route::post('/cash-management/exchange', [CashManagementController::class, 'exchangeDenominations'])
+        ->middleware('permission:cash-management-manage')
+        ->name('cash-management.exchange');
     Route::post('/cash-management/change/suggest', [CashManagementController::class, 'suggestChange'])
         ->middleware('permission:cash-management-manage')
         ->name('cash-management.change.suggest');

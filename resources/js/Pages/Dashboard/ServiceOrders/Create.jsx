@@ -10,6 +10,7 @@ import Autocomplete from '@/Components/Dashboard/Autocomplete';
 import QuickCreateVehicleModal from '@/Components/Dashboard/QuickCreateVehicleModal';
 import QuickCreatePartModal from '@/Components/Dashboard/QuickCreatePartModal';
 import VehicleHistoryModal from '@/Components/ServiceOrder/VehicleHistoryModal';
+import TransactionPaymentSection from '@/Components/TransactionPaymentSection';
 import { useRealtimeEvents } from '@/Hooks/useRealtimeEvents';
 import {
     IconDeviceFloppy,
@@ -22,6 +23,7 @@ import {
 } from '@tabler/icons-react';
 import toast from 'react-hot-toast';
 import { nowLocalDateTime } from '@/Utils/datetime';
+import { roundToCashDenomination } from '@/Utils/cashRounding';
 
 const generateSubmissionToken = () => {
     if (typeof window !== 'undefined' && window.crypto?.randomUUID) {
@@ -61,6 +63,8 @@ export default function Create({ customers, mechanics, services, parts, vehicles
         discount_value: 0,
         tax_type: 'none',
         tax_value: 0,
+        payment_method: 'cash',
+        paid_amount: 0,
     });
 
     const [customerVehicles, setCustomerVehicles] = useState([]);
@@ -225,7 +229,8 @@ export default function Create({ customers, mechanics, services, parts, vehicles
             return taxValue;
         }
     })();
-    const grandTotal = afterDiscount + taxAmount;
+    const rawGrandTotal = afterDiscount + taxAmount;
+    const { roundingAdjustment, grandTotal } = roundToCashDenomination(rawGrandTotal);
 
     useEffect(() => {
         if (!data.customer_id) {
@@ -745,13 +750,14 @@ export default function Create({ customers, mechanics, services, parts, vehicles
                                                             const partData = parts.find(
                                                                 (p) => p.id === parseInt(part.part_id)
                                                             );
+                                                            const partNumber = partData?.part_number || partData?.code || part.part_number || '';
                                                             return (
                                                                 <div
                                                                     key={partIndex}
                                                                     className="flex items-center justify-between text-xs"
                                                                 >
-                                                                    <span className="text-slate-600 dark:text-slate-400 flex-1 truncate">
-                                                                        {partData?.name || 'Sparepart'} Ã—{part.qty}
+                                                                    <span className="text-slate-600 dark:text-slate-400 flex-1 min-w-0 truncate">
+                                                                        {partData?.name || 'Sparepart'} {partNumber ? `(Kode: ${partNumber})` : ''} Ã—{part.qty}
                                                                     </span>
                                                                     <span className="text-slate-900 dark:text-white font-medium">
                                                                         {formatCurrency(part.price * part.qty)}
@@ -905,11 +911,36 @@ export default function Create({ customers, mechanics, services, parts, vehicles
                                 <span className="text-success-600">+{formatCurrency(taxAmount)}</span>
                             </div>
                         )}
+                        {roundingAdjustment !== 0 && (
+                            <div className="flex justify-between items-center mb-2 text-sm">
+                                <span className="text-slate-500">Pembulatan</span>
+                                <span className={roundingAdjustment > 0 ? 'text-success-600' : 'text-danger-500'}>
+                                    {roundingAdjustment > 0 ? '+' : ''}{formatCurrency(roundingAdjustment)}
+                                </span>
+                            </div>
+                        )}
                         <div className="flex justify-between items-center mb-3">
                             <span className="font-semibold text-slate-800 dark:text-white">Total</span>
                             <span className="text-xl font-bold text-primary-600 dark:text-primary-400">
                                 {formatCurrency(grandTotal)}
                             </span>
+                        </div>
+
+                        <div className="mb-3">
+                            <TransactionPaymentSection
+                                title="Pembayaran Service Order"
+                                paymentMethod={data.payment_method}
+                                paidAmount={data.paid_amount}
+                                totalAmount={grandTotal}
+                                onPaymentMethodChange={(value) => {
+                                    setData('payment_method', value);
+                                    if (value === 'credit') {
+                                        setData('paid_amount', 0);
+                                    }
+                                }}
+                                onPaidAmountChange={(value) => setData('paid_amount', value)}
+                                formatCurrency={formatCurrency}
+                            />
                         </div>
 
                         {/* Submit Button - Always visible */}

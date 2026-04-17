@@ -4,11 +4,18 @@ import DashboardLayout from '@/Layouts/DashboardLayout';
 import { IconArrowLeft, IconDeviceFloppy } from '@tabler/icons-react';
 import toast from 'react-hot-toast';
 
+const BROKEN_ICON_PATTERN = /[\u00c2\u00c3\u00e2\u00f0]/u;
+
+function sanitizeIconValue(value) {
+    if (typeof value !== 'string') return '';
+    return BROKEN_ICON_PATTERN.test(value) ? '' : value;
+}
+
 function Edit({ auth, category }) {
     const { data, setData, put, processing, errors } = useForm({
         name: category?.name || '',
         description: category?.description || '',
-        icon: category?.icon || '',
+        icon: sanitizeIconValue(category?.icon),
         sort_order: category?.sort_order || 0,
     });
 
@@ -104,10 +111,10 @@ function Edit({ auth, category }) {
                                         value={data.icon}
                                         onChange={(e) => setData('icon', e.target.value)}
                                         className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                                        placeholder="🔧 atau wrench"
+                                        placeholder="Contoh: 🔧"
                                     />
                                     <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                        Gunakan emoji atau nama icon
+                                        Gunakan emoji jika ingin tampil sebagai simbol. Jika kosong, sistem akan memakai ikon default.
                                     </p>
                                 </div>
 

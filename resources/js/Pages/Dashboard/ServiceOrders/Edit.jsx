@@ -5,9 +5,11 @@ import Autocomplete from '@/Components/Dashboard/Autocomplete';
 import QuickCreateVehicleModal from '@/Components/Dashboard/QuickCreateVehicleModal';
 import QuickCreateServiceModal from '@/Components/Dashboard/QuickCreateServiceModal';
 import QuickCreatePartModal from '@/Components/Dashboard/QuickCreatePartModal';
+import TransactionPaymentSection from '@/Components/TransactionPaymentSection';
 import { IconArrowLeft, IconDeviceFloppy, IconInfoCircle, IconTrash, IconPlus, IconX } from '@tabler/icons-react';
 import { toInputValue, extractDateFromISO } from '@/Utils/datetime';
 import toast from 'react-hot-toast';
+import { roundToCashDenomination } from '@/Utils/cashRounding';
 
 // Use centralized helper to avoid timezone shifts
 
@@ -46,6 +48,8 @@ export default function Edit({ order, customers, mechanics, services, parts, veh
         discount_value: order.discount_value || 0,
         tax_type: order.tax_type || 'none',
         tax_value: order.tax_value || 0,
+        payment_method: order.payment_method || 'cash',
+        paid_amount: order.paid_amount || 0,
     });
 
     const [selectedCustomer, setSelectedCustomer] = useState(order.customer_id);
@@ -280,6 +284,7 @@ export default function Edit({ order, customers, mechanics, services, parts, veh
         const newItems = [...data.items];
         newItems[itemIndex].parts.push({
             part_id: draft.part_id,
+            part_number: selectedPart?.part_number || selectedPart?.code || '',
             qty: Number(draft.qty) || 1,
             price: Number(draft.price) || selectedPart?.sell_price || 0,
             discount_type: draft.discount_type || 'percent',
@@ -462,7 +467,8 @@ export default function Edit({ order, customers, mechanics, services, parts, veh
         return 0;
     })();
 
-    const grandTotal = afterDiscount + taxAmount;
+    const rawGrandTotal = afterDiscount + taxAmount;
+    const { roundingAdjustment, grandTotal } = roundToCashDenomination(rawGrandTotal);
 
     const formatCurrency = (value) => {
         return new Intl.NumberFormat('id-ID', {
@@ -934,6 +940,7 @@ export default function Edit({ order, customers, mechanics, services, parts, veh
                                                             {item.parts.map((part, partIndex) => {
                                                                 const selectedPart = parts.find((p) => p.id === parseInt(part.part_id));
                                                                 const stock = selectedPart?.stock ?? selectedPart?.qty ?? null;
+                                                                const partNumber = selectedPart?.part_number || selectedPart?.code || part.part_number || '';
                                                                 const base = (Number(part.price) || 0) * (Number(part.qty) || 0);
                                                                 const discount = calcDiscount(base, part.discount_type, part.discount_value);
                                                                 const total = Math.max(0, base - discount);
@@ -942,8 +949,11 @@ export default function Edit({ order, customers, mechanics, services, parts, veh
                                                                     <tr key={partIndex} className="bg-gray-50 align-middle shadow-sm ring-1 ring-gray-200/70 dark:bg-gray-800/40 dark:ring-gray-600/70">
                                                                         <td className="px-2.5 py-2 rounded-l-lg">
                                                                             <div className="flex items-center gap-1.5">
-                                                                                <div className="flex h-9 items-center rounded-lg border border-gray-300 bg-gray-50 px-2.5 text-xs font-semibold text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 truncate" title={selectedPart?.name || `Part #${part.part_id}`}>
-                                                                                    {selectedPart?.name || `Part #${part.part_id}`}
+                                                                                <div className="flex min-h-9 min-w-0 flex-col justify-center rounded-lg border border-gray-300 bg-gray-50 px-2.5 py-1 text-xs font-semibold text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200" title={selectedPart?.name || `Part #${part.part_id}`}>
+                                                                                    <span className="truncate">{selectedPart?.name || `Part #${part.part_id}`}</span>
+                                                                                    {partNumber && (
+                                                                                        <span className="truncate text-[11px] font-normal text-gray-500 dark:text-gray-300">Kode: {partNumber}</span>
+                                                                                    )}
                                                                                 </div>
                                                                                 {stock !== null && (
                                                                                     <span
@@ -1043,6 +1053,7 @@ export default function Edit({ order, customers, mechanics, services, parts, veh
                                                     {item.parts.map((part, partIndex) => {
                                                         const selectedPart = parts.find((p) => p.id === parseInt(part.part_id));
                                                         const stock = selectedPart?.stock ?? selectedPart?.qty ?? null;
+                                                        const partNumber = selectedPart?.part_number || selectedPart?.code || part.part_number || '';
                                                         const base = (Number(part.price) || 0) * (Number(part.qty) || 0);
                                                         const discount = calcDiscount(base, part.discount_type, part.discount_value);
                                                         const total = Math.max(0, base - discount);
@@ -1053,7 +1064,12 @@ export default function Edit({ order, customers, mechanics, services, parts, veh
                                                                     <label className="mb-1 block text-[11px] font-semibold text-gray-700 dark:text-gray-300">Sparepart</label>
                                                                     <div className="flex items-center gap-1.5">
                                                                         <div className="flex h-9 items-center rounded-lg border border-gray-300 bg-white px-2.5 text-xs font-semibold text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200">
-                                                                            {selectedPart?.name || `Part #${part.part_id}`}
+                                                                            <div>
+                                                                                <div>{selectedPart?.name || `Part #${part.part_id}`}</div>
+                                                                                {partNumber && (
+                                                                                    <div className="text-[11px] font-normal text-gray-500 dark:text-gray-300">Kode: {partNumber}</div>
+                                                                                )}
+                                                                            </div>
                                                                         </div>
                                                                         {stock !== null && (
                                                                             <span
@@ -1284,11 +1300,37 @@ export default function Edit({ order, customers, mechanics, services, parts, veh
                                     </div>
                                 </div>
 
+                                {roundingAdjustment !== 0 && (
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-slate-600 dark:text-slate-400">Pembulatan:</span>
+                                        <span className={`font-medium ${roundingAdjustment > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                            {roundingAdjustment > 0 ? '+' : ''}{formatCurrency(roundingAdjustment)}
+                                        </span>
+                                    </div>
+                                )}
+
                                 <div className="flex justify-between text-base font-bold text-slate-900 dark:text-slate-100 pt-3 border-t border-slate-200 dark:border-slate-700">
                                     <span>Grand Total:</span>
                                     <span>{formatCurrency(grandTotal)}</span>
                                 </div>
                             </div>
+                        </div>
+
+                        <div className="mt-6">
+                            <TransactionPaymentSection
+                                title="Pembayaran Service Order"
+                                paymentMethod={data.payment_method}
+                                paidAmount={data.paid_amount}
+                                totalAmount={grandTotal}
+                                onPaymentMethodChange={(value) => {
+                                    setData('payment_method', value);
+                                    if (value === 'credit') {
+                                        setData('paid_amount', 0);
+                                    }
+                                }}
+                                onPaidAmountChange={(value) => setData('paid_amount', value)}
+                                formatCurrency={formatCurrency}
+                            />
                         </div>
                     </div>
 

@@ -405,6 +405,7 @@ class PartSaleController extends Controller
         $request->validate([
             'customer_id' => 'required|exists:customers,id',
             'sale_date' => 'required|date',
+            'payment_method' => 'nullable|in:cash,credit',
             'items' => 'required|array|min:1',
             'items.*.part_id' => 'required|exists:parts,id',
             'items.*.quantity' => 'required|integer|min:1',
@@ -443,6 +444,7 @@ class PartSaleController extends Controller
                 'customer_id' => $request->customer_id,
                 'sale_date' => $request->sale_date,
                 'part_sales_order_id' => $request->part_sales_order_id,
+                'payment_method' => $request->payment_method ?? 'cash',
                 'discount_type' => $request->discount_type ?? 'none',
                 'discount_value' => $request->discount_value ?? 0,
                 'tax_type' => $request->tax_type ?? 'none',
@@ -701,6 +703,7 @@ class PartSaleController extends Controller
         $request->validate([
             'customer_id' => 'required|exists:customers,id',
             'sale_date' => 'required|date',
+            'payment_method' => 'nullable|in:cash,credit',
             'items' => 'required|array|min:1',
             'items.*.part_id' => 'required|exists:parts,id',
             'items.*.quantity' => 'required|integer|min:1',
@@ -731,6 +734,7 @@ class PartSaleController extends Controller
             $partSale->update([
                 'customer_id' => $request->customer_id,
                 'sale_date' => $request->sale_date,
+                'payment_method' => $request->payment_method ?? $partSale->payment_method ?? 'cash',
                 'discount_type' => $request->discount_type ?? 'none',
                 'discount_value' => $request->discount_value ?? 0,
                 'tax_type' => $request->tax_type ?? 'none',

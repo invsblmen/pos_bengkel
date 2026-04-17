@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Services\CashRoundingService;
 use App\Services\DiscountTaxService;
 
 class PartSale extends Model
@@ -25,7 +26,9 @@ class PartSale extends Model
         'tax_type',
         'tax_value',
         'tax_amount',
+        'rounding_adjustment',
         'grand_total',
+        'payment_method',
         'paid_amount',
         'remaining_amount',
         'payment_status',
@@ -43,9 +46,12 @@ class PartSale extends Model
         'voucher_discount_amount' => 'integer',
         'tax_value' => 'float',
         'tax_amount' => 'integer',
+        'rounding_adjustment' => 'integer',
         'grand_total' => 'integer',
+        'payment_method' => 'string',
         'paid_amount' => 'integer',
         'remaining_amount' => 'integer',
+        'payment_status' => 'string',
     ];
 
     // Relationships
@@ -111,16 +117,19 @@ class PartSale extends Model
             $this->tax_value ?? 0
         );
 
-        $this->grand_total = $amountAfterDiscount + $this->tax_amount;
+        $rawTotal = $amountAfterDiscount + $this->tax_amount;
+        $rounding = CashRoundingService::roundToCashDenomination($rawTotal);
+        $this->rounding_adjustment = $rounding['rounding_adjustment'];
+        $this->grand_total = $rounding['grand_total'];
 
-        // Update remaining amount
-        $this->remaining_amount = $this->grand_total - $this->paid_amount;
+        $paidAmount = max(0, (int) ($this->paid_amount ?? 0));
+        $this->paid_amount = $paidAmount;
+        $this->remaining_amount = max(0, $this->grand_total - $paidAmount);
 
-        // Update payment status
-        if ($this->paid_amount >= $this->grand_total) {
+        if ($paidAmount >= $this->grand_total) {
             $this->payment_status = 'paid';
             $this->remaining_amount = 0;
-        } elseif ($this->paid_amount > 0) {
+        } elseif ($paidAmount > 0) {
             $this->payment_status = 'partial';
         } else {
             $this->payment_status = 'unpaid';

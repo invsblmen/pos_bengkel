@@ -83,7 +83,7 @@ class DiscountTaxService
      * @param float|int $discountValue The discount percentage or fixed amount
      * @param string $taxType 'none', 'percent', or 'fixed'
      * @param float|int $taxValue The tax percentage or fixed amount
-     * @return array Array with keys: discount_amount, tax_amount, grand_total
+     * @return array Array with keys: discount_amount, tax_amount, raw_total, rounding_adjustment, grand_total
      */
     public static function calculateTotal($subtotal, $discountType = 'none', $discountValue = 0, $taxType = 'none', $taxValue = 0)
     {
@@ -92,12 +92,15 @@ class DiscountTaxService
         $discountAmount = self::calculateDiscount($subtotal, $discountType, $discountValue);
         $amountAfterDiscount = $subtotal - $discountAmount;
         $taxAmount = self::calculateTax($amountAfterDiscount, $taxType, $taxValue);
-        $grandTotal = $amountAfterDiscount + $taxAmount;
+        $rawTotal = max(0, $amountAfterDiscount + $taxAmount);
+        $rounding = CashRoundingService::roundToCashDenomination($rawTotal);
 
         return [
             'discount_amount' => $discountAmount,
             'tax_amount' => $taxAmount,
-            'grand_total' => $grandTotal,
+            'raw_total' => $rawTotal,
+            'rounding_adjustment' => $rounding['rounding_adjustment'],
+            'grand_total' => $rounding['grand_total'],
         ];
     }
 

@@ -3,6 +3,7 @@ import { Head, Link, useForm } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import Button from '@/Components/Dashboard/Button';
 import CustomerSelect from '@/Components/ServiceOrder/CustomerSelect';
+import TransactionPaymentSection from '@/Components/TransactionPaymentSection';
 import {
     IconArrowLeft, IconTrash, IconPlus, IconSearch,
     IconShoppingCart, IconReceipt, IconCash, IconCheck,
@@ -10,6 +11,7 @@ import {
 } from '@tabler/icons-react';
 import toast from 'react-hot-toast';
 import { todayLocalDate } from '@/Utils/datetime';
+import { roundToCashDenomination } from '@/Utils/cashRounding';
 
 export default function Create({ parts = [], customers = [], availableVouchers = [] }) {
     const [localCustomers, setLocalCustomers] = useState(customers);
@@ -23,6 +25,7 @@ export default function Create({ parts = [], customers = [], availableVouchers =
         discount_value: 0,
         tax_type: 'percent',
         tax_value: 0,
+        payment_method: 'cash',
         paid_amount: 0,
         status: 'confirmed',
     });
@@ -124,11 +127,13 @@ export default function Create({ parts = [], customers = [], availableVouchers =
         }
 
         const fallbackPrice = getPartPrice(part);
+        const partNumber = getPartNumber(part);
         setData('items', [
             ...data.items,
             {
                 part_id: partId,
                 part_name: partName || `Part #${partId}`,
+                part_number: partNumber,
                 quantity: itemQty,
                 unit_price: itemPrice || fallbackPrice,
                 discount_type: itemDiscountType,
@@ -204,7 +209,8 @@ export default function Create({ parts = [], customers = [], availableVouchers =
     };
 
     const taxAmount = calculateTax();
-    const totalAmount = afterDiscount + taxAmount;
+    const rawTotalAmount = afterDiscount + taxAmount;
+    const { roundingAdjustment, grandTotal: totalAmount } = roundToCashDenomination(rawTotalAmount);
     const minimumDownPaymentReminder = Math.ceil(totalAmount * 0.5);
     const remainingAmount = Math.max(0, totalAmount - (Number(data.paid_amount) || 0));
     const paymentStatus = totalAmount === 0
@@ -555,6 +561,9 @@ export default function Create({ parts = [], customers = [], availableVouchers =
                                                     <tr key={index} className="bg-white dark:bg-slate-900/70 shadow-sm ring-1 ring-slate-200/60 dark:ring-slate-800/60">
                                                         <td className="px-2 py-1.5 first:rounded-l-lg">
                                                             <div className="font-semibold text-slate-900 dark:text-white text-sm">{item.part_name}</div>
+                                                            {item.part_number && (
+                                                                <div className="text-xs text-slate-500 dark:text-slate-400">Kode: {item.part_number}</div>
+                                                            )}
                                                             {discountAmount > 0 && (
                                                                 <div className="text-[10px] text-red-600 dark:text-red-400 mt-0.5 font-medium">
                                                                     -{formatCurrency(discountAmount)}
@@ -663,6 +672,9 @@ export default function Create({ parts = [], customers = [], availableVouchers =
                                                 <div className="flex items-start justify-between gap-3">
                                                     <div className="flex-1">
                                                         <p className="font-bold text-slate-900 dark:text-white">{item.part_name}</p>
+                                                        {item.part_number && (
+                                                            <p className="text-xs text-slate-500 dark:text-slate-400">Kode: {item.part_number}</p>
+                                                        )}
                                                         {discountAmount > 0 && (
                                                             <p className="text-[10px] text-red-600 dark:text-red-400 mt-0.5 font-medium">
                                                                 -{formatCurrency(discountAmount)}
@@ -961,39 +973,43 @@ export default function Create({ parts = [], customers = [], availableVouchers =
                                             <span className="text-slate-600 dark:text-slate-400 font-medium">Pajak</span>
                                             <span className="font-bold text-green-600 dark:text-green-400">+{formatCurrency(taxAmount)}</span>
                                         </div>
+                                        {roundingAdjustment !== 0 && (
+                                            <div className="flex items-center justify-between pb-3 border-b border-emerald-200 dark:border-emerald-700/30">
+                                                <span className="text-slate-600 dark:text-slate-400 font-medium">Pembulatan</span>
+                                                <span className={`font-bold ${roundingAdjustment > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                                    {roundingAdjustment > 0 ? '+' : ''}{formatCurrency(roundingAdjustment)}
+                                                </span>
+                                            </div>
+                                        )}
                                         <div className="flex items-center justify-between pt-2 pb-4 border-b-2 border-emerald-300 dark:border-emerald-600">
                                             <span className="text-lg font-bold text-slate-900 dark:text-white">Total</span>
                                             <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(totalAmount)}</span>
                                         </div>
                                     </div>
 
-                                    <div>
-                                        <label className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-2">
-                                            <IconCurrencyDollar size={16} className="text-emerald-600" />
-                                            Pembayaran Awal
-                                        </label>
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            value={data.paid_amount}
-                                            onChange={(e) => setData('paid_amount', e.target.value)}
-                                            placeholder="0"
-                                            className="w-full h-12 px-4 rounded-xl border-2 border-emerald-300 dark:border-emerald-700 dark:bg-slate-800 dark:text-white font-bold text-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                                    <div className="pt-1">
+                                        <TransactionPaymentSection
+                                            title="Pembayaran Penjualan"
+                                            paymentMethod={data.payment_method}
+                                            paidAmount={data.paid_amount}
+                                            totalAmount={totalAmount}
+                                            onPaymentMethodChange={(value) => {
+                                                setData('payment_method', value);
+                                                if (value === 'credit') {
+                                                    setData('paid_amount', 0);
+                                                }
+                                            }}
+                                            onPaidAmountChange={(value) => setData('paid_amount', value)}
+                                            formatCurrency={formatCurrency}
                                         />
                                         {data.status === 'waiting_stock' && totalAmount > 0 && (
-                                            <p className="text-xs text-amber-700 dark:text-amber-400 mt-2 font-medium">
+                                            <p className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-400">
                                                 Pengingat pemesanan: DP disarankan minimal {formatCurrency(minimumDownPaymentReminder)} (50% dari total).
                                             </p>
                                         )}
                                     </div>
 
-                                    <div className="pt-4 space-y-3">
-                                        {Number(data.paid_amount) > totalAmount && (
-                                            <div className="px-4 py-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700/30">
-                                                <p className="text-xs text-blue-700 dark:text-blue-400 font-medium">Kembalian</p>
-                                                <p className="text-lg font-bold text-blue-600 dark:text-blue-400 mt-1">{formatCurrency(Number(data.paid_amount) - totalAmount)}</p>
-                                            </div>
-                                        )}
+                                    <div className="pt-2 space-y-3">
                                         <div className="flex items-center justify-between text-sm">
                                             <span className="text-slate-600 dark:text-slate-400 font-medium">Sisa Pembayaran</span>
                                             <span className={`font-bold ${

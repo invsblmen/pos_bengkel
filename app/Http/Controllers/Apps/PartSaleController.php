@@ -10,6 +10,7 @@ use App\Models\PartSaleDetail;
 use App\Models\PartStockMovement;
 use App\Services\DiscountTaxService;
 use App\Services\FIFOCostingService;
+use App\Support\DispatchesBroadcastSafely;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -19,6 +20,8 @@ use Illuminate\Validation\ValidationException;
 
 class PartSaleController extends Controller
 {
+    use DispatchesBroadcastSafely;
+
     public function index(Request $request)
     {
         $sales = PartSale::with(['user'])->orderByDesc('created_at')->paginate(15)->withQueryString();
@@ -125,7 +128,10 @@ class PartSaleController extends Controller
             // Calculate transaction-level discount and tax
             $sale->recalculateTotals()->save();
 
-            broadcast(new PartSaleCreated($sale->fresh()->toArray()));
+            $this->dispatchBroadcastSafely(
+                fn () => broadcast(new PartSaleCreated($sale->fresh()->toArray())),
+                PartSaleCreated::class
+            );
         });
 
         return redirect()->route('part-sales.index')->with('success', 'Penjualan sparepart berhasil disimpan');
