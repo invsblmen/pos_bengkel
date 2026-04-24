@@ -21,7 +21,7 @@ class ServiceOrder extends Model
         'discount_type', 'discount_value', 'discount_amount',
         'voucher_id', 'voucher_code', 'voucher_discount_amount',
         'tax_type', 'tax_value', 'tax_amount', 'rounding_adjustment', 'grand_total',
-        'payment_method', 'paid_amount', 'remaining_amount', 'payment_status'
+        'payment_method', 'paid_amount', 'remaining_amount', 'payment_status', 'transfer_destination', 'payment_meta'
     ];
 
     protected $casts = [
@@ -41,6 +41,8 @@ class ServiceOrder extends Model
         'rounding_adjustment' => 'integer',
         'grand_total' => 'integer',
         'payment_method' => 'string',
+        'transfer_destination' => 'string',
+        'payment_meta' => 'array',
         'paid_amount' => 'integer',
         'remaining_amount' => 'integer',
         'payment_status' => 'string',

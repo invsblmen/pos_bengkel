@@ -10,6 +10,19 @@ trait DispatchesBroadcastSafely
 {
     protected function dispatchBroadcastSafely(callable $dispatcher, string $eventName): void
     {
+        // If realtime is explicitly disabled via env, skip broadcasting entirely.
+        if (env('DISABLE_REALTIME', false)) {
+            Log::info('Realtime broadcasting disabled by DISABLE_REALTIME env var.', ['event' => $eventName]);
+            return;
+        }
+
+        // If broadcasting driver is set to a non-network driver, skip network calls.
+        $driver = config('broadcasting.default');
+        if (in_array($driver, ['log', 'null'], true)) {
+            Log::info('Skipping broadcast because broadcasting driver is ' . $driver, ['event' => $eventName]);
+            return;
+        }
+
         try {
             $dispatcher();
         } catch (BroadcastException $e) {

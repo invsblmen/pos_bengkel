@@ -393,6 +393,7 @@ class PartSaleController extends Controller
             'customers' => $customers,
             'parts' => $parts,
             'salesOrder' => $salesOrder,
+            'cashDenominations' => $this->getCashDenominations(),
             'availableVouchers' => Voucher::query()
                 ->where('is_active', true)
                 ->orderBy('code')
@@ -405,7 +406,9 @@ class PartSaleController extends Controller
         $request->validate([
             'customer_id' => 'required|exists:customers,id',
             'sale_date' => 'required|date',
-            'payment_method' => 'nullable|in:cash,credit',
+            'payment_method' => 'nullable|in:cash,credit,mixed',
+            'payment_meta' => 'nullable|array',
+            'transfer_destination' => 'nullable|in:qris,bni,bca,bri,edc_bri,transfer_bni,transfer_bca,transfer_bri',
             'items' => 'required|array|min:1',
             'items.*.part_id' => 'required|exists:parts,id',
             'items.*.quantity' => 'required|integer|min:1',
@@ -450,6 +453,8 @@ class PartSaleController extends Controller
                 'tax_type' => $request->tax_type ?? 'none',
                 'tax_value' => $request->tax_value ?? 0,
                 'paid_amount' => $request->paid_amount ?? 0,
+                'transfer_destination' => $request->transfer_destination ?? null,
+                'payment_meta' => $request->payment_meta ?? null,
                 'notes' => $request->notes,
                 'status' => $status,
                 'created_by' => Auth::id(),
@@ -686,6 +691,7 @@ class PartSaleController extends Controller
             'sale' => $partSale,
             'customers' => $customers,
             'parts' => $parts,
+            'cashDenominations' => $this->getCashDenominations(),
             'availableVouchers' => Voucher::query()
                 ->where('is_active', true)
                 ->orderBy('code')
@@ -703,7 +709,9 @@ class PartSaleController extends Controller
         $request->validate([
             'customer_id' => 'required|exists:customers,id',
             'sale_date' => 'required|date',
-            'payment_method' => 'nullable|in:cash,credit',
+            'payment_method' => 'nullable|in:cash,credit,mixed',
+            'payment_meta' => 'nullable|array',
+            'transfer_destination' => 'nullable|in:qris,bni,bca,bri,edc_bri,transfer_bni,transfer_bca,transfer_bri',
             'items' => 'required|array|min:1',
             'items.*.part_id' => 'required|exists:parts,id',
             'items.*.quantity' => 'required|integer|min:1',
@@ -734,12 +742,14 @@ class PartSaleController extends Controller
             $partSale->update([
                 'customer_id' => $request->customer_id,
                 'sale_date' => $request->sale_date,
+                'transfer_destination' => $request->transfer_destination ?? $partSale->transfer_destination ?? null,
                 'payment_method' => $request->payment_method ?? $partSale->payment_method ?? 'cash',
                 'discount_type' => $request->discount_type ?? 'none',
                 'discount_value' => $request->discount_value ?? 0,
                 'tax_type' => $request->tax_type ?? 'none',
                 'tax_value' => $request->tax_value ?? 0,
                 'paid_amount' => $request->paid_amount ?? $partSale->paid_amount,
+                'payment_meta' => $request->payment_meta ?? $partSale->payment_meta ?? null,
                 'status' => $status,
                 'notes' => $request->notes,
             ]);
@@ -1445,5 +1455,22 @@ class PartSaleController extends Controller
             'warranty_start_date' => $startDate->toDateString(),
             'warranty_end_date' => $endDate->toDateString(),
         ];
+    }
+
+    private function getCashDenominations()
+    {
+        return CashDenomination::query()
+            ->with('drawerStock')
+            ->where('is_active', true)
+            ->orderBy('value')
+            ->get(['id', 'value'])
+            ->map(function ($denomination) {
+                return [
+                    'id' => $denomination->id,
+                    'value' => (int) $denomination->value,
+                    'quantity' => (int) ($denomination->drawerStock->quantity ?? 0),
+                ];
+            })
+            ->values();
     }
 }

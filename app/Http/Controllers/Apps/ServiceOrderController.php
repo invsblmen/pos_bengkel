@@ -7,6 +7,7 @@ use App\Events\ServiceOrderUpdated;
 use App\Events\ServiceOrderDeleted;
 use App\Http\Controllers\Controller;
 use App\Models\BusinessProfile;
+use App\Models\CashDenomination;
 use App\Models\Mechanic;
 use App\Models\WarrantyRegistration;
 use App\Models\ServiceOrder;
@@ -81,8 +82,8 @@ class ServiceOrderController extends Controller
             'pending' => ServiceOrder::where('status', 'pending')->count(),
             'in_progress' => ServiceOrder::where('status', 'in_progress')->count(),
             'completed' => ServiceOrder::where('status', 'completed')->count(),
-            'paid' => ServiceOrder::where('status', 'paid')->count(),
-            'total_revenue' => ServiceOrder::whereIn('status', ['completed', 'paid'])->sum('total'),
+            'paid' => ServiceOrder::where('payment_status', 'paid')->count(),
+            'total_revenue' => ServiceOrder::where('status', 'completed')->sum('total'),
         ];
 
         $payload = [
@@ -109,6 +110,7 @@ class ServiceOrderController extends Controller
             'parts' => \App\Models\Part::with('category')->get(),
             'tags' => \App\Models\Tag::all(),
             'activeServiceOrders' => $activeServiceOrders,
+            'cashDenominations' => $this->getCashDenominations(),
             'availableVouchers' => Voucher::query()
                 ->where('is_active', true)
                 ->orderBy('code')
@@ -136,6 +138,7 @@ class ServiceOrderController extends Controller
             'services' => \App\Models\Service::all(),
             'parts' => \App\Models\Part::with('category')->get(),
             'tags' => \App\Models\Tag::all(),
+            'cashDenominations' => $this->getCashDenominations(),
             'availableVouchers' => Voucher::query()
                 ->where('is_active', true)
                 ->orderBy('code')
@@ -200,7 +203,7 @@ class ServiceOrderController extends Controller
             'customer_id' => 'nullable|exists:customers,id',
             'vehicle_id' => 'nullable|exists:vehicles,id',
             'mechanic_id' => 'nullable|exists:mechanics,id',
-            'status' => 'nullable|in:pending,in_progress,completed,paid,cancelled',
+            'status' => 'nullable|in:pending,in_progress,completed,cancelled',
             'odometer_km' => 'required|integer|min:0|max:1000000',
             'estimated_start_at' => 'nullable|date',
             'estimated_finish_at' => 'nullable|date',
@@ -209,8 +212,10 @@ class ServiceOrderController extends Controller
             'maintenance_type' => 'nullable|string',
             'next_service_km' => 'nullable|integer|min:0',
             'next_service_date' => 'nullable|date',
-            'payment_method' => 'nullable|in:cash,credit',
+            'payment_method' => 'nullable|in:cash,credit,mixed',
             'paid_amount' => 'nullable|integer|min:0',
+            'payment_meta' => 'nullable|array',
+            'transfer_destination' => 'nullable|in:qris,bni,bca,bri,edc_bri,transfer_bni,transfer_bca,transfer_bri',
             'tags' => 'nullable|array',
             'tags.*' => 'integer|exists:tags,id',
             'items' => 'required|array|min:1',
@@ -266,6 +271,8 @@ class ServiceOrderController extends Controller
                 'next_service_date' => $request->next_service_date,
                 'payment_method' => $request->payment_method ?? 'cash',
                 'paid_amount' => $request->paid_amount ?? 0,
+                'transfer_destination' => $request->transfer_destination ?? null,
+                'payment_meta' => $request->payment_meta ?? null,
                 'total' => 0,
                 'discount_type' => $request->discount_type ?? 'none',
                 'discount_value' => $request->discount_value ?? 0,
@@ -296,8 +303,8 @@ class ServiceOrderController extends Controller
             $this->calculateServiceOrderCosts($order, $request->items);
             $this->applyVoucherToServiceOrder($order, $request->voucher_code);
 
-            // If created with completed or paid status, deduct parts from inventory
-            if (in_array($order->status, ['completed', 'paid'])) {
+            // If created with completed status, deduct parts from inventory
+            if ($order->status === 'completed') {
                 $this->deductPartsFromInventory($order);
                 $this->syncWarrantyRegistrationsForFinalizedOrder($order);
             }
@@ -417,7 +424,7 @@ class ServiceOrderController extends Controller
             'customer_id' => 'nullable|exists:customers,id',
             'vehicle_id' => 'nullable|exists:vehicles,id',
             'mechanic_id' => 'nullable|exists:mechanics,id',
-            'odometer_km' => 'required_if:status,completed,paid|nullable|integer|min:0|max:1000000',
+            'odometer_km' => 'required_if:status,completed|nullable|integer|min:0|max:1000000',
             'estimated_start_at' => 'nullable|date',
             'estimated_finish_at' => 'nullable|date',
             'labor_cost' => 'nullable|integer|min:0',
@@ -425,8 +432,10 @@ class ServiceOrderController extends Controller
             'maintenance_type' => 'nullable|string',
             'next_service_km' => 'nullable|integer|min:0',
             'next_service_date' => 'nullable|date',
-            'payment_method' => 'nullable|in:cash,credit',
+            'payment_method' => 'nullable|in:cash,credit,mixed',
             'paid_amount' => 'nullable|integer|min:0',
+            'payment_meta' => 'nullable|array',
+            'transfer_destination' => 'nullable|in:qris,bni,bca,bri,edc_bri,transfer_bni,transfer_bca,transfer_bri',
             'tags' => 'nullable|array',
             'tags.*' => 'integer|exists:tags,id',
             'items' => 'required|array|min:1',
@@ -463,6 +472,8 @@ class ServiceOrderController extends Controller
             'next_service_date' => $request->next_service_date,
             'payment_method' => $request->payment_method ?? $order->payment_method ?? 'cash',
             'paid_amount' => $request->paid_amount ?? $order->paid_amount ?? 0,
+            'transfer_destination' => $request->transfer_destination ?? $order->transfer_destination ?? null,
+            'payment_meta' => $request->payment_meta ?? $order->payment_meta ?? null,
             'discount_type' => $request->discount_type ?? 'none',
             'discount_value' => $request->discount_value ?? 0,
             'voucher_id' => null,
@@ -507,17 +518,17 @@ class ServiceOrderController extends Controller
     public function updateStatus(Request $request, $id)
     {
         $request->validate([
-            'status' => 'required|in:pending,in_progress,completed,paid,cancelled',
+            'status' => 'required|in:pending,in_progress,completed,cancelled',
             'odometer_km' => 'nullable|integer|min:0|max:1000000',
         ]);
 
         $order = ServiceOrder::findOrFail($id);
         $oldStatus = $order->status;
 
-        // If moving to completed/paid, require odometer (either existing or provided now)
-        if (in_array($request->status, ['completed', 'paid'])) {
+        // If moving to completed, require odometer (either existing or provided now)
+        if ($request->status === 'completed') {
             if (is_null($order->odometer_km) && is_null($request->odometer_km)) {
-                return back()->withErrors(['odometer_km' => 'Odometer (km) wajib diisi saat menyelesaikan atau menandai order sebagai dibayar.'])->withInput();
+                return back()->withErrors(['odometer_km' => 'Odometer (km) wajib diisi saat menyelesaikan order.'])->withInput();
             }
             if (!is_null($request->odometer_km)) {
                 // Validate progression vs previous
@@ -536,9 +547,9 @@ class ServiceOrderController extends Controller
 
         $order->status = $request->status;
 
-        // When status changes to completed or paid, deduct parts from inventory
-        // Only deduct if previous status was not completed or paid (to avoid double deduction)
-        if (!in_array($oldStatus, ['completed', 'paid']) && in_array($request->status, ['completed', 'paid'])) {
+        // When status changes to completed, deduct parts from inventory
+        // Only deduct if previous status was not completed (to avoid double deduction)
+        if ($oldStatus !== 'completed' && $request->status === 'completed') {
             $this->deductPartsFromInventory($order);
         }
 
@@ -553,11 +564,11 @@ class ServiceOrderController extends Controller
             'notes' => $request->notes ?? null,
         ]);
 
-        if (!in_array($oldStatus, ['completed', 'paid']) && in_array($request->status, ['completed', 'paid'])) {
+        if ($oldStatus !== 'completed' && $request->status === 'completed') {
             $this->syncWarrantyRegistrationsForFinalizedOrder($order);
         }
 
-        if (in_array($oldStatus, ['completed', 'paid']) && !in_array($request->status, ['completed', 'paid'])) {
+        if ($oldStatus === 'completed' && $request->status !== 'completed') {
             $this->warrantyRegistrationService->removeByServiceOrder($order->id);
         }
 
@@ -859,6 +870,23 @@ class ServiceOrderController extends Controller
             'part_ids' => array_values(array_unique($partIds)),
             'part_category_ids' => array_values(array_unique($partCategoryIds)),
         ];
+    }
+
+    private function getCashDenominations()
+    {
+        return CashDenomination::query()
+            ->with('drawerStock')
+            ->where('is_active', true)
+            ->orderBy('value')
+            ->get(['id', 'value'])
+            ->map(function ($denomination) {
+                return [
+                    'id' => $denomination->id,
+                    'value' => (int) $denomination->value,
+                    'quantity' => (int) ($denomination->drawerStock->quantity ?? 0),
+                ];
+            })
+            ->values();
     }
 
 }

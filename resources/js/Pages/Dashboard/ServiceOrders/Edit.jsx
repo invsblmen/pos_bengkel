@@ -6,28 +6,18 @@ import QuickCreateVehicleModal from '@/Components/Dashboard/QuickCreateVehicleMo
 import QuickCreateServiceModal from '@/Components/Dashboard/QuickCreateServiceModal';
 import QuickCreatePartModal from '@/Components/Dashboard/QuickCreatePartModal';
 import TransactionPaymentSection from '@/Components/TransactionPaymentSection';
+import PaymentReceiptModal from '@/Components/PaymentReceiptModal';
 import { IconArrowLeft, IconDeviceFloppy, IconInfoCircle, IconTrash, IconPlus, IconX } from '@tabler/icons-react';
 import { toInputValue, extractDateFromISO } from '@/Utils/datetime';
 import toast from 'react-hot-toast';
 import { roundToCashDenomination } from '@/Utils/cashRounding';
 
-// Use centralized helper to avoid timezone shifts
-
-const formatCurrency = (value) => {
-    return new Intl.NumberFormat('id-ID', {
-        style: 'currency',
-        currency: 'IDR',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-    }).format(value);
-};
-
-export default function Edit({ order, customers, mechanics, services, parts, vehicles, tags, availableVouchers = [] }) {
+export default function Edit({ order, customers, mechanics, services, parts, vehicles, tags, availableVouchers = [], cashDenominations = [] }) {
     const { data, setData, put, processing, errors } = useForm({
         customer_id: order.customer_id || '',
         vehicle_id: order.vehicle_id || '',
         mechanic_id: order.mechanic_id || '',
-        status: order.status || 'pending',
+        status: order.status === 'paid' ? 'completed' : (order.status || 'pending'),
         odometer_km: order.odometer_km || '',
         estimated_start_at: toInputValue(order.estimated_start_at) || '',
         estimated_finish_at: toInputValue(order.estimated_finish_at) || '',
@@ -50,6 +40,8 @@ export default function Edit({ order, customers, mechanics, services, parts, veh
         tax_value: order.tax_value || 0,
         payment_method: order.payment_method || 'cash',
         paid_amount: order.paid_amount || 0,
+        payment_meta: order.payment_meta || {},
+        transfer_destination: order.transfer_destination || '',
     });
 
     const [selectedCustomer, setSelectedCustomer] = useState(order.customer_id);
@@ -66,6 +58,25 @@ export default function Edit({ order, customers, mechanics, services, parts, veh
     const [insights, setInsights] = useState({ last_km: {}, vehicle_km: null, last_order_km: null });
     const [vehicleHistory, setVehicleHistory] = useState({ recent_orders: [] });
     const [vehicleRecommendations, setVehicleRecommendations] = useState({ recommended_parts: [], recommended_services: [] });
+    const [showPaymentModal, setShowPaymentModal] = useState(false);
+
+    const formatCurrency = (value) => {
+        return new Intl.NumberFormat('id-ID', {
+            style: 'currency',
+            currency: 'IDR',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
+        }).format(value);
+    };
+
+    const handlePaymentConfirm = (paymentData) => {
+        setData('payment_method', paymentData.payment_method || 'cash');
+        setData('paid_amount', Number(paymentData.paid_amount || 0));
+        setData('transfer_destination', paymentData.transfer_destination || '');
+        setData('payment_meta', paymentData.payment_meta || {});
+        setShowPaymentModal(false);
+        toast.success('Data pembayaran tersimpan');
+    };
 
     const prevKm = useMemo(() => {
         const vals = [insights.vehicle_km, insights.last_order_km].filter((v) => v !== null && v !== undefined);
@@ -394,9 +405,9 @@ export default function Edit({ order, customers, mechanics, services, parts, veh
             return;
         }
 
-        // If status completed/paid, odometer required
-        if ((data.status === 'completed' || data.status === 'paid') && (data.odometer_km === '' || data.odometer_km === null)) {
-            toast.error('Odometer (Km) wajib diisi saat status Selesai/Dibayar.');
+        // If status completed, odometer required
+        if (data.status === 'completed' && (data.odometer_km === '' || data.odometer_km === null)) {
+            toast.error('Odometer (Km) wajib diisi saat status Selesai.');
             return;
         }
 
@@ -469,14 +480,6 @@ export default function Edit({ order, customers, mechanics, services, parts, veh
 
     const rawGrandTotal = afterDiscount + taxAmount;
     const { roundingAdjustment, grandTotal } = roundToCashDenomination(rawGrandTotal);
-
-    const formatCurrency = (value) => {
-        return new Intl.NumberFormat('id-ID', {
-            style: 'currency',
-            currency: 'IDR',
-            minimumFractionDigits: 0,
-        }).format(value);
-    };
 
     return (
         <>
@@ -622,16 +625,19 @@ export default function Edit({ order, customers, mechanics, services, parts, veh
                                                 </div>
                                                 <div className="text-right space-y-1">
                                                     <span className={`inline-block rounded-full px-2 py-1 text-xs font-medium ${
-                                                        order.status === 'paid' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
                                                         order.status === 'completed' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
                                                         order.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
                                                         'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
                                                     }`}>
-                                                        {order.status === 'paid' ? 'Dibayar' :
-                                                         order.status === 'completed' ? 'Selesai' :
+                                                        {order.status === 'completed' ? 'Selesai' :
                                                          order.status === 'in_progress' ? 'Diproses' :
                                                          'Menunggu'}
                                                     </span>
+                                                    {order.payment_status && order.payment_status !== 'unpaid' && (
+                                                        <span className="inline-block rounded-full px-2 py-1 text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
+                                                            {order.payment_status === 'paid' ? 'Lunas' : 'Sebagian'}
+                                                        </span>
+                                                    )}
                                                     {order.total_cost && (
                                                         <p className="text-xs font-semibold text-blue-900 dark:text-blue-100">
                                                             {formatCurrency(order.total_cost)}
@@ -656,7 +662,6 @@ export default function Edit({ order, customers, mechanics, services, parts, veh
                                     <option value="pending">Menunggu / Mengantri</option>
                                     <option value="in_progress">Sedang Dikerjakan</option>
                                     <option value="completed">Selesai Dikerjakan</option>
-                                    <option value="paid">Sudah Dibayar</option>
                                     <option value="cancelled">Dibatalkan</option>
                                 </select>
                                 {errors.status && (
@@ -1322,14 +1327,9 @@ export default function Edit({ order, customers, mechanics, services, parts, veh
                                 paymentMethod={data.payment_method}
                                 paidAmount={data.paid_amount}
                                 totalAmount={grandTotal}
-                                onPaymentMethodChange={(value) => {
-                                    setData('payment_method', value);
-                                    if (value === 'credit') {
-                                        setData('paid_amount', 0);
-                                    }
-                                }}
-                                onPaidAmountChange={(value) => setData('paid_amount', value)}
+                                transferDestination={data.transfer_destination}
                                 formatCurrency={formatCurrency}
+                                onOpenPaymentModal={() => setShowPaymentModal(true)}
                             />
                         </div>
                     </div>
@@ -1530,6 +1530,15 @@ export default function Edit({ order, customers, mechanics, services, parts, veh
                 }}
                 initialName={partSearchTerm}
                 onSuccess={handlePartCreated}
+            />
+            <PaymentReceiptModal
+                show={showPaymentModal}
+                onClose={() => setShowPaymentModal(false)}
+                onConfirm={handlePaymentConfirm}
+                totalAmount={grandTotal}
+                cashDenominations={cashDenominations}
+                initialPayment={data}
+                formatCurrency={formatCurrency}
             />
         </>
     );

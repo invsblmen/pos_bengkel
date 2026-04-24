@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import TransactionPaymentSection from '@/Components/TransactionPaymentSection';
+import PaymentReceiptModal from '@/Components/PaymentReceiptModal';
 import {
     IconArrowLeft, IconTrash, IconPlus, IconSearch,
     IconShoppingCart, IconReceipt, IconCash, IconCheck,
@@ -12,9 +13,10 @@ import { todayLocalDate } from '@/Utils/datetime';
 import AddSupplierModal from '@/Components/Dashboard/AddSupplierModal';
 import { roundToCashDenomination } from '@/Utils/cashRounding';
 
-export default function Create({ suppliers = [], parts = [], categories = [] }) {
+export default function Create({ suppliers = [], parts = [], categories = [], cashDenominations = [] }) {
     const [localSuppliers, setLocalSuppliers] = useState(suppliers);
     const [showSupplierModal, setShowSupplierModal] = useState(false);
+    const [showPaymentModal, setShowPaymentModal] = useState(false);
 
     const { data, setData, post, processing, errors } = useForm({
         supplier_id: '',
@@ -28,6 +30,8 @@ export default function Create({ suppliers = [], parts = [], categories = [] }) 
         tax_value: 0,
         payment_method: 'cash',
         paid_amount: 0,
+        payment_meta: {},
+        transfer_destination: '',
     });
 
     const [selectedPart, setSelectedPart] = useState(null);
@@ -55,6 +59,15 @@ export default function Create({ suppliers = [], parts = [], categories = [] }) 
 
     const formatCurrency = (value = 0) =>
         new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value);
+
+    const handlePaymentConfirm = (paymentData) => {
+        setData('payment_method', paymentData.payment_method || 'cash');
+        setData('paid_amount', Number(paymentData.paid_amount || 0));
+        setData('transfer_destination', paymentData.transfer_destination || '');
+        setData('payment_meta', paymentData.payment_meta || {});
+        setShowPaymentModal(false);
+        toast.success('Data pembayaran tersimpan');
+    };
 
     const handleSubmit = (e) => {
         e?.preventDefault?.();
@@ -917,14 +930,9 @@ export default function Create({ suppliers = [], parts = [], categories = [] }) 
                                         paymentMethod={data.payment_method}
                                         paidAmount={data.paid_amount}
                                         totalAmount={totalAmount}
-                                        onPaymentMethodChange={(value) => {
-                                            setData('payment_method', value);
-                                            if (value === 'credit') {
-                                                setData('paid_amount', 0);
-                                            }
-                                        }}
-                                        onPaidAmountChange={(value) => setData('paid_amount', value)}
+                                        transferDestination={data.transfer_destination}
                                         formatCurrency={formatCurrency}
+                                        onOpenPaymentModal={() => setShowPaymentModal(true)}
                                     />
 
                                     <div className="pt-6">
@@ -967,6 +975,15 @@ export default function Create({ suppliers = [], parts = [], categories = [] }) 
                     }}
                 />
             )}
+            <PaymentReceiptModal
+                show={showPaymentModal}
+                onClose={() => setShowPaymentModal(false)}
+                onConfirm={handlePaymentConfirm}
+                totalAmount={totalAmount}
+                cashDenominations={cashDenominations}
+                initialPayment={data}
+                formatCurrency={formatCurrency}
+            />
         </>
     );
 }

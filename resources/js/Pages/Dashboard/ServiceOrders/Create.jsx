@@ -11,6 +11,7 @@ import QuickCreateVehicleModal from '@/Components/Dashboard/QuickCreateVehicleMo
 import QuickCreatePartModal from '@/Components/Dashboard/QuickCreatePartModal';
 import VehicleHistoryModal from '@/Components/ServiceOrder/VehicleHistoryModal';
 import TransactionPaymentSection from '@/Components/TransactionPaymentSection';
+import PaymentReceiptModal from '@/Components/PaymentReceiptModal';
 import { useRealtimeEvents } from '@/Hooks/useRealtimeEvents';
 import {
     IconDeviceFloppy,
@@ -33,16 +34,7 @@ const generateSubmissionToken = () => {
     return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 };
 
-const formatCurrency = (value) => {
-    return new Intl.NumberFormat('id-ID', {
-        style: 'currency',
-        currency: 'IDR',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-    }).format(value);
-};
-
-export default function Create({ customers, mechanics, services, parts, vehicles, tags, activeServiceOrders, availableVouchers = [] }) {
+export default function Create({ customers, mechanics, services, parts, vehicles, tags, activeServiceOrders, availableVouchers = [], cashDenominations = [] }) {
     const { data, setData, post, processing, errors } = useForm({
         submission_token: generateSubmissionToken(),
         customer_id: '',
@@ -65,6 +57,8 @@ export default function Create({ customers, mechanics, services, parts, vehicles
         tax_value: 0,
         payment_method: 'cash',
         paid_amount: 0,
+        payment_meta: {},
+        transfer_destination: '',
     });
 
     const [customerVehicles, setCustomerVehicles] = useState([]);
@@ -91,6 +85,25 @@ export default function Create({ customers, mechanics, services, parts, vehicles
 
     // Edit Mode
     const [editingItemIndex, setEditingItemIndex] = useState(null);
+    const [showPaymentModal, setShowPaymentModal] = useState(false);
+
+    const formatCurrency = (value) => {
+        return new Intl.NumberFormat('id-ID', {
+            style: 'currency',
+            currency: 'IDR',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
+        }).format(value);
+    };
+
+    const handlePaymentConfirm = (paymentData) => {
+        setData('payment_method', paymentData.payment_method || 'cash');
+        setData('paid_amount', Number(paymentData.paid_amount || 0));
+        setData('transfer_destination', paymentData.transfer_destination || '');
+        setData('payment_meta', paymentData.payment_meta || {});
+        setShowPaymentModal(false);
+        toast.success('Data pembayaran tersimpan');
+    };
 
     useEffect(() => {
         setLiveCustomers(customers || []);
@@ -889,6 +902,26 @@ export default function Create({ customers, mechanics, services, parts, vehicles
                                     className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
                                 />
                             </div>
+
+                            <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 p-4 space-y-3">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                        <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Pembayaran Service Order</h3>
+                                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                            Letakkan pembayaran di sini agar area input utama tetap lega saat membuat order baru.
+                                        </p>
+                                    </div>
+                                </div>
+                                <TransactionPaymentSection
+                                    title="Pembayaran Service Order"
+                                    paymentMethod={data.payment_method}
+                                    paidAmount={data.paid_amount}
+                                    totalAmount={grandTotal}
+                                    transferDestination={data.transfer_destination}
+                                    formatCurrency={formatCurrency}
+                                    onOpenPaymentModal={() => setShowPaymentModal(true)}
+                                />
+                            </div>
                         </div>
                     </div>
 
@@ -924,23 +957,6 @@ export default function Create({ customers, mechanics, services, parts, vehicles
                             <span className="text-xl font-bold text-primary-600 dark:text-primary-400">
                                 {formatCurrency(grandTotal)}
                             </span>
-                        </div>
-
-                        <div className="mb-3">
-                            <TransactionPaymentSection
-                                title="Pembayaran Service Order"
-                                paymentMethod={data.payment_method}
-                                paidAmount={data.paid_amount}
-                                totalAmount={grandTotal}
-                                onPaymentMethodChange={(value) => {
-                                    setData('payment_method', value);
-                                    if (value === 'credit') {
-                                        setData('paid_amount', 0);
-                                    }
-                                }}
-                                onPaidAmountChange={(value) => setData('paid_amount', value)}
-                                formatCurrency={formatCurrency}
-                            />
                         </div>
 
                         {/* Submit Button - Always visible */}
@@ -1016,9 +1032,17 @@ export default function Create({ customers, mechanics, services, parts, vehicles
                 vehicle={currentVehicle}
                 serviceHistory={vehicleHistory}
             />
+            <PaymentReceiptModal
+                show={showPaymentModal}
+                onClose={() => setShowPaymentModal(false)}
+                onConfirm={handlePaymentConfirm}
+                totalAmount={grandTotal}
+                cashDenominations={cashDenominations}
+                initialPayment={data}
+                formatCurrency={formatCurrency}
+            />
         </ServiceOrderLayout>
     );
 }
 
 // No need for layout wrapper since we're using ServiceOrderLayout directly
-

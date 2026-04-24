@@ -72,8 +72,8 @@ class VehicleController extends Controller
 
         $stats = [
             'total'          => Vehicle::count(),
-            'serviced'       => Vehicle::whereHas('serviceOrders', fn ($q) => $q->whereIn('status', ['completed', 'paid']))->count(),
-            'never_serviced' => Vehicle::whereDoesntHave('serviceOrders', fn ($q) => $q->whereIn('status', ['completed', 'paid']))->count(),
+            'serviced'       => Vehicle::whereHas('serviceOrders', fn ($q) => $q->where('status', 'completed'))->count(),
+            'never_serviced' => Vehicle::whereDoesntHave('serviceOrders', fn ($q) => $q->where('status', 'completed'))->count(),
             'this_month'     => Vehicle::whereHas('serviceOrders', fn ($q) => $q->whereMonth('created_at', now()->month)->whereYear('created_at', now()->year))->count(),
         ];
 
@@ -465,9 +465,9 @@ class VehicleController extends Controller
      */
     private function calculateVehicleDataFromOrders($vehicle)
     {
-        // Get all completed/paid service orders
+        // Get all completed service orders
         $orders = \App\Models\ServiceOrder::where('vehicle_id', $vehicle->id)
-            ->whereIn('status', ['completed', 'paid'])
+            ->where('status', 'completed')
             ->whereNotNull('odometer_km')
             ->orderByDesc('created_at')
             ->get();

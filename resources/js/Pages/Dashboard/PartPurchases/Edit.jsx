@@ -3,15 +3,17 @@ import { Head, router } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import toast from 'react-hot-toast';
 import TransactionPaymentSection from '@/Components/TransactionPaymentSection';
+import PaymentReceiptModal from '@/Components/PaymentReceiptModal';
 import { IconPlus, IconTrash, IconArrowLeft, IconPencil, IconTruck, IconCheck, IconAlertTriangle, IconPercentage, IconReceipt, IconShoppingCart, IconSearch, IconDiscount, IconCash } from '@tabler/icons-react';
 import { todayLocalDate, extractDateFromISO } from '@/Utils/datetime';
 import AddSupplierModal from '@/Components/Dashboard/AddSupplierModal';
 import { roundToCashDenomination } from '@/Utils/cashRounding';
 
-export default function Edit({ purchase, suppliers, parts, categories = [] }) {
+export default function Edit({ purchase, suppliers, parts, categories = [], cashDenominations = [] }) {
     const [localSuppliers, setLocalSuppliers] = useState(suppliers);
     const [localParts, setLocalParts] = useState(parts);
     const [showSupplierModal, setShowSupplierModal] = useState(false);
+    const [showPaymentModal, setShowPaymentModal] = useState(false);
 
     // Initialize form with purchase data
     const [formData, setFormData] = useState({
@@ -39,6 +41,8 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
         tax_value: purchase.tax_value || 0,
         payment_method: purchase.payment_method || 'cash',
         paid_amount: purchase.paid_amount || 0,
+        payment_meta: purchase.payment_meta || {},
+        transfer_destination: purchase.transfer_destination || '',
     });
 
     const [errors, setErrors] = useState({});
@@ -59,6 +63,15 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
         if (errors[field]) {
             setErrors(prev => ({ ...prev, [field]: null }));
         }
+    };
+
+    const handlePaymentConfirm = (paymentData) => {
+        handleChange('payment_method', paymentData.payment_method || 'cash');
+        handleChange('paid_amount', Number(paymentData.paid_amount || 0));
+        handleChange('transfer_destination', paymentData.transfer_destination || '');
+        handleChange('payment_meta', paymentData.payment_meta || {});
+        setShowPaymentModal(false);
+        toast.success('Data pembayaran tersimpan');
     };
 
     const openEditItemModal = (index) => {
@@ -1049,14 +1062,8 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
                                         paymentMethod={formData.payment_method}
                                         paidAmount={formData.paid_amount}
                                         totalAmount={grandTotal}
-                                        onPaymentMethodChange={(value) => {
-                                            handleChange('payment_method', value);
-                                            if (value === 'credit') {
-                                                handleChange('paid_amount', 0);
-                                            }
-                                        }}
-                                        onPaidAmountChange={(value) => handleChange('paid_amount', value)}
-                                        formatCurrency={formatCurrency}
+                                        transferDestination={formData.transfer_destination}
+                                        onOpenPaymentModal={() => setShowPaymentModal(true)}
                                     />
                                 </div>
                             </div>
@@ -1104,6 +1111,15 @@ export default function Edit({ purchase, suppliers, parts, categories = [] }) {
                     setFormData(prev => ({ ...prev, supplier_id: supplier.id }));
                     toast.success('Supplier berhasil ditambahkan dan dipilih');
                 }}
+            />
+            <PaymentReceiptModal
+                show={showPaymentModal}
+                onClose={() => setShowPaymentModal(false)}
+                onConfirm={handlePaymentConfirm}
+                totalAmount={grandTotal}
+                cashDenominations={cashDenominations}
+                initialPayment={formData}
+                formatCurrency={formatCurrency}
             />
         </>
     );

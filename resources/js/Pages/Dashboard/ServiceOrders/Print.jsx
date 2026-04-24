@@ -44,17 +44,29 @@ export default function Print({ order, businessProfile }) {
             label: "Selesai",
             color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
         },
-        paid: {
-            label: "Dibayar",
-            color: "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300",
-        },
         cancelled: {
             label: "Dibatalkan",
             color: "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300",
         },
     };
 
+    const paymentMeta = {
+        unpaid: {
+            label: "Belum Dibayar",
+            color: "bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300",
+        },
+        partial: {
+            label: "Sebagian",
+            color: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+        },
+        paid: {
+            label: "Lunas",
+            color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+        },
+    };
+
     const statusBadge = statusMeta[order?.status] || statusMeta.pending;
+    const paymentBadge = paymentMeta[order?.payment_status] || paymentMeta.unpaid;
 
     const items = order?.details || [];
     const subtotal = Number(order?.total) || 0;
@@ -227,9 +239,14 @@ export default function Print({ order, businessProfile }) {
                                                 {businessAddress}
                                             </p>
                                         )}
-                                        <span className={`inline-block px-3 py-1 text-xs font-semibold rounded-full ${statusBadge.color} print:px-2 print:py-0.5 print:text-[10px]`}>
-                                            {statusBadge.label}
-                                        </span>
+                                        <div className="flex flex-wrap justify-end gap-2">
+                                            <span className={`inline-block px-3 py-1 text-xs font-semibold rounded-full ${statusBadge.color} print:px-2 print:py-0.5 print:text-[10px]`}>
+                                                {statusBadge.label}
+                                            </span>
+                                            <span className={`inline-block px-3 py-1 text-xs font-semibold rounded-full ${paymentBadge.color} print:px-2 print:py-0.5 print:text-[10px]`}>
+                                                {paymentBadge.label}
+                                            </span>
+                                        </div>
                                         {order?.maintenance_type && (
                                             <p className="text-sm opacity-80 print:opacity-100 mt-2 print:mt-1 print:text-xs">
                                                 {order.maintenance_type}

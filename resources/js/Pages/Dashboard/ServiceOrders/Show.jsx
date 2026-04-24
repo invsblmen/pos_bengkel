@@ -38,10 +38,19 @@ export default function Show({ order, warrantyRegistrations = {}, permissions = 
             pending: { color: 'bg-yellow-100 text-yellow-700', label: 'Menunggu' },
             in_progress: { color: 'bg-blue-100 text-blue-700', label: 'Dikerjakan' },
             completed: { color: 'bg-green-100 text-green-700', label: 'Selesai' },
-            paid: { color: 'bg-purple-100 text-purple-700', label: 'Sudah Dibayar' },
             cancelled: { color: 'bg-red-100 text-red-700', label: 'Dibatalkan' },
         };
         return badges[status] || badges.pending;
+    };
+
+    const getPaymentBadge = (paymentStatus) => {
+        const badges = {
+            unpaid: { color: 'bg-slate-100 text-slate-700', label: 'Belum Dibayar' },
+            partial: { color: 'bg-amber-100 text-amber-700', label: 'Sebagian' },
+            paid: { color: 'bg-emerald-100 text-emerald-700', label: 'Lunas' },
+        };
+
+        return badges[paymentStatus] || badges.unpaid;
     };
 
     const getWarrantyMeta = (detail) => {
@@ -113,6 +122,7 @@ export default function Show({ order, warrantyRegistrations = {}, permissions = 
 
 
     const statusBadge = getStatusBadge(currentOrder.status);
+    const paymentBadge = getPaymentBadge(currentOrder.payment_status);
     const details = currentOrder.details || [];
     const totalItems = details.reduce((sum, detail) => sum + Number(detail.qty || 0), 0);
     const subtotal = Number(currentOrder.total || 0);
@@ -160,6 +170,7 @@ export default function Show({ order, warrantyRegistrations = {}, permissions = 
 
                         <div className="flex flex-wrap items-center gap-2">
                             <span className={`rounded-full px-3 py-1 text-xs font-semibold ${statusBadge.color}`}>{statusBadge.label}</span>
+                            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${paymentBadge.color}`}>{paymentBadge.label}</span>
                             <Link href={route('service-orders.print', currentOrder.id)} className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm font-semibold">
                                 <IconPrinter size={16} /> Cetak
                             </Link>
@@ -383,4 +394,3 @@ export default function Show({ order, warrantyRegistrations = {}, permissions = 
 }
 
 Show.layout = (page) => <DashboardLayout children={page} />;
-

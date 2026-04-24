@@ -6,6 +6,7 @@ use App\Events\PartPurchaseCreated;
 use App\Events\PartPurchaseUpdated;
 use App\Http\Controllers\Controller;
 use App\Models\BusinessProfile;
+use App\Models\CashDenomination;
 use App\Models\Part;
 use App\Models\PartPurchase;
 use App\Models\PartPurchaseDetail;
@@ -14,6 +15,7 @@ use App\Models\Supplier;
 use App\Models\User;
 use App\Notifications\PartPurchasePendingNotification;
 use App\Services\DiscountTaxService;
+use App\Support\DispatchesBroadcastSafely;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +26,7 @@ use Throwable;
 
 class PartPurchaseController extends Controller
 {
+    use DispatchesBroadcastSafely;
     public function index(Request $request)
     {
         $query = PartPurchase::with(['supplier', 'details'])
@@ -90,6 +93,7 @@ class PartPurchaseController extends Controller
             'suppliers' => $suppliers,
             'parts' => $parts,
             'categories' => $categories,
+            'cashDenominations' => $this->getCashDenominations(),
         ]);
     }
 
@@ -100,8 +104,9 @@ class PartPurchaseController extends Controller
             'purchase_date' => 'required|date',
             'expected_delivery_date' => 'nullable|date',
             'notes' => 'nullable|string',
-            'payment_method' => 'nullable|in:cash,credit',
+            'payment_method' => 'nullable|in:cash,credit,mixed',
             'paid_amount' => 'nullable|integer|min:0',
+            'payment_meta' => 'nullable|array',
             'items' => 'required|array|min:1',
             'items.*.part_id' => 'required|exists:parts,id',
             'items.*.quantity' => 'required|integer|min:1',
@@ -118,6 +123,7 @@ class PartPurchaseController extends Controller
             'discount_value' => 'nullable|numeric|min:0',
             'tax_type' => 'nullable|in:none,percent,fixed',
             'tax_value' => 'nullable|numeric|min:0',
+            'transfer_destination' => 'nullable|in:qris,bni,bca,bri,edc_bri,transfer_bni,transfer_bca,transfer_bri',
         ]);
 
         DB::beginTransaction();
@@ -154,6 +160,8 @@ class PartPurchaseController extends Controller
                 'notes' => $validated['notes'] ?? null,
                 'payment_method' => $validated['payment_method'] ?? 'cash',
                 'paid_amount' => $validated['paid_amount'] ?? 0,
+                'transfer_destination' => $validated['transfer_destination'] ?? null,
+                'payment_meta' => $validated['payment_meta'] ?? null,
                 'discount_type' => $validated['discount_type'] ?? 'none',
                 'discount_value' => $validated['discount_value'] ?? 0,
                 'tax_type' => $validated['tax_type'] ?? 'none',
@@ -192,7 +200,7 @@ class PartPurchaseController extends Controller
 
             DB::commit();
 
-            $this->safeBroadcast(new PartPurchaseCreated($purchase->fresh()->toArray()));
+            $this->dispatchBroadcastSafely(fn () => broadcast(new PartPurchaseCreated($purchase->fresh()->toArray())), PartPurchaseCreated::class);
 
             $this->notifyPendingPurchase($purchase, 'created');
 
@@ -251,6 +259,7 @@ class PartPurchaseController extends Controller
             'suppliers' => $suppliers,
             'parts' => $parts,
             'categories' => $categories,
+            'cashDenominations' => $this->getCashDenominations(),
         ]);
     }
 
@@ -268,8 +277,9 @@ class PartPurchaseController extends Controller
             'purchase_date' => 'required|date',
             'expected_delivery_date' => 'nullable|date',
             'notes' => 'nullable|string',
-            'payment_method' => 'nullable|in:cash,credit',
+            'payment_method' => 'nullable|in:cash,credit,mixed',
             'paid_amount' => 'nullable|integer|min:0',
+            'payment_meta' => 'nullable|array',
             'items' => 'required|array|min:1',
             'items.*.part_id' => 'required|exists:parts,id',
             'items.*.quantity' => 'required|integer|min:1',
@@ -284,6 +294,7 @@ class PartPurchaseController extends Controller
             'discount_value' => 'nullable|numeric|min:0',
             'tax_type' => 'nullable|in:none,percent,fixed',
             'tax_value' => 'nullable|numeric|min:0',
+            'transfer_destination' => 'nullable|in:qris,bni,bca,bri,edc_bri,transfer_bni,transfer_bca,transfer_bri',
         ]);
 
         DB::beginTransaction();
@@ -294,8 +305,10 @@ class PartPurchaseController extends Controller
                 'purchase_date' => $validated['purchase_date'],
                 'expected_delivery_date' => $validated['expected_delivery_date'],
                 'notes' => $validated['notes'],
+                'transfer_destination' => $validated['transfer_destination'] ?? $purchase->transfer_destination ?? null,
                 'payment_method' => $validated['payment_method'] ?? $purchase->payment_method ?? 'cash',
                 'paid_amount' => $validated['paid_amount'] ?? $purchase->paid_amount ?? 0,
+                'payment_meta' => $validated['payment_meta'] ?? $purchase->payment_meta ?? null,
                 'discount_type' => $validated['discount_type'] ?? 'none',
                 'discount_value' => $validated['discount_value'] ?? 0,
                 'tax_type' => $validated['tax_type'] ?? 'none',
@@ -333,7 +346,7 @@ class PartPurchaseController extends Controller
 
             DB::commit();
 
-            $this->safeBroadcast(new PartPurchaseUpdated($purchase->fresh()->toArray()));
+            $this->dispatchBroadcastSafely(fn () => broadcast(new PartPurchaseUpdated($purchase->fresh()->toArray())), PartPurchaseUpdated::class);
 
             return redirect()->route('part-purchases.show', $purchase->id)
                 ->with('success', 'Purchase updated successfully');
@@ -430,15 +443,22 @@ class PartPurchaseController extends Controller
         Notification::send($recipients, new PartPurchasePendingNotification($purchase, $context));
     }
 
-    private function safeBroadcast(object $event): void
+    private function getCashDenominations()
     {
-        try {
-            broadcast($event);
-        } catch (Throwable $e) {
-            Log::warning('Part purchase broadcast failed; continuing without realtime update.', [
-                'event' => $event::class,
-                'message' => $e->getMessage(),
-            ]);
-        }
+        return CashDenomination::query()
+            ->with('drawerStock')
+            ->where('is_active', true)
+            ->orderBy('value')
+            ->get(['id', 'value'])
+            ->map(function ($denomination) {
+                return [
+                    'id' => $denomination->id,
+                    'value' => (int) $denomination->value,
+                    'quantity' => (int) ($denomination->drawerStock->quantity ?? 0),
+                ];
+            })
+            ->values();
     }
+
+    // Broadcasting for PartPurchase is handled via DispatchesBroadcastSafely trait.
 }

@@ -33,8 +33,10 @@ class ServiceReportController extends Controller
         $currentPage = max(1, $currentPage);
 
         $statusLabelMap = [
-            'completed' => 'Selesai',
+            'unpaid' => 'Belum Dibayar',
+            'partial' => 'Sebagian',
             'paid' => 'Lunas',
+            'completed' => 'Selesai',
             'draft' => 'Draft',
             'confirmed' => 'Dikonfirmasi',
             'waiting_stock' => 'Menunggu Stok',
@@ -56,11 +58,12 @@ class ServiceReportController extends Controller
         };
 
         $serviceBaseQuery = ServiceOrder::query()
-            ->whereIn('status', ['completed', 'paid'])
+            ->where('status', '!=', 'cancelled')
+            ->where('paid_amount', '>', 0)
             ->whereBetween('created_at', [$startDate, $endDate]);
 
         $serviceRevenue = (int) (clone $serviceBaseQuery)
-            ->selectRaw('SUM(COALESCE(grand_total, total, COALESCE(labor_cost, 0) + COALESCE(material_cost, 0))) as total')
+            ->selectRaw('SUM(COALESCE(paid_amount, 0)) as total')
             ->value('total');
 
         $partBaseQuery = PartSale::query()
@@ -244,9 +247,10 @@ class ServiceReportController extends Controller
         $serviceRows = DB::table('service_orders')
             ->leftJoin('customers', 'service_orders.customer_id', '=', 'customers.id')
             ->leftJoin('vehicles', 'service_orders.vehicle_id', '=', 'vehicles.id')
-            ->whereIn('service_orders.status', ['completed', 'paid'])
+            ->where('service_orders.status', '!=', 'cancelled')
+            ->where('service_orders.paid_amount', '>', 0)
             ->whereBetween('service_orders.created_at', [$startDate, $endDate])
-            ->selectRaw("service_orders.created_at as event_at, 'service_order' as source, service_orders.order_number as reference, TRIM(CONCAT_WS(' | ', customers.name, vehicles.plate_number)) as description, 'in' as flow, COALESCE(service_orders.grand_total, service_orders.total, 0) as amount, service_orders.status as status");
+            ->selectRaw("service_orders.created_at as event_at, 'service_order' as source, service_orders.order_number as reference, TRIM(CONCAT_WS(' | ', customers.name, vehicles.plate_number)) as description, 'in' as flow, COALESCE(service_orders.paid_amount, 0) as amount, COALESCE(service_orders.payment_status, 'unpaid') as status");
 
         $partRows = DB::table('part_sales')
             ->leftJoin('customers', 'part_sales.customer_id', '=', 'customers.id')
@@ -279,8 +283,8 @@ class ServiceReportController extends Controller
         $startDate = Carbon::parse($startDate)->startOfDay();
         $endDate = Carbon::parse($endDate)->endOfDay();
 
-        // Build query - include both completed and paid orders
-        $query = ServiceOrder::whereIn('status', ['completed', 'paid'])
+        // Build query - include completed orders
+        $query = ServiceOrder::where('status', 'completed')
             ->whereBetween('created_at', [$startDate, $endDate]);
 
         // Group by period
@@ -304,7 +308,7 @@ class ServiceReportController extends Controller
         }
 
         // Summary stats - rebuild query without groupBy/orderBy
-        $summaryQuery = ServiceOrder::whereIn('status', ['completed', 'paid'])
+        $summaryQuery = ServiceOrder::where('status', 'completed')
             ->whereBetween('created_at', [$startDate, $endDate]);
 
         $summaryData = $summaryQuery
@@ -444,10 +448,10 @@ class ServiceReportController extends Controller
 
     private function getMechanicAggregates(Carbon $startDate, Carbon $endDate)
     {
-        $ordersSummary = ServiceOrder::query()
-            ->whereBetween('created_at', [$startDate, $endDate])
-            ->whereIn('status', ['completed', 'paid'])
-            ->whereNotNull('mechanic_id')
+            $ordersSummary = ServiceOrder::query()
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->where('status', 'completed')
+                ->whereNotNull('mechanic_id')
             ->selectRaw('mechanic_id')
             ->selectRaw('COUNT(*) as total_orders')
             ->selectRaw('COALESCE(SUM(total), 0) as total_revenue')
@@ -459,7 +463,7 @@ class ServiceReportController extends Controller
             ->join('service_orders as so', 'sod.service_order_id', '=', 'so.id')
             ->leftJoin('services as s', 'sod.service_id', '=', 's.id')
             ->whereBetween('so.created_at', [$startDate, $endDate])
-            ->whereIn('so.status', ['completed', 'paid'])
+            ->where('so.status', 'completed')
             ->whereNotNull('so.mechanic_id')
             ->whereNotNull('sod.service_id')
             ->selectRaw('so.mechanic_id')
@@ -593,7 +597,7 @@ class ServiceReportController extends Controller
 
             if ($type === 'revenue') {
                 fputcsv($file, ['Tanggal', 'Jumlah Pesanan', 'Pendapatan', 'Biaya Tenaga Kerja', 'Biaya Material']);
-                $data = ServiceOrder::whereIn('status', ['completed', 'paid'])
+                $data = ServiceOrder::where('status', 'completed')
                     ->whereBetween('created_at', [$startDate, $endDate])
                     ->selectRaw('DATE(created_at) as date, COUNT(*) as count, SUM(total) as revenue, SUM(labor_cost) as labor_cost, SUM(material_cost) as material_cost')
                     ->groupByRaw('DATE(created_at)')
@@ -677,8 +681,10 @@ class ServiceReportController extends Controller
                 $status = $request->get('status', 'all');
 
                 $statusLabelMap = [
-                    'completed' => 'Selesai',
+                    'unpaid' => 'Belum Dibayar',
+                    'partial' => 'Sebagian',
                     'paid' => 'Lunas',
+                    'completed' => 'Selesai',
                     'draft' => 'Draft',
                     'confirmed' => 'Dikonfirmasi',
                     'waiting_stock' => 'Menunggu Stok',

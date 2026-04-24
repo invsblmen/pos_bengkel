@@ -19,10 +19,6 @@ export default function VehicleHistoryModal({ show, onClose, vehicle, serviceHis
                 color: 'border-green-200 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-900/30 dark:text-green-400',
                 text: 'Selesai'
             },
-            paid: {
-                color: 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400',
-                text: 'Lunas'
-            },
             cancelled: {
                 color: 'border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-400',
                 text: 'Dibatalkan'

@@ -4,6 +4,7 @@ import DashboardLayout from '@/Layouts/DashboardLayout';
 import Button from '@/Components/Dashboard/Button';
 import CustomerSelect from '@/Components/ServiceOrder/CustomerSelect';
 import TransactionPaymentSection from '@/Components/TransactionPaymentSection';
+import PaymentReceiptModal from '@/Components/PaymentReceiptModal';
 import {
     IconArrowLeft, IconTrash, IconPlus, IconSearch,
     IconShoppingCart, IconReceipt, IconCash, IconCheck,
@@ -13,8 +14,9 @@ import toast from 'react-hot-toast';
 import { extractDateFromISO } from '@/Utils/datetime';
 import { roundToCashDenomination } from '@/Utils/cashRounding';
 
-export default function Edit({ sale, customers = [], parts = [], availableVouchers = [] }) {
+export default function Edit({ sale, customers = [], parts = [], availableVouchers = [], cashDenominations = [] }) {
     const [localCustomers, setLocalCustomers] = useState(customers);
+    const [showPaymentModal, setShowPaymentModal] = useState(false);
     const { data, setData, put, processing, errors } = useForm({
         customer_id: sale.customer_id || '',
         sale_date: extractDateFromISO(sale.sale_date) || '',
@@ -36,7 +38,9 @@ export default function Edit({ sale, customers = [], parts = [], availableVouche
         tax_value: sale.tax_value || 0,
         payment_method: sale.payment_method || 'cash',
         paid_amount: sale.paid_amount || 0,
+        payment_meta: sale.payment_meta || {},
         status: sale.status || 'confirmed',
+        transfer_destination: sale.transfer_destination || '',
     });
 
     const [selectedPart, setSelectedPart] = useState(null);
@@ -65,6 +69,15 @@ export default function Edit({ sale, customers = [], parts = [], availableVouche
 
     const formatCurrency = (value = 0) =>
         new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value);
+
+    const handlePaymentConfirm = (paymentData) => {
+        setData('payment_method', paymentData.payment_method || 'cash');
+        setData('paid_amount', Number(paymentData.paid_amount || 0));
+        setData('transfer_destination', paymentData.transfer_destination || '');
+        setData('payment_meta', paymentData.payment_meta || {});
+        setShowPaymentModal(false);
+        toast.success('Data pembayaran tersimpan');
+    };
 
     const handleSubmit = (e) => {
         e?.preventDefault?.();
@@ -997,20 +1010,15 @@ export default function Edit({ sale, customers = [], parts = [], availableVouche
                                     </div>
 
                                     <div className="pt-1">
-                                        <TransactionPaymentSection
-                                            title="Pembayaran Penjualan"
-                                            paymentMethod={data.payment_method}
-                                            paidAmount={data.paid_amount}
-                                            totalAmount={totalAmount}
-                                            onPaymentMethodChange={(value) => {
-                                                setData('payment_method', value);
-                                                if (value === 'credit') {
-                                                    setData('paid_amount', 0);
-                                                }
-                                            }}
-                                            onPaidAmountChange={(value) => setData('paid_amount', value)}
-                                            formatCurrency={formatCurrency}
-                                        />
+                            <TransactionPaymentSection
+                                title="Pembayaran Penjualan"
+                                paymentMethod={data.payment_method}
+                                paidAmount={data.paid_amount}
+                                totalAmount={totalAmount}
+                                transferDestination={data.transfer_destination}
+                                formatCurrency={formatCurrency}
+                                onOpenPaymentModal={() => setShowPaymentModal(true)}
+                            />
                                         {data.status === 'waiting_stock' && totalAmount > 0 && (
                                             <p className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-400">
                                                 Pengingat pemesanan: DP disarankan minimal {formatCurrency(minimumDownPaymentReminder)} (50% dari total).
@@ -1097,6 +1105,15 @@ export default function Edit({ sale, customers = [], parts = [], availableVouche
             </div>
 
 
+            <PaymentReceiptModal
+                show={showPaymentModal}
+                onClose={() => setShowPaymentModal(false)}
+                onConfirm={handlePaymentConfirm}
+                totalAmount={totalAmount}
+                cashDenominations={cashDenominations}
+                initialPayment={data}
+                formatCurrency={formatCurrency}
+            />
         </DashboardLayout>
     );
 }
