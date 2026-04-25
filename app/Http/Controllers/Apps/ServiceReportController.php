@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Apps;
 
 use App\Http\Controllers\Controller;
 use App\Models\CashTransaction;
+use App\Models\PartPurchase;
 use App\Models\PartSale;
 use App\Models\ServiceOrder;
 use App\Models\Mechanic;
@@ -21,7 +22,7 @@ class ServiceReportController extends Controller
         $startDate = Carbon::parse($request->get('start_date', now()->firstOfMonth()))->startOfDay();
         $endDate = Carbon::parse($request->get('end_date', now()))->endOfDay();
         $source = $request->get('source', 'all');
-        $allowedSources = ['all', 'service_order', 'part_sale', 'cash_transaction'];
+        $allowedSources = ['all', 'service_order', 'part_sale', 'part_purchase', 'cash_transaction'];
         if (!in_array($source, $allowedSources, true)) {
             $source = 'all';
         }
@@ -68,10 +69,20 @@ class ServiceReportController extends Controller
 
         $partBaseQuery = PartSale::query()
             ->where('status', '!=', 'cancelled')
+            ->where('paid_amount', '>', 0)
             ->whereBetween('created_at', [$startDate, $endDate]);
 
         $partRevenue = (int) (clone $partBaseQuery)
-            ->selectRaw('SUM(COALESCE(grand_total, 0)) as total')
+            ->selectRaw('SUM(COALESCE(paid_amount, 0)) as total')
+            ->value('total');
+
+        $partPurchaseBaseQuery = PartPurchase::query()
+            ->where('status', '!=', 'cancelled')
+            ->where('paid_amount', '>', 0)
+            ->whereBetween('created_at', [$startDate, $endDate]);
+
+        $partPurchaseExpense = (int) (clone $partPurchaseBaseQuery)
+            ->selectRaw('SUM(COALESCE(paid_amount, 0)) as total')
             ->value('total');
 
         $cashBaseQuery = CashTransaction::query()
@@ -231,6 +242,7 @@ class ServiceReportController extends Controller
                 'service_revenue' => $serviceRevenue,
                 'part_revenue' => $partRevenue,
                 'total_revenue' => $serviceRevenue + $partRevenue,
+                'part_purchase_expense' => $partPurchaseExpense,
                 'cash_in' => $cashIn,
                 'cash_out' => $cashOut,
                 'net_cash_flow' => $cashIn - $cashOut,
@@ -255,8 +267,16 @@ class ServiceReportController extends Controller
         $partRows = DB::table('part_sales')
             ->leftJoin('customers', 'part_sales.customer_id', '=', 'customers.id')
             ->where('part_sales.status', '!=', 'cancelled')
+            ->where('part_sales.paid_amount', '>', 0)
             ->whereBetween('part_sales.created_at', [$startDate, $endDate])
-            ->selectRaw("part_sales.created_at as event_at, 'part_sale' as source, part_sales.sale_number as reference, customers.name as description, 'in' as flow, COALESCE(part_sales.grand_total, 0) as amount, part_sales.status as status");
+            ->selectRaw("part_sales.created_at as event_at, 'part_sale' as source, part_sales.sale_number as reference, customers.name as description, 'in' as flow, COALESCE(part_sales.paid_amount, 0) as amount, COALESCE(part_sales.payment_status, 'unpaid') as status");
+
+        $partPurchaseRows = DB::table('part_purchases')
+            ->leftJoin('suppliers', 'part_purchases.supplier_id', '=', 'suppliers.id')
+            ->where('part_purchases.status', '!=', 'cancelled')
+            ->where('part_purchases.paid_amount', '>', 0)
+            ->whereBetween('part_purchases.created_at', [$startDate, $endDate])
+            ->selectRaw("part_purchases.created_at as event_at, 'part_purchase' as source, part_purchases.purchase_number as reference, suppliers.name as description, 'out' as flow, COALESCE(part_purchases.paid_amount, 0) as amount, COALESCE(part_purchases.payment_status, 'unpaid') as status");
 
         $cashRows = DB::table('cash_transactions')
             ->where(function ($query) use ($startDate, $endDate) {
@@ -268,7 +288,7 @@ class ServiceReportController extends Controller
             })
             ->selectRaw("COALESCE(cash_transactions.happened_at, cash_transactions.created_at) as event_at, 'cash_transaction' as source, CONCAT('CASH-', LPAD(cash_transactions.id, 6, '0')) as reference, cash_transactions.description as description, CASE WHEN cash_transactions.transaction_type = 'income' THEN 'in' WHEN cash_transactions.transaction_type IN ('expense','change_given') THEN 'out' ELSE 'neutral' END as flow, cash_transactions.amount as amount, cash_transactions.transaction_type as status");
 
-        return $serviceRows->unionAll($partRows)->unionAll($cashRows);
+        return $serviceRows->unionAll($partRows)->unionAll($partPurchaseRows)->unionAll($cashRows);
     }
 
     /**
@@ -674,7 +694,7 @@ class ServiceReportController extends Controller
                 }
             } elseif ($type === 'overall') {
                 $source = $request->get('source', 'all');
-                $allowedSources = ['all', 'service_order', 'part_sale', 'cash_transaction'];
+                $allowedSources = ['all', 'service_order', 'part_sale', 'part_purchase', 'cash_transaction'];
                 if (!in_array($source, $allowedSources, true)) {
                     $source = 'all';
                 }
