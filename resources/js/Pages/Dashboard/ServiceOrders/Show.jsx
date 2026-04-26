@@ -114,7 +114,10 @@ export default function Show({ order, warrantyRegistrations = {}, permissions = 
             { claim_notes: notes },
             {
                 preserveScroll: true,
-                onSuccess: () => toast.success('Klaim garansi berhasil dicatat'),
+                onSuccess: () => {
+                    toast.success('Klaim garansi berhasil dicatat');
+                    router.reload();
+                },
                 onError: (errors) => toast.error(errors?.error || 'Gagal mencatat klaim garansi'),
             }
         );

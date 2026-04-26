@@ -255,6 +255,7 @@ export default function AppointmentCalendar({
                     setCustomerQuery("");
                     setAvailableSlots([]);
                     setNotes("");
+                    router.reload({ preserveScroll: true, preserveState: true });
                 },
                 onError: (errors) => {
                     if (errors.scheduled_at) {

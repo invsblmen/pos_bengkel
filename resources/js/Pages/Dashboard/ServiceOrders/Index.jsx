@@ -161,7 +161,10 @@ export default function Index({ orders, stats, mechanics, filters }) {
             { status: newStatus },
             {
                 preserveScroll: true,
-                onSuccess: () => toast.success('Status berhasil diperbarui!'),
+                onSuccess: () => {
+                    toast.success('Status berhasil diperbarui!');
+                    router.reload();
+                },
                 onError: () => toast.error('Gagal memperbarui status!'),
             }
         );

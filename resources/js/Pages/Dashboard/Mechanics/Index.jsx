@@ -89,6 +89,7 @@ export default function Index({ mechanics, filters }) {
                 toast.success('Mekanik diperbarui');
                 setEditModalOpen(false);
                 setEditForm({ name: '', phone: '', employee_number: '', notes: '', hourly_rate: '', commission_percentage: '' });
+                router.reload();
             },
             onError: () => {
                 toast.error('Gagal memperbarui mekanik');

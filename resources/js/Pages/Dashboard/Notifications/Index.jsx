@@ -45,15 +45,24 @@ export default function NotificationsIndex({ notifications, summary, filters }) 
     };
 
     const markRead = (id, source) => {
-        router.post(route('notifications.read'), { id, source }, { preserveScroll: true });
+        router.post(route('notifications.read'), { id, source }, {
+            preserveScroll: true,
+            onSuccess: () => router.reload(),
+        });
     };
 
     const markAllRead = () => {
-        router.post(route('notifications.read-all'), { source: activeSource }, { preserveScroll: true });
+        router.post(route('notifications.read-all'), { source: activeSource }, {
+            preserveScroll: true,
+            onSuccess: () => router.reload(),
+        });
     };
 
     const deleteNotification = (id, source) => {
-        router.post(route('notifications.destroy'), { id, source }, { preserveScroll: true });
+        router.post(route('notifications.destroy'), { id, source }, {
+            preserveScroll: true,
+            onSuccess: () => router.reload(),
+        });
     };
 
     const applySource = (source) => {

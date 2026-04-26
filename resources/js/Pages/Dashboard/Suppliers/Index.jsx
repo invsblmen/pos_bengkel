@@ -58,6 +58,7 @@ export default function Index({ suppliers, filters }) {
         router.delete(route('suppliers.destroy', id), {
             onSuccess: () => {
                 toast.success('Supplier dihapus');
+                router.reload();
             },
             onError: () => {
                 toast.error('Gagal menghapus supplier');

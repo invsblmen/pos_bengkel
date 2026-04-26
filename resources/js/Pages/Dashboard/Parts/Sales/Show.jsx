@@ -181,6 +181,7 @@ export default function Show({ sale, businessProfile, cashDenominations = [] }) 
                 onSuccess: () => {
                     toast.success('Status penjualan berhasil diperbarui');
                     setShowStatusModal(false);
+                    router.reload();
                 },
                 onError: (errors) => {
                     toast.error(errors?.error || 'Gagal memperbarui status');
@@ -229,6 +230,7 @@ export default function Show({ sale, businessProfile, cashDenominations = [] }) 
                         });
                         return reset;
                     });
+                    router.reload();
                 },
                 onError: (errors) => {
                     toast.error(errors?.error || 'Gagal mencatat pembayaran');
@@ -280,6 +282,7 @@ export default function Show({ sale, businessProfile, cashDenominations = [] }) 
                 preserveScroll: true,
                 onSuccess: () => {
                     toast.success('Klaim garansi berhasil dicatat');
+                    router.reload();
                 },
                 onError: (errors) => {
                     toast.error(errors?.error || 'Gagal mencatat klaim garansi');

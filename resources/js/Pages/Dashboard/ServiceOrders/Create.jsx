@@ -483,6 +483,7 @@ export default function Create({ customers, mechanics, services, parts, vehicles
         router.post(route('service-orders.store'), finalData, {
             onSuccess: () => {
                 toast.success('Service Order berhasil dibuat');
+                router.reload();
             },
             onError: (errors) => {
                 console.error('Submission errors:', errors);

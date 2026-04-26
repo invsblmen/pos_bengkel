@@ -1,6 +1,7 @@
 import React from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
+import toast from 'react-hot-toast';
 
 function formatDateTime(value) {
     if (!value) return '-';
@@ -112,7 +113,16 @@ export default function Index({ vouchers, filters = {} }) {
                                                     type="button"
                                                     onClick={() => {
                                                         if (window.confirm('Hapus voucher ini?')) {
-                                                            router.delete(route('vouchers.destroy', voucher.id), { preserveScroll: true });
+                                                            router.delete(route('vouchers.destroy', voucher.id), {
+                                                                preserveScroll: true,
+                                                                onSuccess: () => {
+                                                                    toast.success('Voucher dihapus');
+                                                                    router.reload();
+                                                                },
+                                                                onError: () => {
+                                                                    toast.error('Gagal menghapus voucher');
+                                                                }
+                                                            });
                                                         }
                                                     }}
                                                     className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700"

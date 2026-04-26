@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
+import toast from 'react-hot-toast';
 import Pagination from '@/Components/Dashboard/Pagination';
 import {
     IconCalendar,
@@ -56,13 +57,31 @@ export default function Index({ appointments }) {
 
     const handleStatusChange = (appointmentId, newStatus) => {
         if (confirm(`Ubah status appointment menjadi ${statusConfig[newStatus].label}?`)) {
-            router.patch(route('appointments.updateStatus', appointmentId), { status: newStatus }, { preserveScroll: true });
+            router.patch(route('appointments.updateStatus', appointmentId), { status: newStatus }, {
+                preserveScroll: true,
+                onSuccess: () => {
+                    toast.success('Status appointment diperbarui');
+                    router.reload();
+                },
+                onError: () => {
+                    toast.error('Gagal memperbarui status appointment');
+                }
+            });
         }
     };
 
     const handleDelete = (appointmentId) => {
         if (confirm('Yakin ingin membatalkan appointment ini?')) {
-            router.delete(route('appointments.destroy', appointmentId), { preserveScroll: true });
+            router.delete(route('appointments.destroy', appointmentId), {
+                preserveScroll: true,
+                onSuccess: () => {
+                    toast.success('Appointment dibatalkan');
+                    router.reload();
+                },
+                onError: () => {
+                    toast.error('Gagal membatalkan appointment');
+                }
+            });
         }
     };
 

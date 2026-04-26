@@ -216,6 +216,7 @@ export default function CashDrawer({ denominations = [], summary = {}, recentTra
                 preserveScroll: true,
                 onSuccess: () => {
                     toast.success("Stok pecahan kas berhasil diperbarui.");
+                    router.reload({ only: ["denominations", "summary", "recentTransactions"], preserveScroll: true });
                 },
                 onError: (errors) => {
                     const message = errors?.denominations || errors?.error || "Gagal memperbarui stok pecahan kas.";
@@ -259,6 +260,7 @@ export default function CashDrawer({ denominations = [], summary = {}, recentTra
                     setTransactionDescription("");
                     setTransactionAmount(0);
                     setTransactionDenoms(resetMap(0));
+                    router.reload({ only: ["denominations", "summary", "recentTransactions"], preserveScroll: true });
                 },
                 onError: (errors) => {
                     const message = errors?.denominations || errors?.error || "Gagal mencatat transaksi kas.";
@@ -295,6 +297,7 @@ export default function CashDrawer({ denominations = [], summary = {}, recentTra
                     setExchangeDescription("");
                     setExchangeOutDenoms(resetMap(0));
                     setExchangeInDenoms(resetMap(0));
+                    router.reload({ only: ["denominations", "summary", "recentTransactions"], preserveScroll: true });
                 },
                 onError: (errors) => {
                     const message = errors?.cash_out || errors?.cash_in || errors?.error || "Gagal mencatat tukar pecahan kas.";
@@ -796,7 +799,7 @@ export default function CashDrawer({ denominations = [], summary = {}, recentTra
                                 </div>
                             )}
 
-                            
+
                         </div>
                     </div>
 

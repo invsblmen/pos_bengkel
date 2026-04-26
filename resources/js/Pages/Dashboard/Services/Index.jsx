@@ -275,6 +275,7 @@ function Index({ services, categories = [] }) {
                 onSuccess: () => {
                     setSelectedIds([]);
                     toast.success(`Status ${selectedIds.length} layanan berhasil diperbarui.`);
+                    router.reload();
                 },
                 onError: () => {
                     toast.error('Gagal memperbarui status layanan.');
@@ -301,6 +302,7 @@ function Index({ services, categories = [] }) {
                 onSuccess: () => {
                     setSelectedIds([]);
                     toast.success('Bulk delete diproses.');
+                    router.reload();
                 },
                 onError: () => {
                     toast.error('Bulk delete gagal dijalankan.');

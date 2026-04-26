@@ -240,6 +240,12 @@ export default function Logs({ filters, summary, outboundStatuses, webhookEvents
         router.post(route("whatsapp.logs.retry", id), {}, {
             preserveScroll: true,
             preserveState: true,
+            onSuccess: () => {
+                router.reload({ only: ["outboundLogs"], preserveScroll: true, preserveState: true });
+            },
+            onError: () => {
+                // keep existing behavior
+            }
         });
     };
 

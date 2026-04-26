@@ -1,6 +1,5 @@
-import { Link } from "@inertiajs/react";
+import { Link, useForm, router } from "@inertiajs/react";
 import React from "react";
-import { useForm } from "@inertiajs/react";
 import Swal from "sweetalert2";
 
 export default function Button({
@@ -19,7 +18,7 @@ export default function Button({
     const { delete: destroy } = useForm();
 
     const deleteData = async (url) => {
-        Swal.fire({
+        const result = await Swal.fire({
             title: "Hapus Data?",
             text: "Data yang dihapus tidak dapat dikembalikan!",
             icon: "warning",
@@ -28,10 +27,12 @@ export default function Button({
             cancelButtonColor: "#64748b",
             confirmButtonText: "Ya, Hapus!",
             cancelButtonText: "Batal",
-        }).then((result) => {
-            if (result.isConfirmed) {
-                destroy(url);
+        });
 
+        if (!result.isConfirmed) return;
+
+        destroy(url, {
+            onSuccess: () => {
                 Swal.fire({
                     title: "Berhasil!",
                     text: "Data berhasil dihapus!",
@@ -39,7 +40,15 @@ export default function Button({
                     showConfirmButton: false,
                     timer: 1500,
                 });
-            }
+                router.reload();
+            },
+            onError: () => {
+                Swal.fire({
+                    title: "Gagal",
+                    text: "Gagal menghapus data",
+                    icon: "error",
+                });
+            },
         });
     };
 
