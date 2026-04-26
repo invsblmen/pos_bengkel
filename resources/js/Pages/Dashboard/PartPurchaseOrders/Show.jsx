@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Head, useForm, Link } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import { IconArrowLeft, IconCalendar, IconUser, IconTruck, IconClipboardCheck } from '@tabler/icons-react';
@@ -23,6 +23,11 @@ export default function Show({ order }) {
         status: order.status,
         actual_delivery_date: order.actual_delivery_date || '',
     });
+
+    useEffect(() => {
+        setData('status', order.status);
+        setData('actual_delivery_date', order.actual_delivery_date || '');
+    }, [order.status, order.actual_delivery_date]);
 
     const formatCurrency = (value) => {
         return new Intl.NumberFormat('id-ID', {

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import Button from '@/Components/Dashboard/Button';
@@ -125,6 +125,7 @@ function CategoryCard({ category, isHighlighted }) {
 function Index({ categories }) {
     const [viewMode, setViewMode] = useState('grid');
     const [liveServiceCategories, setLiveServiceCategories] = useState(categories?.data || []);
+    useEffect(() => { setLiveServiceCategories(categories?.data || []); }, [categories?.data]);
     const [quickSearch, setQuickSearch] = useState('');
     const [sortBy, setSortBy] = useState('latest');
 

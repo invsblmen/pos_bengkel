@@ -43,6 +43,18 @@ export default function Edit({ appointment, mechanics }) {
 
     const [scheduledAtInput, setScheduledAtInput] = useState(toInputValue(appointment.scheduled_at));
 
+    useEffect(() => {
+        setFormData({
+            customer_id: appointment.customer_id || '',
+            vehicle_id: appointment.vehicle_id || '',
+            mechanic_id: appointment.mechanic_id,
+            scheduled_at: appointment.scheduled_at,
+            notes: appointment.notes || '',
+        });
+        setSelectedCustomer(appointment.customer || null);
+        setScheduledAtInput(toInputValue(appointment.scheduled_at));
+    }, [appointment]);
+
     // Fetch available slots when mechanic or date changes
     useEffect(() => {
         if (formData.mechanic_id && scheduledAtInput) {

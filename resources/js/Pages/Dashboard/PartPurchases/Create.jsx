@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import TransactionPaymentSection from '@/Components/TransactionPaymentSection';
@@ -15,6 +15,7 @@ import { roundToCashDenomination } from '@/Utils/cashRounding';
 
 export default function Create({ suppliers = [], parts = [], categories = [], cashDenominations = [] }) {
     const [localSuppliers, setLocalSuppliers] = useState(suppliers);
+    useEffect(() => { setLocalSuppliers(suppliers || []); }, [suppliers]);
     const [showSupplierModal, setShowSupplierModal] = useState(false);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
 

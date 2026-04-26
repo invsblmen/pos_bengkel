@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import Button from '@/Components/Dashboard/Button';
@@ -13,6 +13,7 @@ import { extractDateFromISO } from '@/Utils/datetime';
 
 export default function Edit({ sale, customers = [], parts = [] }) {
     const [localCustomers, setLocalCustomers] = useState(customers);
+    useEffect(() => { setLocalCustomers(customers || []); }, [customers]);
     const { data, setData, put, processing, errors } = useForm({
         customer_id: sale.customer_id || '',
         sale_date: extractDateFromISO(sale.sale_date) || '',

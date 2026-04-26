@@ -141,6 +141,7 @@ function ServiceCard({ service, checked, onToggle, isHighlighted }) {
 function Index({ services, categories = [] }) {
     const [viewMode, setViewMode] = useState('grid');
     const [liveServices, setLiveServices] = useState(services?.data || []);
+    useEffect(() => { setLiveServices(services?.data || []); }, [services?.data]);
     const [quickSearch, setQuickSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
     const [complexityFilter, setComplexityFilter] = useState('all');

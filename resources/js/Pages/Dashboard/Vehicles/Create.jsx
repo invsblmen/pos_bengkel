@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Head, useForm, Link, router } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import CustomerSelect from '@/Components/ServiceOrder/CustomerSelect';
@@ -17,6 +17,7 @@ import toast from 'react-hot-toast';
 
 export default function Create({ customers }) {
     const [customersList, setCustomersList] = useState(customers);
+    useEffect(() => { setCustomersList(customers || []); }, [customers]);
 
     const { data, setData, post, processing, errors } = useForm({
         customer_id: '',

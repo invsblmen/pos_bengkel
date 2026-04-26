@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { extractDateFromISO } from '@/Utils/datetime';
 import { Head, useForm, Link } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
@@ -18,6 +18,7 @@ import toast from 'react-hot-toast';
 
 export default function Edit({ vehicle, customers }) {
     const [customersList, setCustomersList] = useState(customers);
+    useEffect(() => { setCustomersList(customers || []); }, [customers]);
 
     // Helper to extract numeric value from cylinder volume (e.g., "150cc" -> "150")
     const cleanCylinderVolume = (value) => {

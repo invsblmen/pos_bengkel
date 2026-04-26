@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Head, router } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import toast from 'react-hot-toast';
@@ -12,6 +12,8 @@ import { roundToCashDenomination } from '@/Utils/cashRounding';
 export default function Edit({ purchase, suppliers, parts, categories = [], cashDenominations = [] }) {
     const [localSuppliers, setLocalSuppliers] = useState(suppliers);
     const [localParts, setLocalParts] = useState(parts);
+    useEffect(() => { setLocalSuppliers(suppliers || []); }, [suppliers]);
+    useEffect(() => { setLocalParts(parts || []); }, [parts]);
     const [showSupplierModal, setShowSupplierModal] = useState(false);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
 

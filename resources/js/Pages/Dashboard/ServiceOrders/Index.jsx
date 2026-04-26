@@ -109,6 +109,14 @@ export default function Index({ orders, stats, mechanics, filters }) {
         setLiveServiceOrders(orders?.data || []);
     }, [orders?.data]);
 
+    useEffect(() => {
+        setSearch(filters.search || '');
+        setStatus(['all', 'pending', 'in_progress', 'completed', 'cancelled'].includes(filters.status || 'all') ? (filters.status || 'all') : 'all');
+        setDateFrom(filters.date_from || '');
+        setDateTo(filters.date_to || '');
+        setMechanicId(filters.mechanic_id || 'all');
+    }, [filters.search, filters.status, filters.date_from, filters.date_to, filters.mechanic_id]);
+
 
     const handleFilter = (e) => {
         e?.preventDefault();

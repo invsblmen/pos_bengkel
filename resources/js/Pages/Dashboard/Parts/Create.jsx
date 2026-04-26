@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import { Head, useForm, Link } from '@inertiajs/react';
 import Input from '@/Components/Dashboard/Input';
@@ -15,6 +15,8 @@ import {
 export default function Create({ suppliers: initialSuppliers, categories: initialCategories }) {
     const [categories, setCategories] = useState(initialCategories || []);
     const [suppliers, setSuppliers] = useState(initialSuppliers || []);
+    useEffect(() => { setCategories(initialCategories || []); }, [initialCategories]);
+    useEffect(() => { setSuppliers(initialSuppliers || []); }, [initialSuppliers]);
     const [showCategoryModal, setShowCategoryModal] = useState(false);
     const [showSupplierModal, setShowSupplierModal] = useState(false);
 

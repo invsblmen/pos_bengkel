@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Head, router, Link } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import toast from 'react-hot-toast';
@@ -24,6 +24,11 @@ export default function Show({ purchase }) {
     const [showStatusModal, setShowStatusModal] = useState(false);
     const [newStatus, setNewStatus] = useState(purchase.status);
     const [actualDeliveryDate, setActualDeliveryDate] = useState(purchase.actual_delivery_date || todayLocalDate());
+
+    useEffect(() => {
+        setNewStatus(purchase.status);
+        setActualDeliveryDate(purchase.actual_delivery_date || todayLocalDate());
+    }, [purchase.status, purchase.actual_delivery_date]);
 
     const formatCurrency = (value) => {
         return new Intl.NumberFormat('id-ID', {

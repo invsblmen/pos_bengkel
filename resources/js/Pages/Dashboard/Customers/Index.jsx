@@ -149,6 +149,11 @@ export default function Index({ customers }) {
         }
     }, [customers.per_page]);
 
+    // Sync liveItems when customers prop updates
+    useEffect(() => {
+        setLiveItems(customers?.data || []);
+    }, [customers?.data]);
+
     const handlePerPageChange = (newPerPage) => {
         setPerPage(newPerPage);
         router.get(route('customers.index'), { per_page: newPerPage }, {

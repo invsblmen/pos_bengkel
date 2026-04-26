@@ -37,6 +37,12 @@ export default function Index({ suppliers, filters }) {
         });
     }, [filters]);
 
+    // Keep local list in sync with Inertia props so updates (delete/update)
+    // reflected immediately without a full browser reload.
+    useEffect(() => {
+        setLiveItems(suppliers?.data || []);
+    }, [suppliers?.data]);
+
     const handleChange = (field, value) => {
         setFilterData((prev) => ({ ...prev, [field]: value }));
     };
@@ -171,7 +177,7 @@ export default function Index({ suppliers, filters }) {
             )}
 
             {/* Supplier List */}
-            {suppliers.data && suppliers.data.length > 0 ? (
+            {liveItems && liveItems.length > 0 ? (
                 <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 dark:bg-slate-800 dark:ring-slate-700">
                     <div className="overflow-x-auto">
                         <table className="w-full">

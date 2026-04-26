@@ -47,6 +47,10 @@ export default function Edit({ order, customers, mechanics, services, parts, veh
     const [selectedCustomer, setSelectedCustomer] = useState(order.customer_id);
     const [customerVehicles, setCustomerVehicles] = useState(order.customer?.vehicles || []);
     const [showVehicleModal, setShowVehicleModal] = useState(false);
+    useEffect(() => {
+        setSelectedCustomer(order.customer_id);
+        setCustomerVehicles(order.customer?.vehicles || []);
+    }, [order.customer_id, order.customer?.vehicles]);
     const [vehicleSearchTerm, setVehicleSearchTerm] = useState('');
     const [showServiceModal, setShowServiceModal] = useState(false);
     const [serviceSearchTerm, setServiceSearchTerm] = useState('');

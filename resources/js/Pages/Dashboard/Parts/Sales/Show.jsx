@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import { IconArrowLeft, IconPrinter, IconPencil, IconEdit, IconCheck, IconX, IconCash, IconShoppingCart, IconReceipt, IconUser, IconDiscount, IconShieldCheck } from '@tabler/icons-react';
@@ -50,6 +50,10 @@ export default function Show({ sale, businessProfile, cashDenominations = [] }) 
         });
         return initial;
     });
+
+    useEffect(() => {
+        setNewStatus(sale.status || 'draft');
+    }, [sale.status]);
 
     const formatCurrency = (value = 0) =>
         new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value || 0);

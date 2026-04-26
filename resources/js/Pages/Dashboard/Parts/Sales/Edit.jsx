@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import Button from '@/Components/Dashboard/Button';
@@ -16,6 +16,7 @@ import { roundToCashDenomination } from '@/Utils/cashRounding';
 
 export default function Edit({ sale, customers = [], parts = [], availableVouchers = [], cashDenominations = [] }) {
     const [localCustomers, setLocalCustomers] = useState(customers);
+    useEffect(() => { setLocalCustomers(customers || []); }, [customers]);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const { data, setData, put, processing, errors } = useForm({
         customer_id: sale.customer_id || '',

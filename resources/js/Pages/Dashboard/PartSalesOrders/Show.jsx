@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
 import DashboardLayout from '@/Layouts/DashboardLayout';
 import { IconArrowLeft, IconCalendar } from '@tabler/icons-react';
@@ -11,6 +11,11 @@ export default function Show({ order }) {
     });
 
     const [showStatusForm, setShowStatusForm] = useState(false);
+
+    useEffect(() => {
+        setData('status', order.status);
+        setData('actual_delivery_date', order.actual_delivery_date || '');
+    }, [order.status, order.actual_delivery_date]);
 
     const handleStatusSubmit = (e) => {
         e.preventDefault();
