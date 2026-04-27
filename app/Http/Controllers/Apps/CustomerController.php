@@ -10,10 +10,12 @@ use App\Support\DispatchesBroadcastSafely;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
+use App\Http\Controllers\Concerns\RespondsWithJsonOrRedirect;
 
 class CustomerController extends Controller
 {
     use DispatchesBroadcastSafely;
+    use RespondsWithJsonOrRedirect;
 
     /**
      * Display a listing of the resource.
@@ -87,9 +89,7 @@ class CustomerController extends Controller
         );
 
         //redirect with flash data
-        return to_route('customers.index')->with('flash', [
-            'customer' => $customer
-        ]);
+        return $this->jsonOrRedirect('customers.index', [], null, ['customer' => $customer]);
     }
 
     /**
@@ -253,7 +253,7 @@ class CustomerController extends Controller
         );
 
         //redirect
-        return to_route('customers.index');
+        return $this->jsonOrRedirect('customers.index', [], 'Customer updated', $customer->toArray());
     }
 
     /**
@@ -279,7 +279,7 @@ class CustomerController extends Controller
         );
 
         //redirect
-        return back();
+        return $this->jsonOrRedirect(null, [], 'Customer deleted.');
     }
 
     /**

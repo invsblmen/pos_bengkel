@@ -9,10 +9,12 @@ use App\Events\SupplierUpdated;
 use App\Events\SupplierDeleted;
 use App\Support\DispatchesBroadcastSafely;
 use Illuminate\Http\Request;
+use App\Http\Controllers\Concerns\RespondsWithJsonOrRedirect;
 
 class SupplierController extends Controller
 {
     use DispatchesBroadcastSafely;
+    use RespondsWithJsonOrRedirect;
 
     public function index(Request $request)
     {
@@ -65,10 +67,7 @@ class SupplierController extends Controller
             'SupplierCreated'
         );
 
-        return redirect()->route('suppliers.index')->with([
-            'success' => 'Supplier created successfully.',
-            'flash' => ['supplier' => $supplier]
-        ]);
+        return $this->jsonOrRedirect('suppliers.index', [], 'Supplier created successfully.', ['supplier' => $supplier]);
     }
 
     public function edit($id)
@@ -106,10 +105,7 @@ class SupplierController extends Controller
             'SupplierUpdated'
         );
 
-        return redirect()->route('suppliers.index')->with([
-            'success' => 'Supplier updated successfully.',
-            'flash' => ['supplier' => $supplier]
-        ]);
+        return $this->jsonOrRedirect('suppliers.index', [], 'Supplier updated successfully.', ['supplier' => $supplier]);
     }
 
     public function destroy($id)
@@ -123,7 +119,7 @@ class SupplierController extends Controller
             'SupplierDeleted'
         );
 
-        return redirect()->back()->with('success', 'Supplier deleted successfully.');
+        return $this->jsonOrRedirect(null, [], 'Supplier deleted successfully.');
     }
 
     /**

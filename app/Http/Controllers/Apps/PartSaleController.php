@@ -17,10 +17,12 @@ use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
+use App\Http\Controllers\Concerns\RespondsWithJsonOrRedirect;
 
 class PartSaleController extends Controller
 {
     use DispatchesBroadcastSafely;
+    use RespondsWithJsonOrRedirect;
 
     public function index(Request $request)
     {
@@ -63,7 +65,7 @@ class PartSaleController extends Controller
             'tax_value' => 'nullable|numeric|min:0',
         ]);
 
-        DB::transaction(function () use ($data) {
+        $sale = DB::transaction(function () use ($data) {
             $invoice = 'PS-' . strtoupper(Str::random(8));
             $total = 0;
 
@@ -132,8 +134,9 @@ class PartSaleController extends Controller
                 fn () => broadcast(new PartSaleCreated($sale->fresh()->toArray())),
                 PartSaleCreated::class
             );
+            return $sale;
         });
 
-        return redirect()->route('part-sales.index')->with('success', 'Penjualan sparepart berhasil disimpan');
+        return $this->jsonOrRedirect('part-sales.index', [], 'Penjualan sparepart berhasil disimpan', $sale->toArray());
     }
 }
