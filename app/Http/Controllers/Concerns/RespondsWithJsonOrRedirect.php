@@ -30,10 +30,21 @@ trait RespondsWithJsonOrRedirect
         }
 
         if ($routeName) {
-            $redirect = redirect()->route($routeName, $routeParams)->with($flashType, $message);
+            try {
+                if (\Illuminate\Support\Facades\Route::has($routeName)) {
+                    $redirect = redirect()->route($routeName, $routeParams)->with($flashType, $message);
+                } else {
+                    $redirect = redirect($routeName)->with($flashType, $message);
+                }
+            } catch (\Throwable $e) {
+                // Fallback to URL redirect if named route resolution fails
+                $redirect = redirect($routeName)->with($flashType, $message);
+            }
+
             if ($data !== null) {
                 $redirect = $redirect->with('flash', $data);
             }
+
             return $redirect;
         }
 
