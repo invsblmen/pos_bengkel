@@ -10,9 +10,11 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Inertia\Response;
+use App\Http\Controllers\Concerns\RespondsWithJsonOrRedirect;
 
 class AuthenticatedSessionController extends Controller
 {
+    use RespondsWithJsonOrRedirect;
     /**
      * Display the login view.
      */
@@ -33,7 +35,7 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        return $this->jsonOrRedirect('dashboard', [], 'Berhasil login');
     }
 
     /**
@@ -47,6 +49,6 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerateToken();
 
-        return redirect('/');
+        return $this->jsonOrRedirect('/', [], 'Berhasil logout');
     }
 }

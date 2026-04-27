@@ -7,9 +7,11 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
+use App\Http\Controllers\Concerns\RespondsWithJsonOrRedirect;
 
 class PasswordController extends Controller
 {
+    use RespondsWithJsonOrRedirect;
     /**
      * Update the user's password.
      */
@@ -24,6 +26,6 @@ class PasswordController extends Controller
             'password' => Hash::make($validated['password']),
         ]);
 
-        return back();
+        return $this->jsonOrRedirect(null, [], 'Password berhasil diperbarui');
     }
 }

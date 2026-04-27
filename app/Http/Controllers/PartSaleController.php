@@ -32,10 +32,12 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
+use App\Http\Controllers\Concerns\RespondsWithJsonOrRedirect;
 
 class PartSaleController extends Controller
 {
     use DispatchesBroadcastSafely;
+    use RespondsWithJsonOrRedirect;
 
     protected $discountTaxService;
     protected $cashChangeSuggestionService;
@@ -617,15 +619,11 @@ class PartSaleController extends Controller
                 'PartSaleCreated'
             );
 
-            return redirect()
-                ->route('part-sales.show', $sale)
-                ->with('success', 'Penjualan berhasil dibuat');
+            return $this->jsonOrRedirect('part-sales.show', [$sale->id], 'Penjualan berhasil dibuat', $sale, 201);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()
-                ->withInput()
-                ->withErrors(['error' => $e->getMessage()]);
+            return $this->errorResponse('Gagal membuat penjualan: ' . $e->getMessage(), ['error' => [$e->getMessage()]], 500);
         }
     }
 
@@ -680,7 +678,7 @@ class PartSaleController extends Controller
     {
         // Only allow editing draft sales
         if ($partSale->status !== 'draft') {
-            return back()->withErrors(['error' => 'Hanya penjualan draft yang bisa diedit']);
+            throw ValidationException::withMessages(['error' => 'Hanya penjualan draft yang bisa diedit']);
         }
 
         $partSale->load('details.part');
@@ -703,7 +701,7 @@ class PartSaleController extends Controller
     {
         // Only allow updating draft sales
         if ($partSale->status !== 'draft') {
-            return back()->withErrors(['error' => 'Hanya penjualan draft yang bisa diupdate']);
+            throw ValidationException::withMessages(['error' => 'Hanya penjualan draft yang bisa diupdate']);
         }
 
         $request->validate([
@@ -852,15 +850,11 @@ class PartSaleController extends Controller
 
             DB::commit();
 
-            return redirect()
-                ->route('part-sales.show', $partSale)
-                ->with('success', 'Penjualan berhasil diupdate');
+            return $this->jsonOrRedirect('part-sales.show', [$partSale->id], 'Penjualan berhasil diupdate', $partSale);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()
-                ->withInput()
-                ->withErrors(['error' => $e->getMessage()]);
+            return $this->errorResponse('Gagal mengupdate penjualan: ' . $e->getMessage(), ['error' => [$e->getMessage()]], 500);
         }
     }
 
@@ -868,7 +862,7 @@ class PartSaleController extends Controller
     {
         // Only allow deleting draft sales
         if ($partSale->status !== 'draft') {
-            return back()->withErrors(['error' => 'Hanya penjualan draft yang bisa dihapus']);
+            throw ValidationException::withMessages(['error' => 'Hanya penjualan draft yang bisa dihapus']);
         }
 
         DB::beginTransaction();
@@ -881,13 +875,11 @@ class PartSaleController extends Controller
 
             DB::commit();
 
-            return redirect()
-                ->route('part-sales.index')
-                ->with('success', 'Penjualan berhasil dihapus');
+            return $this->jsonOrRedirect('part-sales.index', [], 'Penjualan berhasil dihapus');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->withErrors(['error' => $e->getMessage()]);
+            return $this->errorResponse('Gagal menghapus penjualan: ' . $e->getMessage(), ['error' => [$e->getMessage()]], 500);
         }
     }
 
@@ -950,7 +942,7 @@ class PartSaleController extends Controller
             ]);
         });
 
-        return back()->with('success', 'Pembayaran berhasil dicatat');
+        return $this->jsonOrRedirect(null, [], 'Pembayaran berhasil dicatat');
     }
 
     private function recordCashPaymentWithDenominations(
@@ -1088,11 +1080,11 @@ class PartSaleController extends Controller
         $currentStatus = $partSale->status;
 
         if ($newStatus === $currentStatus) {
-            return back()->with('success', 'Status tidak berubah');
+            return $this->jsonOrRedirect(null, [], 'Status tidak berubah');
         }
 
         if (in_array($currentStatus, ['completed', 'cancelled'], true)) {
-            return back()->withErrors(['error' => 'Status sudah final dan tidak bisa diubah']);
+            throw ValidationException::withMessages(['error' => 'Status sudah final dan tidak bisa diubah']);
         }
 
         DB::beginTransaction();
@@ -1115,10 +1107,10 @@ class PartSaleController extends Controller
             $partSale->update(['status' => $newStatus]);
 
             DB::commit();
-            return back()->with('success', 'Status penjualan berhasil diperbarui');
+            return $this->jsonOrRedirect('part-sales.show', [$partSale->id], 'Status penjualan berhasil diperbarui', $partSale);
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->withErrors(['error' => $e->getMessage()]);
+            return $this->errorResponse('Gagal memperbarui status: ' . $e->getMessage(), ['error' => [$e->getMessage()]], 500);
         }
     }
 
@@ -1281,9 +1273,7 @@ class PartSaleController extends Controller
             'sales_order_id' => 'required|exists:part_sales_orders,id',
         ]);
 
-        return redirect()->route('part-sales.create', [
-            'sales_order_id' => $request->sales_order_id
-        ]);
+        return $this->jsonOrRedirect('part-sales.create', ['sales_order_id' => $request->sales_order_id]);
     }
 
     public function claimWarranty(Request $request, PartSale $partSale, PartSaleDetail $detail)
@@ -1324,7 +1314,7 @@ class PartSaleController extends Controller
 
         $this->warrantyRegistrationService->markClaimedFromPartSaleDetail($detail, Auth::id());
 
-        return back()->with('success', 'Klaim garansi berhasil dicatat');
+        return $this->jsonOrRedirect(null, [], 'Klaim garansi berhasil dicatat');
     }
 
     private function applyUnifiedWarrantyFilters(

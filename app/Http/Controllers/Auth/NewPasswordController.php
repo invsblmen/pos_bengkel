@@ -13,9 +13,11 @@ use Illuminate\Validation\Rules;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use App\Http\Controllers\Concerns\RespondsWithJsonOrRedirect;
 
 class NewPasswordController extends Controller
 {
+    use RespondsWithJsonOrRedirect;
     /**
      * Display the password reset view.
      */
@@ -59,11 +61,9 @@ class NewPasswordController extends Controller
         // the application's home authenticated view. If there is an error we can
         // redirect them back to where they came from with their error message.
         if ($status == Password::PASSWORD_RESET) {
-            return redirect()->route('login')->with('status', __($status));
+            return $this->jsonOrRedirect('login', [], __($status));
         }
 
-        throw ValidationException::withMessages([
-            'email' => [trans($status)],
-        ]);
+        return $this->errorResponse('Failed to reset password', ['email' => [trans($status)]], 422);
     }
 }
